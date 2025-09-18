@@ -1060,7 +1060,6 @@ dependencies = [
     { name = "python-telegram-bot", extra = ["job-queue", "webhooks"] },
     { name = "requests" },
     { name = "slack-sdk" },
-    { name = "telegram" },
     { name = "trafilatura" },
     { name = "twilio" },
 ]
@@ -1077,10 +1076,9 @@ requires-dist = [
     { name = "oauthlib", specifier = ">=3.2.2" },
     { name = "psutil", specifier = ">=7.0.0" },
     { name = "psycopg2-binary", specifier = ">=2.9.10" },
-    { name = "python-telegram-bot", extras = ["job-queue", "webhooks"], specifier = ">=20.0" },
+    { name = "python-telegram-bot", extras = ["job-queue", "webhooks"], specifier = ">=22.4" },
     { name = "requests", specifier = ">=2.32.3" },
     { name = "slack-sdk", specifier = ">=3.34.0" },
-    { name = "telegram", specifier = ">=0.0.1" },
     { name = "trafilatura", specifier = ">=2.0.0" },
     { name = "twilio", specifier = ">=9.4.6" },
 ]
@@ -1163,12 +1161,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/ac/a5/ca2f07a2a201f9497de1928f787926613db6307992fe5cda97624eb07c2f/sqlalchemy-2.0.43-cp313-cp313-win_amd64.whl", hash = "sha256:971ba928fcde01869361f504fcff3b7143b47d30de188b11c6357c0505824197", size = 2123200 },
     { url = "https://files.pythonhosted.org/packages/b8/d9/13bdde6521f322861fab67473cec4b1cc8999f3871953531cf61945fad92/sqlalchemy-2.0.43-py3-none-any.whl", hash = "sha256:1681c21dd2ccee222c2fe0bef671d1aef7c504087c9c4e800371cfcc8ac966fc", size = 1924759 },
 ]
-
-[[package]]
-name = "telegram"
-version = "0.0.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/9d/ca/8bdf2deb93b9f6971dabf2ddc827c2a98ce23e13582a15b37e9bc169f226/telegram-0.0.1.tar.gz", hash = "sha256:d405a0af4c868a8dbeae6d03e297e21c7ee6269e11e2ed3810e15544aba02591", size = 879 }
 
 [[package]]
 name = "tld"
