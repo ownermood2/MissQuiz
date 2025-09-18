@@ -54,12 +54,14 @@ def get_questions():
 @app.route('/api/questions', methods=['POST'])
 def add_question():
     data = request.get_json()
-    quiz_manager.add_question(
-        data['question'],
-        data['options'],
-        data['correct_answer']
-    )
-    return jsonify({"status": "success"})
+    # Convert single question to list format for add_questions method
+    question_data = [{
+        'question': data['question'],
+        'options': data['options'],
+        'correct_answer': data['correct_answer']
+    }]
+    result = quiz_manager.add_questions(question_data)
+    return jsonify(result)
 
 @app.route('/api/questions/<int:question_id>', methods=['DELETE'])
 def delete_question(question_id):
