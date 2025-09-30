@@ -489,6 +489,11 @@ class DeveloperCommands:
             
             logger.info(f"Bot restart initiated by user {update.effective_user.id}")
             
+            # Create restart flag file to trigger confirmation message
+            os.makedirs("data", exist_ok=True)
+            with open("data/.restart_flag", "w") as f:
+                f.write(str(datetime.now().timestamp()))
+            
             # Give time for message to send
             await asyncio.sleep(0.5)
             

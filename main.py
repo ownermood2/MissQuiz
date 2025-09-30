@@ -72,6 +72,36 @@ async def main():
         bot = await init_bot()
         logger.info("Bot initialization completed")
 
+        # Check for restart flag and send confirmation
+        restart_flag_path = "data/.restart_flag"
+        if os.path.exists(restart_flag_path):
+            try:
+                # Send restart confirmation to OWNER
+                from config import OWNER_ID
+                from telegram import Bot
+                
+                telegram_bot = Bot(token=os.environ.get("TELEGRAM_TOKEN"))
+                confirmation_message = (
+                    "✅ Bot restarted successfully and is now online!\n\n"
+                    f"🕒 Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                    "⚡ All systems operational"
+                )
+                
+                await telegram_bot.send_message(
+                    chat_id=OWNER_ID,
+                    text=confirmation_message
+                )
+                
+                # Remove the flag file
+                os.remove(restart_flag_path)
+                logger.info(f"Restart confirmation sent to OWNER ({OWNER_ID})")
+                
+            except Exception as e:
+                logger.error(f"Failed to send restart confirmation: {e}")
+                # Still remove the flag file to avoid repeated attempts
+                if os.path.exists(restart_flag_path):
+                    os.remove(restart_flag_path)
+
         # Start health check task
         asyncio.create_task(health_check())
 
