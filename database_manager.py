@@ -125,6 +125,16 @@ class DatabaseManager:
             ''')
             
             cursor.execute('''
+                CREATE TABLE IF NOT EXISTS broadcasts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    broadcast_id TEXT UNIQUE NOT NULL,
+                    sender_id INTEGER NOT NULL,
+                    message_data TEXT NOT NULL,
+                    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            cursor.execute('''
                 CREATE INDEX IF NOT EXISTS idx_user_activity_date 
                 ON user_daily_activity(user_id, activity_date)
             ''')
@@ -478,4 +488,53 @@ class DatabaseManager:
         
         except Exception as e:
             logger.error(f"Error migrating from JSON: {e}")
+            return False
+    
+    def save_broadcast(self, broadcast_id: str, sender_id: int, message_data: dict) -> bool:
+        """Save broadcast data to database"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT INTO broadcasts (broadcast_id, sender_id, message_data)
+                    VALUES (?, ?, ?)
+                ''', (broadcast_id, sender_id, json.dumps(message_data)))
+                return True
+        except Exception as e:
+            logger.error(f"Error saving broadcast: {e}")
+            return False
+    
+    def get_latest_broadcast(self) -> Optional[Dict]:
+        """Get the most recent broadcast"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT broadcast_id, sender_id, message_data, sent_at
+                    FROM broadcasts
+                    ORDER BY sent_at DESC
+                    LIMIT 1
+                ''')
+                row = cursor.fetchone()
+                if row:
+                    return {
+                        'broadcast_id': row['broadcast_id'],
+                        'sender_id': row['sender_id'],
+                        'message_data': json.loads(row['message_data']),
+                        'sent_at': row['sent_at']
+                    }
+                return None
+        except Exception as e:
+            logger.error(f"Error getting latest broadcast: {e}")
+            return None
+    
+    def delete_broadcast(self, broadcast_id: str) -> bool:
+        """Delete broadcast from database"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('DELETE FROM broadcasts WHERE broadcast_id = ?', (broadcast_id,))
+                return cursor.rowcount > 0
+        except Exception as e:
+            logger.error(f"Error deleting broadcast: {e}")
             return False

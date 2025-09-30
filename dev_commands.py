@@ -254,11 +254,37 @@ class DeveloperCommands:
             try:
                 user_id = int(context.args[0])
                 # Quick add: /dev 123456
-                self.db.add_developer(user_id, added_by=update.effective_user.id)
-                reply = await update.message.reply_text(
-                    f"✅ Developer added successfully!\n\n"
-                    f"User ID: {user_id}"
-                )
+                # Try to fetch user info from Telegram
+                try:
+                    user_info = await context.bot.get_chat(user_id)
+                    username = user_info.username if hasattr(user_info, 'username') else None
+                    first_name = user_info.first_name if hasattr(user_info, 'first_name') else None
+                    last_name = user_info.last_name if hasattr(user_info, 'last_name') else None
+                    
+                    self.db.add_developer(
+                        user_id=user_id,
+                        username=username,
+                        first_name=first_name,
+                        last_name=last_name,
+                        added_by=update.effective_user.id
+                    )
+                    
+                    display_name = first_name or username or f"User {user_id}"
+                    reply = await update.message.reply_text(
+                        f"✅ Developer added successfully!\n\n"
+                        f"👤 {display_name}\n"
+                        f"🆔 ID: {user_id}"
+                    )
+                except Exception as e:
+                    logger.warning(f"Could not fetch user info for {user_id}: {e}")
+                    # Add without user info
+                    self.db.add_developer(user_id, added_by=update.effective_user.id)
+                    reply = await update.message.reply_text(
+                        f"✅ Developer added successfully!\n\n"
+                        f"User ID: {user_id}\n"
+                        f"⚠️ Could not fetch user details"
+                    )
+                
                 logger.info(f"Developer {user_id} added by {update.effective_user.id}")
                 await self.auto_clean_message(update.message, reply)
                 return
@@ -276,11 +302,38 @@ class DeveloperCommands:
                 
                 try:
                     new_dev_id = int(context.args[1])
-                    self.db.add_developer(new_dev_id, added_by=update.effective_user.id)
-                    reply = await update.message.reply_text(
-                        f"✅ Developer added successfully!\n\n"
-                        f"User ID: {new_dev_id}"
-                    )
+                    
+                    # Try to fetch user info from Telegram
+                    try:
+                        user_info = await context.bot.get_chat(new_dev_id)
+                        username = user_info.username if hasattr(user_info, 'username') else None
+                        first_name = user_info.first_name if hasattr(user_info, 'first_name') else None
+                        last_name = user_info.last_name if hasattr(user_info, 'last_name') else None
+                        
+                        self.db.add_developer(
+                            user_id=new_dev_id,
+                            username=username,
+                            first_name=first_name,
+                            last_name=last_name,
+                            added_by=update.effective_user.id
+                        )
+                        
+                        display_name = first_name or username or f"User {new_dev_id}"
+                        reply = await update.message.reply_text(
+                            f"✅ Developer added successfully!\n\n"
+                            f"👤 {display_name}\n"
+                            f"🆔 ID: {new_dev_id}"
+                        )
+                    except Exception as e:
+                        logger.warning(f"Could not fetch user info for {new_dev_id}: {e}")
+                        # Add without user info
+                        self.db.add_developer(new_dev_id, added_by=update.effective_user.id)
+                        reply = await update.message.reply_text(
+                            f"✅ Developer added successfully!\n\n"
+                            f"User ID: {new_dev_id}\n"
+                            f"⚠️ Could not fetch user details"
+                        )
+                    
                     logger.info(f"Developer {new_dev_id} added by {update.effective_user.id}")
                     await self.auto_clean_message(update.message, reply)
                 
@@ -675,11 +728,10 @@ class DeveloperCommands:
                         logger.warning(f"Failed to send to group {group['chat_id']}: {str(e)}")
                         fail_count += 1
             
-            # Store sent messages for delbroadcast feature
+            # Store sent messages in database for delbroadcast feature (persists across restarts)
             if sent_messages:
-                context.bot_data[broadcast_id] = sent_messages
-                context.bot_data['latest_broadcast'] = broadcast_id
-                logger.info(f"Stored broadcast {broadcast_id} with {len(sent_messages)} messages")
+                self.db.save_broadcast(broadcast_id, update.effective_user.id, sent_messages)
+                logger.info(f"Saved broadcast {broadcast_id} to database with {len(sent_messages)} messages")
             
             await status.edit_text(
                 f"✅ Broadcast completed!\n\n"
@@ -707,18 +759,18 @@ class DeveloperCommands:
                 await self.send_unauthorized_message(update)
                 return
             
-            # Get latest broadcast
-            latest_broadcast = context.bot_data.get('latest_broadcast')
+            # Get latest broadcast from database
+            broadcast_data = self.db.get_latest_broadcast()
             
-            if not latest_broadcast:
+            if not broadcast_data:
                 reply = await update.message.reply_text(
                     "❌ No recent broadcast found\n\n"
-                    "Broadcasts must be deleted soon after sending."
+                    "Either no broadcast was sent yet or it was already deleted."
                 )
                 await self.auto_clean_message(update.message, reply)
                 return
             
-            broadcast_messages = context.bot_data.get(latest_broadcast, {})
+            broadcast_messages = broadcast_data['message_data']
             
             if not broadcast_messages:
                 reply = await update.message.reply_text("❌ Broadcast data not found")
@@ -750,15 +802,16 @@ class DeveloperCommands:
                 await self.send_unauthorized_message(update)
                 return
             
-            # Get latest broadcast data
-            latest_broadcast = context.bot_data.get('latest_broadcast')
+            # Get latest broadcast data from database
+            broadcast_data = self.db.get_latest_broadcast()
             
-            if not latest_broadcast:
+            if not broadcast_data:
                 reply = await update.message.reply_text("❌ No broadcast found. Please use /delbroadcast first.")
                 await self.auto_clean_message(update.message, reply)
                 return
             
-            broadcast_messages = context.bot_data.get(latest_broadcast, {})
+            broadcast_id = broadcast_data['broadcast_id']
+            broadcast_messages = broadcast_data['message_data']
             
             if not broadcast_messages:
                 reply = await update.message.reply_text("❌ Broadcast data not found")
@@ -788,9 +841,8 @@ class DeveloperCommands:
             
             logger.info(f"Broadcast deletion by {update.effective_user.id}: {success_count} deleted, {fail_count} failed")
             
-            # Clear broadcast data
-            context.bot_data.pop(latest_broadcast, None)
-            context.bot_data.pop('latest_broadcast', None)
+            # Clear broadcast data from database
+            self.db.delete_broadcast(broadcast_id)
         
         except Exception as e:
             logger.error(f"Error in delbroadcast_confirm: {e}", exc_info=True)
