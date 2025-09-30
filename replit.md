@@ -2,11 +2,12 @@
 
 This project is a Telegram Quiz Bot application that enables interactive quiz functionality across Telegram chats and groups. The system combines a Flask web interface for administration with a Telegram bot for user interaction. The bot manages quiz questions, tracks user scores and statistics, and provides comprehensive analytics through both web and bot interfaces.
 
-**Version 2.0** includes major upgrades:
+**Version 2.1** includes major upgrades:
 - SQLite database for better performance and data integrity
 - Enhanced developer commands with access control
 - Auto-clean feature for group-friendly behavior
-- Broadcast capabilities
+- **Instant broadcast system** with smart rate limiting
+- **Quick developer management** with streamlined commands
 - Comprehensive statistics (today, week, month, all-time)
 
 # User Preferences
@@ -52,13 +53,14 @@ The application now uses **SQLite database** for robust and efficient data manag
 ## Bot Architecture
 - **Command Handlers** - Structured command processing with cooldown mechanisms
 - **Admin Management** - Role-based access control for bot administration
-- **Developer Commands** - Enhanced developer-only commands with strict access control (NEW):
+- **Developer Commands** - Enhanced developer-only commands with strict access control:
   - `/delquiz` - Delete quiz questions (FIXED - no more Markdown errors)
-  - `/dev` - Manage developers (add, remove, list)
+  - `/dev [user_id]` - Quick add developers OR manage with add/remove/list (OPTIMIZED)
   - `/stats` - Enhanced statistics (today, week, month, all-time)
   - `/allreload` - Global bot restart
   - `/broadband` - Simple broadcast without forward tags
-  - `/broadcast` - Enhanced broadcast with reply-to and direct message support
+  - `/broadcast` - Instant broadcast with smart rate limiting (OPTIMIZED)
+  - `/delbroadcast` - Delete latest broadcast from anywhere (OPTIMIZED)
 - **Auto-Clean Feature** - Automatically deletes command/reply messages after 5 seconds for clean groups (NEW)
 - **Access Control** - Only OWNER and WIFU can use developer commands (NEW)
 - **Statistics Tracking** - Comprehensive user and group activity monitoring with time-based analytics
@@ -90,6 +92,35 @@ The architecture supports future integration with database systems (Drizzle ORM 
 - **SESSION_SECRET** - Flask session security (with fallback default)
 
 # Recent Changes
+
+## Version 2.1 - September 30, 2025
+
+### Performance Optimizations
+1. **Quick Developer Management**
+   - `/dev` command now accepts user ID directly: `/dev 123456`
+   - No need for "add" keyword for quick additions
+   - Streamlined workflow for adding developers
+   - Falls back to add/remove/list for detailed management
+
+2. **Instant Broadcast System**
+   - Removed delays for instant message delivery to all groups
+   - Smart rate limiting: Only applies 0.03s delay for broadcasts >20 recipients
+   - Messages tracked per chat for accurate deletion
+   - Both forward and text broadcast modes optimized
+
+3. **Enhanced Broadcast Deletion**
+   - `/delbroadcast` now works from anywhere (no need to reply)
+   - Tracks latest broadcast across all chats
+   - Deletes correct message ID in each chat
+   - Instant deletion without delays
+   - Clear success/failure reporting
+
+### Technical Improvements
+- Efficient broadcast tracking using bot_data with unique IDs
+- Message ID mapping per chat for accurate operations
+- Smart rate limiting to prevent Telegram API flood limits
+- Better logging for broadcast operations
+- Improved error handling for permission issues
 
 ## Version 2.0 - September 30, 2025
 

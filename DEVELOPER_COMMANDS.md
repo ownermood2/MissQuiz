@@ -44,25 +44,31 @@ Then confirm with:
 
 ### 2. `/dev` - Developer Management
 
-**Enhanced**: Add developers by user ID, show only names (not username/ID)
+**Optimized**: Quick add with just user ID, or use detailed management commands! ⚡
 
-**Usage:**
+**Quick Add (NEW):**
+```
+/dev [user_id]         - Instantly add a developer (no "add" keyword needed!)
+```
+
+**Detailed Management:**
 ```
 /dev add [user_id]     - Add a developer
 /dev remove [user_id]  - Remove a developer
-/dev list              - Show all developers (names only)
+/dev list              - Show all developers with user IDs
 ```
 
 **Features:**
-- Add developers by Telegram user ID
-- Display developer names (not usernames or IDs)
+- **Quick add**: Just `/dev 123456789` - done!
+- Display developer names AND user IDs in list
 - Cannot remove OWNER or WIFU
 - Auto-cleans command messages
 
 **Example:**
 ```
-/dev add 123456789
-/dev list
+/dev 123456789         - Quick add (fastest way!)
+/dev add 123456789     - Traditional add
+/dev list              - See all developers with IDs
 /dev remove 123456789
 ```
 
@@ -153,9 +159,9 @@ Then confirm with:
 
 ---
 
-### 6. `/broadcast` - Enhanced Broadcast
+### 6. `/broadcast` - Instant Broadcast System
 
-**Enhanced**: Supports both reply-to-message and direct message broadcasting 🎯
+**Optimized**: Lightning-fast broadcast with smart rate limiting! ⚡
 
 **Usage:**
 
@@ -170,11 +176,13 @@ Reply to any message with /broadcast
 ```
 
 **Features:**
+- **Instant delivery**: Sends to ALL chats immediately
+- **Smart rate limiting**: Only adds 0.03s delay for >20 recipients
+- **Message tracking**: Tracks each message for accurate deletion
 - Reply to a message → Forwards that message to all
 - Direct command → Sends new message to all
 - Sends to all users and groups
 - Confirmation required
-- Rate limiting (0.05s between sends)
 - Success/failure reporting
 
 **Example 1 (Forward):**
@@ -191,6 +199,45 @@ Then confirm with:
 ```
 /broadcast_confirm
 ```
+
+**Performance:**
+- Small broadcasts (<20): Instant (no delays)
+- Large broadcasts (>20): 0.03s delay per message (prevents Telegram blocks)
+- Messages tracked per chat for deletion
+
+---
+
+### 7. `/delbroadcast` - Delete Latest Broadcast
+
+**Optimized**: Delete broadcasts from ANYWHERE - no need to reply! 🗑️
+
+**Usage:**
+```
+/delbroadcast
+```
+
+**Features:**
+- **Works from anywhere**: No need to reply to the broadcast
+- Deletes latest broadcast from ALL chats instantly
+- Uses message tracking for accurate deletion
+- Shows how many chats will be affected
+- Clear success/failure reporting
+- Instant deletion (no delays)
+
+**What happens:**
+```
+1. /delbroadcast
+   Shows: "This will delete the latest broadcast from X chats"
+   
+2. /delbroadcast_confirm
+   Instantly deletes from all chats
+   Reports: "Deleted: X, Failed: Y"
+```
+
+**Note:**
+- Deletions may fail if bot lacks admin permissions in groups
+- Messages older than 48 hours cannot be deleted (Telegram limitation)
+- Only deletes the LATEST broadcast
 
 ---
 
