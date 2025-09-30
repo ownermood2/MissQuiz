@@ -108,11 +108,20 @@ The architecture supports future integration with database systems (Drizzle ORM 
    - Clear command list with descriptions
    - Focused call-to-action for group additions
 
+### New Features
+1. **Restart Confirmation System**
+   - Bot now sends PM to OWNER after successful `/allreload` restart
+   - Confirmation message: "✅ Bot restarted successfully and is now online!" with timestamp
+   - Flag file system ensures reliable delivery (retries if sending fails)
+   - Only sends once per restart (automatic cleanup after success)
+   - Prevents lost notifications during network issues
+
 ### User Experience Improvements
 - Cleaner start experience without overwhelming button choices
 - More professional and focused welcome message
 - Commands listed clearly with descriptions
 - Emphasis on group functionality
+- OWNER gets confirmation after bot restarts (no more guessing)
 
 ## Version 2.1 - September 30, 2025
 
