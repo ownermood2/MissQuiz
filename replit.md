@@ -93,6 +93,27 @@ The architecture supports future integration with database systems (Drizzle ORM 
 
 # Recent Changes
 
+## Version 2.2 - September 30, 2025
+
+### Critical Bug Fixes
+1. **Developer Access Fix** (CRITICAL)
+   - Fixed `is_developer()` method to query SQLite database instead of legacy JSON file
+   - Newly added developers via `/dev` command now properly recognized by `/help` command
+   - Access control now works correctly for all developer commands
+
+2. **Start Command Redesign**
+   - Simplified interface with clean, professional layout
+   - Removed all interactive buttons except "Add to Your Group"
+   - Updated welcome message with arrow bullets (➜) for features
+   - Clear command list with descriptions
+   - Focused call-to-action for group additions
+
+### User Experience Improvements
+- Cleaner start experience without overwhelming button choices
+- More professional and focused welcome message
+- Commands listed clearly with descriptions
+- Emphasis on group functionality
+
 ## Version 2.1 - September 30, 2025
 
 ### Performance Optimizations
