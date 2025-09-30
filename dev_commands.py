@@ -61,6 +61,15 @@ class DeveloperCommands:
         except Exception as e:
             logger.error(f"Error in auto_clean: {e}")
     
+    def format_number(self, num):
+        """Format numbers with K/M suffixes for readability"""
+        if num >= 1_000_000:
+            return f"{num / 1_000_000:.2f}M"
+        elif num >= 1_000:
+            return f"{num / 1_000:.2f}K"
+        else:
+            return f"{num:,}"
+    
     async def delquiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Delete quiz questions - Fixed version without Markdown parsing errors"""
         try:
@@ -101,15 +110,19 @@ class DeveloperCommands:
                 
                 # Show confirmation
                 quiz = questions[found_idx]
-                confirm_text = f"🗑 Confirm Deletion\n\n"
+                
+                # Store quiz ID in user context
+                context.user_data['pending_delete_quiz'] = quiz['id']
+                
+                confirm_text = f"🗑 Confirm Quiz Deletion\n\n"
                 confirm_text += f"📌 Quiz #{quiz['id']}\n"
-                confirm_text += f"❓ Question: {quiz['question']}\n\n"
-                confirm_text += "Options:\n"
+                confirm_text += f"❓ {quiz['question']}\n\n"
                 for i, opt in enumerate(quiz['options'], 1):
                     marker = "✅" if i-1 == quiz['correct_answer'] else "⭕"
-                    confirm_text += f"{marker} {i}. {opt}\n"
-                confirm_text += f"\n⚠️ To confirm: /delquiz_confirm {quiz['id']}\n"
-                confirm_text += "❌ To cancel: Ignore this message"
+                    confirm_text += f"{i}️⃣ {opt} {marker}\n"
+                confirm_text += f"\n⚠ Confirm: /delquiz_confirm\n"
+                confirm_text += "❌ Cancel: Ignore this message\n\n"
+                confirm_text += "💡 Once confirmed, the quiz will be permanently deleted."
                 
                 reply = await update.message.reply_text(confirm_text)
                 logger.info(f"Quiz deletion confirmation shown for quiz #{quiz['id']}")
@@ -139,16 +152,18 @@ class DeveloperCommands:
                     await self.auto_clean_message(update.message, reply)
                     return
                 
-                # Show confirmation
-                confirm_text = f"🗑 Confirm Deletion\n\n"
+                # Show confirmation and store quiz ID
+                context.user_data['pending_delete_quiz'] = quiz['id']
+                
+                confirm_text = f"🗑 Confirm Quiz Deletion\n\n"
                 confirm_text += f"📌 Quiz #{quiz['id']}\n"
-                confirm_text += f"❓ Question: {quiz['question']}\n\n"
-                confirm_text += "Options:\n"
+                confirm_text += f"❓ {quiz['question']}\n\n"
                 for i, opt in enumerate(quiz['options'], 1):
                     marker = "✅" if i-1 == quiz['correct_answer'] else "⭕"
-                    confirm_text += f"{marker} {i}. {opt}\n"
-                confirm_text += f"\n⚠️ To confirm: /delquiz_confirm {quiz['id']}\n"
-                confirm_text += "❌ To cancel: Ignore this message"
+                    confirm_text += f"{i}️⃣ {opt} {marker}\n"
+                confirm_text += f"\n⚠ Confirm: /delquiz_confirm\n"
+                confirm_text += "❌ Cancel: Ignore this message\n\n"
+                confirm_text += "💡 Once confirmed, the quiz will be permanently deleted."
                 
                 reply = await update.message.reply_text(confirm_text)
                 logger.info(f"Quiz deletion confirmation shown for quiz #{quiz['id']}")
@@ -173,31 +188,30 @@ class DeveloperCommands:
                 await self.send_unauthorized_message(update)
                 return
             
-            if not context.args:
+            # Get quiz ID from context
+            quiz_id = context.user_data.get('pending_delete_quiz')
+            
+            if not quiz_id:
                 reply = await update.message.reply_text(
-                    "❌ Missing quiz ID\n"
-                    "Usage: /delquiz_confirm [quiz_id]"
+                    "❌ No quiz pending deletion\n\n"
+                    "Please use /delquiz first to select a quiz"
                 )
                 await self.auto_clean_message(update.message, reply)
                 return
             
-            try:
-                quiz_id = int(context.args[0])
+            # Delete from database
+            if self.db.delete_question(quiz_id):
+                # Clear the pending delete
+                context.user_data.pop('pending_delete_quiz', None)
                 
-                # Delete from database
-                if self.db.delete_question(quiz_id):
-                    reply = await update.message.reply_text(
-                        f"✅ Quiz #{quiz_id} deleted successfully! 🗑️\n\n"
-                        f"Remaining quizzes: {len(self.db.get_all_questions())}"
-                    )
-                    logger.info(f"Quiz #{quiz_id} deleted by user {update.effective_user.id}")
-                    await self.auto_clean_message(update.message, reply, delay=3)
-                else:
-                    reply = await update.message.reply_text(f"❌ Quiz #{quiz_id} not found")
-                    await self.auto_clean_message(update.message, reply)
-            
-            except ValueError:
-                reply = await update.message.reply_text("❌ Invalid quiz ID")
+                reply = await update.message.reply_text(
+                    f"✅ Quiz #{quiz_id} deleted successfully! 🗑️\n\n"
+                    f"Remaining quizzes: {len(self.db.get_all_questions())}"
+                )
+                logger.info(f"Quiz #{quiz_id} deleted by user {update.effective_user.id}")
+                await self.auto_clean_message(update.message, reply, delay=3)
+            else:
+                reply = await update.message.reply_text(f"❌ Quiz #{quiz_id} not found")
                 await self.auto_clean_message(update.message, reply)
         
         except Exception as e:
@@ -308,30 +322,25 @@ class DeveloperCommands:
             try:
                 stats = self.db.get_stats_summary()
                 
-                stats_text = "📊 Bot Statistics Dashboard\n"
-                stats_text += "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                # Format numbers with K/M suffixes
+                groups_fmt = self.format_number(stats['total_groups'])
+                users_fmt = self.format_number(stats['total_users'])
+                today_fmt = self.format_number(stats['quizzes_today'])
+                week_fmt = self.format_number(stats['quizzes_week'])
+                month_fmt = self.format_number(stats['quizzes_month'])
+                alltime_fmt = self.format_number(stats['quizzes_alltime'])
                 
-                stats_text += "📝 Quiz Activity:\n"
-                stats_text += f"• Today: {stats['quizzes_today']} quizzes\n"
-                stats_text += f"• This Week: {stats['quizzes_week']} quizzes\n"
-                stats_text += f"• This Month: {stats['quizzes_month']} quizzes\n"
-                stats_text += f"• All Time: {stats['quizzes_alltime']} quizzes\n\n"
+                stats_text = "🚀 Bot Stats Dashboard\n"
+                stats_text += f"✨ Groups: {groups_fmt} 🌐\n"
+                stats_text += f"🔥 Users: {users_fmt} 🚀\n\n"
                 
-                stats_text += "👥 Users:\n"
-                stats_text += f"• Total Users: {stats['total_users']}\n"
-                stats_text += f"• Active Today: {stats['active_users_today']}\n"
-                stats_text += f"• Active This Week: {stats['active_users_week']}\n\n"
+                stats_text += "📊 Quizzes Fired Up!\n"
+                stats_text += f"⚡ Today: {today_fmt}\n"
+                stats_text += f"📆 This Week: {week_fmt}\n"
+                stats_text += f"📈 This Month: {month_fmt}\n"
+                stats_text += f"🏆 All Time: {alltime_fmt}\n\n"
                 
-                stats_text += "👥 Groups:\n"
-                stats_text += f"• Total Groups: {stats['total_groups']}\n\n"
-                
-                stats_text += "📚 Content:\n"
-                stats_text += f"• Total Questions: {stats['total_questions']}\n"
-                stats_text += f"• Correct Answers: {stats['correct_alltime']}\n"
-                stats_text += f"• Success Rate: {stats['success_rate']}%\n\n"
-                
-                stats_text += "━━━━━━━━━━━━━━━━━━━━━━\n"
-                stats_text += f"📅 {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+                stats_text += "💡 Knowledge never sleeps. Neither do we. 😎"
                 
                 # Create interactive buttons
                 keyboard = [
