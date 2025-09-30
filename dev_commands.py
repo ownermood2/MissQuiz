@@ -641,3 +641,101 @@ class DeveloperCommands:
             logger.error(f"Error in broadcast_confirm: {e}", exc_info=True)
             reply = await update.message.reply_text("❌ Error sending broadcast")
             await self.auto_clean_message(update.message, reply)
+    
+    async def delbroadcast(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Delete a broadcast message from all groups/users"""
+        try:
+            if not await self.check_access(update):
+                await self.send_unauthorized_message(update)
+                return
+            
+            # Check if replying to a broadcast message
+            if not update.message.reply_to_message:
+                reply = await update.message.reply_text(
+                    "❌ Reply to a broadcast message with /delbroadcast to delete it from all chats"
+                )
+                await self.auto_clean_message(update.message, reply)
+                return
+            
+            replied_message = update.message.reply_to_message
+            
+            # Confirm deletion
+            confirm_text = (
+                "🗑️ Delete Broadcast Confirmation\n\n"
+                "This will attempt to delete the replied message from all users and groups.\n\n"
+                "⚠️ Note: Messages can only be deleted if:\n"
+                "• Bot is admin in groups\n"
+                "• Message is less than 48 hours old\n\n"
+                "Confirm: /delbroadcast_confirm"
+            )
+            
+            # Store message info
+            context.user_data['delbroadcast_message_id'] = replied_message.message_id
+            context.user_data['delbroadcast_chat_id'] = replied_message.chat_id
+            
+            reply = await update.message.reply_text(confirm_text)
+            logger.info(f"Broadcast deletion prepared by {update.effective_user.id}")
+        
+        except Exception as e:
+            logger.error(f"Error in delbroadcast: {e}", exc_info=True)
+            reply = await update.message.reply_text("❌ Error preparing broadcast deletion")
+            await self.auto_clean_message(update.message, reply)
+    
+    async def delbroadcast_confirm(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Confirm and execute broadcast deletion"""
+        try:
+            if not await self.check_access(update):
+                await self.send_unauthorized_message(update)
+                return
+            
+            message_id = context.user_data.get('delbroadcast_message_id')
+            if not message_id:
+                reply = await update.message.reply_text("❌ No broadcast deletion found. Please use /delbroadcast first.")
+                await self.auto_clean_message(update.message, reply)
+                return
+            
+            status = await update.message.reply_text("🗑️ Deleting broadcast messages...")
+            
+            users = self.db.get_all_users_stats()
+            groups = self.db.get_all_groups()
+            
+            success_count = 0
+            fail_count = 0
+            
+            # Delete from users
+            for user in users:
+                try:
+                    await context.bot.delete_message(chat_id=user['user_id'], message_id=message_id)
+                    success_count += 1
+                    await asyncio.sleep(0.05)
+                except Exception as e:
+                    logger.debug(f"Failed to delete from user {user['user_id']}: {e}")
+                    fail_count += 1
+            
+            # Delete from groups
+            for group in groups:
+                try:
+                    await context.bot.delete_message(chat_id=group['chat_id'], message_id=message_id)
+                    success_count += 1
+                    await asyncio.sleep(0.05)
+                except Exception as e:
+                    logger.debug(f"Failed to delete from group {group['chat_id']}: {e}")
+                    fail_count += 1
+            
+            await status.edit_text(
+                f"✅ Broadcast deletion completed!\n\n"
+                f"• Deleted: {success_count}\n"
+                f"• Failed: {fail_count}\n\n"
+                f"Note: Failures are normal for messages older than 48h or where bot lacks permissions."
+            )
+            
+            logger.info(f"Broadcast deletion by {update.effective_user.id}: {success_count} deleted, {fail_count} failed")
+            
+            # Clear data
+            context.user_data.pop('delbroadcast_message_id', None)
+            context.user_data.pop('delbroadcast_chat_id', None)
+        
+        except Exception as e:
+            logger.error(f"Error in delbroadcast_confirm: {e}", exc_info=True)
+            reply = await update.message.reply_text("❌ Error deleting broadcast")
+            await self.auto_clean_message(update.message, reply)

@@ -18,18 +18,25 @@ from telegram.ext import (
     CallbackQueryHandler
 )
 from telegram.constants import ParseMode
+import config
+from database_manager import DatabaseManager
+from dev_commands import DeveloperCommands
 
 logger = logging.getLogger(__name__)
 
 class TelegramQuizBot:
     def __init__(self, quiz_manager):
-        """Initialize the quiz bot"""
+        """Initialize the quiz bot with enhanced features"""
         self.quiz_manager = quiz_manager
         self.application = None
         self.command_cooldowns = defaultdict(lambda: defaultdict(int))
         self.COOLDOWN_PERIOD = 3  # seconds between commands
         self.command_history = defaultdict(lambda: deque(maxlen=10))  # Store last 10 commands per chat
         self.cleanup_interval = 3600  # 1 hour in seconds
+        
+        self.db = DatabaseManager()
+        self.dev_commands = DeveloperCommands(self.db, quiz_manager)
+        logger.info("TelegramQuizBot initialized with database and developer commands")
 
     async def check_admin_status(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
         """Check if bot is admin in the chat"""
@@ -197,18 +204,25 @@ class TelegramQuizBot:
             self.application.add_handler(CommandHandler("groupstats", self.groupstats))
             self.application.add_handler(CommandHandler("leaderboard", self.leaderboard))
 
-            # Developer commands
-            self.application.add_handler(CommandHandler("allreload", self.allreload))
+            # Developer commands (legacy - keeping existing)
             self.application.add_handler(CommandHandler("addquiz", self.addquiz))
             self.application.add_handler(CommandHandler("globalstats", self.globalstats))
-            self.application.add_handler(CommandHandler("stats", self.stats_command))
             self.application.add_handler(CommandHandler("editquiz", self.editquiz))
-            self.application.add_handler(CommandHandler("delquiz", self.delquiz))
-            self.application.add_handler(CommandHandler("delquiz_confirm", self.delquiz_confirm))
-            self.application.add_handler(CommandHandler("broadcast", self.broadcast))
             self.application.add_handler(CommandHandler("totalquiz", self.totalquiz))
             self.application.add_handler(CommandHandler("clear_quizzes", self.clear_quizzes))
-            self.application.add_handler(CommandHandler("dev", self.dev_command))
+            
+            # Enhanced developer commands (from dev_commands module)
+            self.application.add_handler(CommandHandler("delquiz", self.dev_commands.delquiz))
+            self.application.add_handler(CommandHandler("delquiz_confirm", self.dev_commands.delquiz_confirm))
+            self.application.add_handler(CommandHandler("dev", self.dev_commands.dev))
+            self.application.add_handler(CommandHandler("stats", self.dev_commands.stats))
+            self.application.add_handler(CommandHandler("allreload", self.dev_commands.allreload))
+            self.application.add_handler(CommandHandler("broadcast", self.dev_commands.broadcast))
+            self.application.add_handler(CommandHandler("broadcast_confirm", self.dev_commands.broadcast_confirm))
+            self.application.add_handler(CommandHandler("broadband", self.dev_commands.broadband))
+            self.application.add_handler(CommandHandler("broadband_confirm", self.dev_commands.broadband_confirm))
+            self.application.add_handler(CommandHandler("delbroadcast", self.dev_commands.delbroadcast))
+            self.application.add_handler(CommandHandler("delbroadcast_confirm", self.dev_commands.delbroadcast_confirm))
 
             # Handle answers and chat member updates
             self.application.add_handler(PollAnswerHandler(self.handle_answer))
@@ -232,10 +246,10 @@ class TelegramQuizBot:
                 pattern="^(refresh_stats|stats_)"
             ))
 
-            # Schedule automated quiz job - every 20 minutes
+            # Schedule automated quiz job - every 30 minutes
             self.application.job_queue.run_repeating(
                 self.send_automated_quiz,
-                interval=1200,  # 20 minutes
+                interval=1800,  # 30 minutes
                 first=10  # Start first quiz after 10 seconds
             )
 
@@ -2927,92 +2941,3 @@ Start by adding the bot to groups!
         except Exception as e:
             logger.error(f"Error in track_chats: {e}")
 
-    async def initialize(self, token: str):
-        """Enhanced initialization with automated tasks"""
-        try:
-            # Build application
-            self.application = (
-                Application.builder()
-                .token(token)
-                .build()
-            )
-
-            # Add handlers
-            self.application.add_handler(CommandHandler("start", self.start))
-            self.application.add_handler(CommandHandler("help", self.help))
-            self.application.add_handler(CommandHandler("quiz", self.quiz_command))
-            self.application.add_handler(CommandHandler("category", self.category))
-            self.application.add_handler(CommandHandler("mystats", self.mystats))
-            self.application.add_handler(CommandHandler("groupstats", self.groupstats))
-            self.application.add_handler(CommandHandler("leaderboard", self.leaderboard))
-
-            # Developer commands
-            self.application.add_handler(CommandHandler("allreload", self.allreload))
-            self.application.add_handler(CommandHandler("addquiz", self.addquiz))
-            self.application.add_handler(CommandHandler("globalstats", self.globalstats))
-            self.application.add_handler(CommandHandler("stats", self.stats_command))
-            self.application.add_handler(CommandHandler("editquiz", self.editquiz))
-            self.application.add_handler(CommandHandler("delquiz", self.delquiz))
-            self.application.add_handler(CommandHandler("delquiz_confirm", self.delquiz_confirm))
-            self.application.add_handler(CommandHandler("broadcast", self.broadcast))
-            self.application.add_handler(CommandHandler("totalquiz", self.totalquiz))
-            self.application.add_handler(CommandHandler("clear_quizzes", self.clear_quizzes))
-            self.application.add_handler(CommandHandler("dev", self.dev_command))
-
-            # Handle answers and chat member updates
-            self.application.add_handler(PollAnswerHandler(self.handle_answer))
-            self.application.add_handler(ChatMemberHandler(self.track_chats, ChatMemberHandler.MY_CHAT_MEMBER))
-
-            # Add callback query handler for clear_quizzes confirmation
-            self.application.add_handler(CallbackQueryHandler(
-                self.handle_clear_quizzes_callback,
-                pattern="^clear_quizzes_confirm_(yes|no)$"
-            ))
-            
-            # Add callback query handler for dev command UI
-            self.application.add_handler(CallbackQueryHandler(
-                self.handle_dev_callback,
-                pattern="^dev_"
-            ))
-            
-            # Add callback query handler for stats dashboard UI
-            self.application.add_handler(CallbackQueryHandler(
-                self.handle_stats_callback,
-                pattern="^(refresh_stats|stats_)"
-            ))
-
-            # Schedule automated quiz job - every 20 minutes
-            self.application.job_queue.run_repeating(
-                self.send_automated_quiz,
-                interval=1200,  # 20 minutes
-                first=10  # Start first quiz after 10 seconds
-            )
-
-            # Schedule cleanup jobs
-            self.application.job_queue.run_repeating(
-                self.scheduled_cleanup,
-                interval=3600,  # Every hour
-                first=300  # Start first cleanup after 5 minutes
-            )
-
-            # Add question history cleanup job
-            self.application.job_queue.run_repeating(
-                lambda context: self.quiz_manager.cleanup_old_questions(),
-                interval=3600,  # Every hour
-                first=600  # Start after 10 minutes
-            )
-            self.application.job_queue.run_repeating(
-                self.cleanup_old_polls,
-                interval=3600, #Every Hour
-                first=300
-            )
-
-            await self.application.initialize()
-            await self.application.start()
-            await self.application.updater.start_polling()
-
-            return self
-
-        except Exception as e:
-            logger.error(f"Failed to initialize bot: {e}")
-            raise
