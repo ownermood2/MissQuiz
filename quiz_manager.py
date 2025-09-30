@@ -680,10 +680,54 @@ class QuizManager:
 
         return stats
 
+    def edit_question(self, index: int, data: Dict):
+        """Edit an existing question with validation"""
+        if not (0 <= index < len(self.questions)):
+            raise ValueError(f"Question index {index} out of range")
+        
+        # Validate question data
+        question = data.get('question', '').strip()
+        if not question:
+            raise ValueError("Question text cannot be empty")
+        
+        # Validate options
+        options = data.get('options', [])
+        if not isinstance(options, list) or len(options) != 4:
+            raise ValueError("Must provide exactly 4 options")
+        
+        # Clean and validate options
+        options = [opt.strip() for opt in options]
+        if any(not opt for opt in options):
+            raise ValueError("All options must have text")
+        
+        # Check for duplicate options
+        if len(set(options)) != len(options):
+            raise ValueError("Options must be unique")
+        
+        # Validate correct answer
+        correct_answer = data.get('correct_answer')
+        if not isinstance(correct_answer, int) or not (0 <= correct_answer < 4):
+            raise ValueError("Correct answer must be 0, 1, 2, or 3")
+        
+        # Update question
+        self.questions[index] = {
+            'question': question,
+            'options': options,
+            'correct_answer': correct_answer
+        }
+        
+        # Force save immediately to ensure persistence
+        self.save_data(force=True)
+        logger.info(f"Edited question {index}: {question[:50]}...")
+    
     def delete_question(self, index: int):
-        if 0 <= index < len(self.questions):
-            self.questions.pop(index)
-            self.save_data()
+        """Delete a question with validation and forced save"""
+        if not (0 <= index < len(self.questions)):
+            raise ValueError(f"Question index {index} out of range")
+        
+        deleted = self.questions.pop(index)
+        self.save_data(force=True)
+        logger.info(f"Deleted question {index}: {deleted['question'][:50]}...")
 
     def get_all_questions(self) -> List[Dict]:
         """Get all questions with proper loading"""

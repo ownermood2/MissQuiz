@@ -63,10 +63,36 @@ def add_question():
     result = quiz_manager.add_questions(question_data)
     return jsonify(result)
 
+@app.route('/api/questions/<int:question_id>', methods=['PUT'])
+def edit_question(question_id):
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"status": "error", "message": "No data provided"}), 400
+        
+        quiz_manager.edit_question(question_id, data)
+        return jsonify({"status": "success", "message": "Question updated successfully"})
+    except ValueError as e:
+        # Validation errors
+        return jsonify({"status": "error", "message": str(e)}), 400
+    except KeyError as e:
+        # Missing required fields
+        return jsonify({"status": "error", "message": f"Missing field: {str(e)}"}), 400
+    except Exception as e:
+        # Unexpected errors
+        logger.error(f"Error editing question {question_id}: {e}")
+        return jsonify({"status": "error", "message": "Internal server error"}), 500
+
 @app.route('/api/questions/<int:question_id>', methods=['DELETE'])
 def delete_question(question_id):
-    quiz_manager.delete_question(question_id)
-    return jsonify({"status": "success"})
+    try:
+        quiz_manager.delete_question(question_id)
+        return jsonify({"status": "success", "message": "Question deleted successfully"})
+    except ValueError as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+    except Exception as e:
+        logger.error(f"Error deleting question {question_id}: {e}")
+        return jsonify({"status": "error", "message": "Internal server error"}), 500
 
 if __name__ == "__main__":
     try:

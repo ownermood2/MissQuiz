@@ -1128,20 +1128,19 @@ Error: {str(e)}
                     continue
 
             # Footer with real-time info
-            leaderboard_text += """
-
-📱 Rankings update in real-time
-🎮 Use /quiz to climb the ranks!
-════════════════"""
+            leaderboard_text += "\n\n━━━━━━━━━━━━━━━━━━━━━━━"
+            leaderboard_text += "\n\n📱 Rankings update in real-time"
+            leaderboard_text += "\n🎮 Use /quiz to climb the ranks!"
 
             try:
-                await update.message.reply_text(leaderboard_text, parse_mode=ParseMode.MARKDOWN)
+                keyboard = [[InlineKeyboardButton("🎯 Start Quiz", callback_data="start_quiz")]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await update.message.reply_text(leaderboard_text, reply_markup=reply_markup)
                 logger.info(f"Leaderboard shown successfully")
             except Exception as e:
-                logger.error(f"Failed to send leaderboard with markdown: {e}")
-                # Fallback to plain text if markdown fails
-                plain_text = leaderboard_text.replace('𝗚', 'G').replace('𝗟', 'L').replace('═', '=')
-                await update.message.reply_text(plain_text)
+                logger.error(f"Failed to send leaderboard: {e}")
+                # Fallback to plain text
+                await update.message.reply_text("❌ Error displaying leaderboard. Please try again.")
 
         except Exception as e:
             logger.error(f"Error showing leaderboard: {e}\n{traceback.format_exc()}")
