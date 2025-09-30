@@ -380,14 +380,6 @@ class TelegramQuizBot:
         """Send unified welcome message when bot joins a group or starts in private chat"""
         try:
             keyboard = [
-                [
-                    InlineKeyboardButton("🎯 Start Quiz", callback_data="start_quiz"),
-                    InlineKeyboardButton("📊 My Stats", callback_data="my_stats")
-                ],
-                [
-                    InlineKeyboardButton("🏆 Leaderboard", callback_data="leaderboard"),
-                    InlineKeyboardButton("❓ Help", callback_data="help")
-                ],
                 [InlineKeyboardButton(
                     "➕ Add to Your Group",
                     url=f"https://t.me/{context.bot.username}?startgroup=true"
@@ -395,40 +387,23 @@ class TelegramQuizBot:
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
-            welcome_message = """╔══════════════════════╗
-║   🎯 𝗠𝗶𝘀𝘀 𝗤𝘂𝗶𝘇 𓂀 𝗕𝗼𝘁 🇮🇳   ║
-╚══════════════════════╝
+            welcome_message = """🎯 𝗪𝗲𝗹𝗰𝗼𝗺𝗲 𝘁𝗼 𝗠𝗶𝘀𝘀 𝗤𝘂𝗶𝘇 𓂀 𝗕𝗼𝘁 🇮🇳
 
-✨ 𝗬𝗼𝘂𝗿 𝗨𝗹𝘁𝗶𝗺𝗮𝘁𝗲 𝗤𝘂𝗶𝘇 𝗖𝗼𝗺𝗽𝗮𝗻𝗶𝗼𝗻! ✨
+➜ Auto Quizzes – Fresh quizzes every 30 mins 🕒
+➜ Leaderboard – Track scores & compete for glory 🏆
+➜ Categories – GK, CA, History & more! /category 📚
+➜ Instant Results – Answers in real-time ⚡
+➜ PM Mode – Clean and clutter-free 🤫
+➜ Group Mode – Auto-cleans after completion 🧹
 
-━━━━━━━━━━━━━━━━━━━━━━
-🌟 𝗣𝗿𝗲𝗺𝗶𝘂𝗺 𝗙𝗲𝗮𝘁𝘂𝗿𝗲𝘀:
-━━━━━━━━━━━━━━━━━━━━━━
+📝 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬:
+/start – Begin your quiz journey 🚀
+/help – View all commands 🛠️
+/category – Explore quiz topics 📖
+/mystats – Check your performance 📊
+/leaderboard – View top scorers 🏆
 
-⚡ 𝗔𝘂𝘁𝗼 𝗤𝘂𝗶𝘇 𝗠𝗼𝗱𝗲
-   Fresh questions every 30 minutes
-
-🏆 𝗟𝗶𝘃𝗲 𝗟𝗲𝗮𝗱𝗲𝗿𝗯𝗼𝗮𝗿𝗱𝘀
-   Compete with players worldwide
-
-📊 𝗗𝗲𝘁𝗮𝗶𝗹𝗲𝗱 𝗦𝘁𝗮𝘁𝗶𝘀𝘁𝗶𝗰𝘀
-   Track your progress & performance
-
-🎨 𝗦𝗺𝗮𝗿𝘁 𝗜𝗻𝘁𝗲𝗿𝗳𝗮𝗰𝗲
-   Clean & professional design
-
-🚀 𝗜𝗻𝘀𝘁𝗮𝗻𝘁 𝗥𝗲𝘀𝘂𝗹𝘁𝘀
-   Real-time answer validation
-
-━━━━━━━━━━━━━━━━━━━━━━
-💎 𝗤𝘂𝗶𝗰𝗸 𝗔𝗰𝘁𝗶𝗼𝗻𝘀:
-━━━━━━━━━━━━━━━━━━━━━━
-
-👉 Use buttons below to start!
-👉 Type /help for all commands
-👉 Add me to groups for auto-quizzes
-
-🎯 𝗥𝗲𝗮𝗱𝘆 𝘁𝗼 𝘁𝗲𝘀𝘁 𝘆𝗼𝘂𝗿 𝗸𝗻𝗼𝘄𝗹𝗲𝗱𝗴𝗲? 𝗟𝗲𝘁'𝘀 𝗯𝗲𝗴𝗶𝗻! 🚀"""
+🔥 Add me to your groups & let the quiz fun begin! 🎯"""
 
             await context.bot.send_message(
                 chat_id=chat_id,
@@ -1379,22 +1354,12 @@ Failed to display quizzes. Please try again later.
         logger.warning(f"Unauthorized access attempt to dev command by user {update.message.from_user.id}")
 
     async def is_developer(self, user_id: int) -> bool:
-        """Check if user is a developer"""
+        """Check if user is a developer (uses database)"""
         try:
-            # Load developers from the developers.json file
-            import json
-            dev_file_path = os.path.join(os.path.dirname(__file__), "data", "developers.json")
-            if os.path.exists(dev_file_path):
-                with open(dev_file_path, 'r') as f:
-                    dev_data = json.load(f)
-                    return user_id in dev_data.get('developers', [])
-            else:
-                # Fallback to default developer IDs if file doesn't exist
-                return user_id in [7653153066]
+            return self.db.is_developer(user_id)
         except Exception as e:
             logger.error(f"Error checking developer status: {e}")
-            # Fallback to default developer IDs in case of error
-            return user_id in [7653153066]
+            return False
             
     async def get_developers(self) -> list:
         """Get list of all developers"""
