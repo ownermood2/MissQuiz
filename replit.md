@@ -148,6 +148,8 @@ The architecture supports future integration with database systems (Drizzle ORM 
 - Fixed bot token exposure in logs (httpx logger set to WARNING level)
 - Fixed `/dev list` to show both developer name and user ID
 - Fixed `/allreload` slow restart issue (corrected os.execv call)
+- Enhanced `/delquiz` to remember quiz ID (no ID needed for /delquiz_confirm)
+- Updated `/stats` with emoji-rich format and smart number formatting (K/M)
 
 ### Documentation
 - Created `DEVELOPER_COMMANDS.md` with complete command guide
