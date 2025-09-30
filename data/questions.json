@@ -1,1 +1,492 @@
-[]
+[
+  {
+    "question": "Who was the first President of India?",
+    "options": [
+      "Dr. Rajendra Prasad",
+      "S. Radhakrishnan",
+      "Jawaharlal Nehru",
+      "B.R. Ambedkar"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the founder of the Maurya Empire?",
+    "options": [
+      "Ashoka",
+      "Bindusara",
+      "Chandragupta Maurya",
+      "Chanakya"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "In which year did the Revolt of 1857 take place?",
+    "options": [
+      "1856",
+      "1857",
+      "1858",
+      "1859"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who is known as the \"Napoleon of India\"?",
+    "options": [
+      "Samudragupta",
+      "Chandragupta Maurya",
+      "Ashoka",
+      "Harsha"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first Governor-General of independent India?",
+    "options": [
+      "C. Rajagopalachari",
+      "Lord Mountbatten",
+      "Lord Wavell",
+      "Warren Hastings"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who composed the national song \"Vande Mataram\"?",
+    "options": [
+      "Rabindranath Tagore",
+      "Bankim Chandra Chattopadhyay",
+      "Subramania Bharati",
+      "Bal Gangadhar Tilak"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the last Mughal Emperor?",
+    "options": [
+      "Bahadur Shah I",
+      "Aurangzeb",
+      "Bahadur Shah II",
+      "Shah Alam II"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which Indus Valley site is famous for its dockyard?",
+    "options": [
+      "Harappa",
+      "Lothal",
+      "Mohenjo-Daro",
+      "Kalibangan"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first woman ruler of Delhi Sultanate?",
+    "options": [
+      "Razia Sultana",
+      "Chand Bibi",
+      "Nur Jahan",
+      "Rani Durgavati"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Battle of Plassey was fought in which year?",
+    "options": [
+      "1757",
+      "1761",
+      "1857",
+      "1764"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the founder of the Gupta Empire?",
+    "options": [
+      "Chandragupta I",
+      "Samudragupta",
+      "Chandragupta II",
+      "Srigupta"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Quit India Movement was launched in which year?",
+    "options": [
+      "1940",
+      "1942",
+      "1945",
+      "1939"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was known as the \"Iron Man of India\"?",
+    "options": [
+      "Bal Gangadhar Tilak",
+      "Vallabhbhai Patel",
+      "B.R. Ambedkar",
+      "Subhash Chandra Bose"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who wrote Arthashastra?",
+    "options": [
+      "Kalidasa",
+      "Chanakya",
+      "Banabhatta",
+      "Ashvaghosha"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Dandi March was held in which year?",
+    "options": [
+      "1929",
+      "1930",
+      "1931",
+      "1932"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who founded the Indian National Congress?",
+    "options": [
+      "A.O. Hume",
+      "Dadabhai Naoroji",
+      "Gopal Krishna Gokhale",
+      "Surendranath Banerjee"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first Indian to win Nobel Prize?",
+    "options": [
+      "C.V. Raman",
+      "Rabindranath Tagore",
+      "Amartya Sen",
+      "Mother Teresa"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which freedom fighter was called \u2018Netaji\u2019?",
+    "options": [
+      "Bhagat Singh",
+      "Subhas Chandra Bose",
+      "Chittaranjan Das",
+      "Lala Lajpat Rai"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Jallianwala Bagh massacre took place in which city?",
+    "options": [
+      "Delhi",
+      "Lahore",
+      "Amritsar",
+      "Lucknow"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who founded the All India Muslim League?",
+    "options": [
+      "Muhammad Iqbal",
+      "Aga Khan",
+      "Nawab Salimullah",
+      "Syed Ahmed Khan"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The capital of the Maurya Empire was?",
+    "options": [
+      "Pataliputra",
+      "Ujjain",
+      "Taxila",
+      "Kannauj"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which dynasty built the Khajuraho temples?",
+    "options": [
+      "Chola",
+      "Chandela",
+      "Pallava",
+      "Gupta"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the Viceroy during the Partition of Bengal (1905)?",
+    "options": [
+      "Lord Curzon",
+      "Lord Ripon",
+      "Lord Dalhousie",
+      "Lord Mountbatten"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who gave the slogan \"Inquilab Zindabad\"?",
+    "options": [
+      "Bhagat Singh",
+      "Chandrashekhar Azad",
+      "Subhas Bose",
+      "Lala Lajpat Rai"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The First Battle of Panipat was fought in?",
+    "options": [
+      "1526",
+      "1556",
+      "1761",
+      "1857"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who founded the Arya Samaj?",
+    "options": [
+      "Raja Ram Mohan Roy",
+      "Dayananda Saraswati",
+      "Swami Vivekananda",
+      "Ishwar Chandra Vidyasagar"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the last Governor-General of India?",
+    "options": [
+      "Lord Mountbatten",
+      "C. Rajagopalachari",
+      "Lord Linlithgow",
+      "Warren Hastings"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The slogan \"Do or Die\" is associated with?",
+    "options": [
+      "Quit India Movement",
+      "Non-Cooperation Movement",
+      "Dandi March",
+      "Civil Disobedience"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first woman to preside over Indian National Congress?",
+    "options": [
+      "Annie Besant",
+      "Sarojini Naidu",
+      "Sucheta Kripalani",
+      "Aruna Asaf Ali"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who introduced the Permanent Settlement in Bengal?",
+    "options": [
+      "Lord Dalhousie",
+      "Lord Cornwallis",
+      "Lord Wellesley",
+      "Lord Ripon"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who built the Red Fort in Delhi?",
+    "options": [
+      "Humayun",
+      "Akbar",
+      "Shah Jahan",
+      "Aurangzeb"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Which was the first capital of British India?",
+    "options": [
+      "Bombay",
+      "Calcutta",
+      "Delhi",
+      "Madras"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the founder of the Mughal Empire?",
+    "options": [
+      "Akbar",
+      "Humayun",
+      "Babur",
+      "Timur"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who discovered the sea route to India in 1498?",
+    "options": [
+      "Ferdinand Magellan",
+      "Vasco da Gama",
+      "Christopher Columbus",
+      "Marco Polo"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who is known as the \"Father of the Indian Constitution\"?",
+    "options": [
+      "Rajendra Prasad",
+      "Jawaharlal Nehru",
+      "B.R. Ambedkar",
+      "Vallabhbhai Patel"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Battle of Buxar (1764) was fought between the British and?",
+    "options": [
+      "Marathas",
+      "Mughals",
+      "Hyder Ali",
+      "Mir Qasim & allies"
+    ],
+    "correct_answer": 1
+  },
+  {
+    "question": "Who was the first Mughal ruler to establish Din-i-Ilahi?",
+    "options": [
+      "Akbar",
+      "Jahangir",
+      "Babur",
+      "Shah Jahan"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The \"Indigo Revolt\" took place in which year?",
+    "options": [
+      "1857",
+      "1860",
+      "1875",
+      "1900"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who gave the slogan \"Swaraj is my birthright\"?",
+    "options": [
+      "Subhas Bose",
+      "Bal Gangadhar Tilak",
+      "Bhagat Singh",
+      "Lala Lajpat Rai"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The capital of Vijayanagar Empire was?",
+    "options": [
+      "Mysore",
+      "Hampi",
+      "Madurai",
+      "Warangal"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the last ruler of the Maurya dynasty?",
+    "options": [
+      "Ashoka",
+      "Brihadratha",
+      "Chandragupta Maurya",
+      "Bindusara"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who founded the Theosophical Society in India?",
+    "options": [
+      "Annie Besant",
+      "Colonel Olcott",
+      "Dayananda Saraswati",
+      "Swami Vivekananda"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Round Table Conferences were held in which city?",
+    "options": [
+      "London",
+      "Delhi",
+      "Bombay",
+      "Paris"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who led the Bardoli Satyagraha?",
+    "options": [
+      "Mahatma Gandhi",
+      "Vallabhbhai Patel",
+      "Jawaharlal Nehru",
+      "Rajendra Prasad"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The \u201cDoctrine of Lapse\u201d was introduced by?",
+    "options": [
+      "Lord Dalhousie",
+      "Lord Canning",
+      "Lord Cornwallis",
+      "Lord Ripon"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who was the first Indian woman to go to jail in freedom struggle?",
+    "options": [
+      "Annie Besant",
+      "Kasturba Gandhi",
+      "Sarojini Naidu",
+      "Aruna Asaf Ali"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who shifted the capital of India from Calcutta to Delhi in 1911?",
+    "options": [
+      "Lord Curzon",
+      "Lord Hardinge",
+      "Lord Mountbatten",
+      "Lord Dalhousie"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "Who gave the slogan \u201cJai Hind\u201d?",
+    "options": [
+      "Bhagat Singh",
+      "Subhas Chandra Bose",
+      "Jawaharlal Nehru",
+      "Sardar Patel"
+    ],
+    "correct_answer": 0
+  },
+  {
+    "question": "The Simon Commission came to India in which year?",
+    "options": [
+      "1925",
+      "1927",
+      "1928",
+      "1930"
+    ],
+    "correct_answer": 0
+  }
+]
