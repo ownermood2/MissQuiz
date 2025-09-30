@@ -523,7 +523,7 @@ class DeveloperCommands:
             message_text = ' '.join(context.args)
             
             # Get all users and groups
-            users = self.db.get_pm_accessible_users()  # Only send to users who have PM access
+            users = self.db.get_active_users()  # Send to all active users, errors handled gracefully
             groups = self.db.get_all_groups()
             
             total_targets = len(users) + len(groups)
@@ -563,7 +563,7 @@ class DeveloperCommands:
             
             status = await update.message.reply_text("📢 Sending broadcast...")
             
-            users = self.db.get_pm_accessible_users()  # Only send to users who have PM access
+            users = self.db.get_active_users()  # Send to all active users, errors handled gracefully
             groups = self.db.get_all_groups()
             
             success_count = 0
@@ -690,7 +690,7 @@ class DeveloperCommands:
             
             status = await update.message.reply_text("📢 Sending broadcast...")
             
-            users = self.db.get_pm_accessible_users()  # Only send to users who have PM access
+            users = self.db.get_active_users()  # Send to all active users, errors handled gracefully
             groups = self.db.get_all_groups()
             
             success_count = 0
@@ -717,8 +717,11 @@ class DeveloperCommands:
                         if len(users) > 20:  # Only add delay for large broadcasts
                             await asyncio.sleep(0.03)
                     except Exception as e:
-                        logger.warning(f"Failed to send to user {user['user_id']}: {str(e)}")
-                        fail_count += 1
+                        error_msg = str(e)
+                        # Only count real failures, not permission issues (user hasn't started PM)
+                        if "Forbidden" not in error_msg:
+                            logger.warning(f"Failed to send to user {user['user_id']}: {error_msg}")
+                            fail_count += 1
                 
                 # Send to groups with minimal rate limit
                 for group in groups:
@@ -733,8 +736,11 @@ class DeveloperCommands:
                         if len(groups) > 20:  # Only add delay for large broadcasts
                             await asyncio.sleep(0.03)
                     except Exception as e:
-                        logger.warning(f"Failed to send to group {group['chat_id']}: {str(e)}")
-                        fail_count += 1
+                        error_msg = str(e)
+                        # Only count real failures, not permission issues
+                        if "Forbidden" not in error_msg and "bot was kicked" not in error_msg:
+                            logger.warning(f"Failed to send to group {group['chat_id']}: {error_msg}")
+                            fail_count += 1
             
             else:  # text broadcast
                 message_text = context.user_data.get('broadcast_message')
@@ -748,8 +754,11 @@ class DeveloperCommands:
                         if len(users) > 20:  # Only add delay for large broadcasts
                             await asyncio.sleep(0.03)
                     except Exception as e:
-                        logger.warning(f"Failed to send to user {user['user_id']}: {str(e)}")
-                        fail_count += 1
+                        error_msg = str(e)
+                        # Only count real failures, not permission issues (user hasn't started PM)
+                        if "Forbidden" not in error_msg:
+                            logger.warning(f"Failed to send to user {user['user_id']}: {error_msg}")
+                            fail_count += 1
                 
                 # Send to groups with minimal rate limit
                 for group in groups:
@@ -760,8 +769,11 @@ class DeveloperCommands:
                         if len(groups) > 20:  # Only add delay for large broadcasts
                             await asyncio.sleep(0.03)
                     except Exception as e:
-                        logger.warning(f"Failed to send to group {group['chat_id']}: {str(e)}")
-                        fail_count += 1
+                        error_msg = str(e)
+                        # Only count real failures, not permission issues
+                        if "Forbidden" not in error_msg and "bot was kicked" not in error_msg:
+                            logger.warning(f"Failed to send to group {group['chat_id']}: {error_msg}")
+                            fail_count += 1
             
             # Store sent messages in database for delbroadcast feature (persists across restarts)
             if sent_messages:
