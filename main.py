@@ -21,6 +21,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+logging.getLogger('httpx').setLevel(logging.WARNING)
+logging.getLogger('telegram').setLevel(logging.INFO)
+logger.info("Logging configured - httpx set to WARNING to protect bot token")
+
 # Global variables for tracking
 last_restart = datetime.now()
 error_count = 0
