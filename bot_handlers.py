@@ -38,6 +38,38 @@ class TelegramQuizBot:
         self.dev_commands = DeveloperCommands(self.db, quiz_manager)
         logger.info("TelegramQuizBot initialized with database and developer commands")
 
+    async def ensure_group_registered(self, chat, context: ContextTypes.DEFAULT_TYPE = None):
+        """Register group in database for broadcasts - works regardless of admin status"""
+        try:
+            if chat.type in ["group", "supergroup"]:
+                chat_title = chat.title or chat.username or "(No Title)"
+                self.db.add_or_update_group(chat.id, chat_title, chat.type)
+                logger.debug(f"Registered group {chat.id} ({chat_title}) in database")
+        except Exception as e:
+            logger.error(f"Failed to register group {chat.id}: {e}")
+
+    async def backfill_groups_startup(self):
+        """Migrate active_chats to database groups table on startup"""
+        try:
+            active_chats = self.quiz_manager.get_active_chats()
+            logger.info(f"Backfilling {len(active_chats)} groups from active_chats to database")
+            
+            registered_count = 0
+            for chat_id in active_chats:
+                try:
+                    chat = await self.application.bot.get_chat(chat_id)
+                    if chat.type in ["group", "supergroup"]:
+                        chat_title = chat.title or chat.username or "(No Title)"
+                        self.db.add_or_update_group(chat.id, chat_title, chat.type)
+                        registered_count += 1
+                        logger.debug(f"Backfilled group {chat.id} ({chat_title})")
+                except Exception as e:
+                    logger.warning(f"Failed to backfill group {chat_id}: {e}")
+            
+            logger.info(f"Successfully backfilled {registered_count}/{len(active_chats)} groups to database")
+        except Exception as e:
+            logger.error(f"Error in backfill_groups_startup: {e}")
+
     async def check_admin_status(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
         """Check if bot is admin in the chat"""
         try:
@@ -273,6 +305,11 @@ class TelegramQuizBot:
 
             await self.application.initialize()
             await self.application.start()
+            
+            # Backfill groups from active_chats to database
+            # Use bot directly instead of context for startup backfill
+            await self.backfill_groups_startup()
+            
             await self.application.updater.start_polling()
 
             return self
@@ -298,6 +335,7 @@ class TelegramQuizBot:
                 if not was_member and is_member:
                     # Bot was added to a group
                     self.quiz_manager.add_active_chat(chat.id)
+                    await self.ensure_group_registered(chat, context)
                     await self.send_welcome_message(chat.id, context)
 
                     # Schedule first quiz delivery
@@ -451,6 +489,8 @@ We're here to help! 🌟"""
     async def quiz_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle the /quiz command with loading indicator"""
         try:
+            await self.ensure_group_registered(update.effective_chat, context)
+            
             if not await self.check_cooldown(update.effective_user.id, "quiz"):
                 await update.message.reply_text("⏳ Please wait a moment before starting another quiz!")
                 return
@@ -471,9 +511,10 @@ We're here to help! 🌟"""
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle the /start command"""
         try:
-            chat_id = update.effective_chat.id
-            self.quiz_manager.add_active_chat(chat_id)
-            await self.send_welcome_message(chat_id, context)
+            chat = update.effective_chat
+            self.quiz_manager.add_active_chat(chat.id)
+            await self.ensure_group_registered(chat, context)
+            await self.send_welcome_message(chat.id, context)
             
         except Exception as e:
             logger.error(f"Error in start command: {e}")
@@ -482,6 +523,8 @@ We're here to help! 🌟"""
     async def help(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle the /help command"""
         try:
+            await self.ensure_group_registered(update.effective_chat, context)
+            
             # Check if user is developer
             is_dev = await self.is_developer(update.message.from_user.id)
             
@@ -1790,6 +1833,8 @@ Use/help to see all commands."""
                         logger.info(f"Skipping non-group chat {chat_id}")
                         continue
 
+                    await self.ensure_group_registered(chat, context)
+
                     is_admin = await self.check_admin_status(chat_id, context)
                     if not is_admin:
                         logger.warning(f"Bot is not admin in chat {chat_id}, sending reminder")
@@ -2929,6 +2974,7 @@ Start by adding the bot to groups!
                 if not was_member and is_member:
                     # Bot was added to a group
                     self.quiz_manager.add_active_chat(chat.id)
+                    await self.ensure_group_registered(chat, context)
                     await self.send_welcome_message(chat.id, context)
 
                     # Schedule first quiz delivery
