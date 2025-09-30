@@ -282,7 +282,7 @@ class DeveloperCommands:
                 dev_text = "👥 Developer List\n\n"
                 for dev in developers:
                     name = dev.get('first_name') or dev.get('username') or f"User {dev['user_id']}"
-                    dev_text += f"• {name}\n"
+                    dev_text += f"• {name} (ID: {dev['user_id']})\n"
                 
                 reply = await update.message.reply_text(dev_text)
                 await self.auto_clean_message(update.message, reply)
@@ -361,23 +361,22 @@ class DeveloperCommands:
                 await self.send_unauthorized_message(update)
                 return
             
-            reply = await update.message.reply_text(
-                "🔄 Restarting bot...\n\n"
-                "The bot will be back online in a few seconds."
+            await update.message.reply_text(
+                "🔄 Restarting bot now...\n\n"
+                "⏳ The bot will be back in a few seconds."
             )
             
             logger.info(f"Bot restart initiated by user {update.effective_user.id}")
             
-            # Give time for message to be sent
-            await asyncio.sleep(1)
+            # Give time for message to send
+            await asyncio.sleep(0.5)
             
-            # Restart the process
-            os.execv(sys.executable, ['python'] + sys.argv)
+            # Restart the process properly
+            os.execv(sys.executable, [sys.executable] + sys.argv)
         
         except Exception as e:
             logger.error(f"Error in allreload: {e}", exc_info=True)
-            reply = await update.message.reply_text("❌ Error restarting bot")
-            await self.auto_clean_message(update.message, reply)
+            await update.message.reply_text("❌ Error restarting bot")
     
     async def broadband(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Send simple broadcast message without forward tags"""
