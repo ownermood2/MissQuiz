@@ -459,9 +459,11 @@ class DatabaseManager:
             
             if os.path.exists(developers_file):
                 with open(developers_file, 'r') as f:
-                    developers = json.load(f)
+                    dev_data = json.load(f)
+                    developers = dev_data.get('developers', []) if isinstance(dev_data, dict) else dev_data
                     for dev_id in developers:
-                        self.add_developer(int(dev_id))
+                        if isinstance(dev_id, int) or (isinstance(dev_id, str) and dev_id.isdigit()):
+                            self.add_developer(int(dev_id))
                 logger.info(f"Migrated {len(developers)} developers from JSON")
             
             if os.path.exists(chats_file):
