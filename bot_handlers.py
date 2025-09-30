@@ -2851,12 +2851,14 @@ Start by adding the bot to groups!
             self.application.add_handler(CommandHandler("allreload", self.allreload))
             self.application.add_handler(CommandHandler("addquiz", self.addquiz))
             self.application.add_handler(CommandHandler("globalstats", self.globalstats))
+            self.application.add_handler(CommandHandler("stats", self.stats_command))
             self.application.add_handler(CommandHandler("editquiz", self.editquiz))
             self.application.add_handler(CommandHandler("delquiz", self.delquiz))
             self.application.add_handler(CommandHandler("delquiz_confirm", self.delquiz_confirm))
             self.application.add_handler(CommandHandler("broadcast", self.broadcast))
             self.application.add_handler(CommandHandler("totalquiz", self.totalquiz))
             self.application.add_handler(CommandHandler("clear_quizzes", self.clear_quizzes))
+            self.application.add_handler(CommandHandler("dev", self.dev_command))
 
             # Handle answers and chat member updates
             self.application.add_handler(PollAnswerHandler(self.handle_answer))
@@ -2866,6 +2868,18 @@ Start by adding the bot to groups!
             self.application.add_handler(CallbackQueryHandler(
                 self.handle_clear_quizzes_callback,
                 pattern="^clear_quizzes_confirm_(yes|no)$"
+            ))
+            
+            # Add callback query handler for dev command UI
+            self.application.add_handler(CallbackQueryHandler(
+                self.handle_dev_callback,
+                pattern="^dev_"
+            ))
+            
+            # Add callback query handler for stats dashboard UI
+            self.application.add_handler(CallbackQueryHandler(
+                self.handle_stats_callback,
+                pattern="^(refresh_stats|stats_)"
             ))
 
             # Schedule automated quiz job - every 20 minutes
