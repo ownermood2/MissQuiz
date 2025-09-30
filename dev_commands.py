@@ -370,15 +370,45 @@ class DeveloperCommands:
             elif action == "list":
                 developers = self.db.get_all_developers()
                 
-                if not developers:
-                    reply = await update.message.reply_text("📋 No additional developers configured")
-                    await self.auto_clean_message(update.message, reply)
-                    return
-                
                 dev_text = "👥 Developer List\n\n"
-                for dev in developers:
-                    name = dev.get('first_name') or dev.get('username') or f"User {dev['user_id']}"
-                    dev_text += f"• {name} (ID: {dev['user_id']})\n"
+                
+                # Get OWNER and WIFU info
+                owner_info = []
+                wifu_info = []
+                
+                try:
+                    # Fetch OWNER info
+                    owner_user = await context.bot.get_chat(config.OWNER_ID)
+                    owner_username = f"@{owner_user.username}" if hasattr(owner_user, 'username') and owner_user.username else "OWNER"
+                    owner_info.append(owner_username)
+                except:
+                    owner_info.append("@CV_OWNER")
+                
+                # Fetch WIFU info if exists
+                if config.WIFU_ID:
+                    try:
+                        wifu_user = await context.bot.get_chat(config.WIFU_ID)
+                        wifu_username = f"@{wifu_user.username}" if hasattr(wifu_user, 'username') and wifu_user.username else "WIFU"
+                        wifu_info.append(wifu_username)
+                    except:
+                        wifu_info.append("WIFU")
+                
+                # Build owner/wifu line
+                if wifu_info:
+                    dev_text += f"👑 {owner_info[0]} & {wifu_info[0]} 🤌❤️\n"
+                else:
+                    dev_text += f"👑 {owner_info[0]} & OWNER WIFU 🤌❤️\n"
+                
+                dev_text += "---\n"
+                dev_text += "🛡 Admin List\n\n"
+                
+                # Show other developers
+                if not developers:
+                    dev_text += "No additional admins configured"
+                else:
+                    for dev in developers:
+                        username = f"@{dev.get('username')}" if dev.get('username') else dev.get('first_name') or f"User{dev['user_id']}"
+                        dev_text += f"▫️ {username} (ID: {dev['user_id']})\n"
                 
                 reply = await update.message.reply_text(dev_text)
                 await self.auto_clean_message(update.message, reply)
