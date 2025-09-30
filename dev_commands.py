@@ -629,7 +629,7 @@ class DeveloperCommands:
                         if len(users) > 20:  # Only add delay for large broadcasts
                             await asyncio.sleep(0.03)
                     except Exception as e:
-                        logger.debug(f"Failed to send to user {user['user_id']}: {e}")
+                        logger.warning(f"Failed to send to user {user['user_id']}: {str(e)}")
                         fail_count += 1
                 
                 # Send to groups with minimal rate limit
@@ -645,7 +645,7 @@ class DeveloperCommands:
                         if len(groups) > 20:  # Only add delay for large broadcasts
                             await asyncio.sleep(0.03)
                     except Exception as e:
-                        logger.debug(f"Failed to send to group {group['chat_id']}: {e}")
+                        logger.warning(f"Failed to send to group {group['chat_id']}: {str(e)}")
                         fail_count += 1
             
             else:  # text broadcast
@@ -660,7 +660,7 @@ class DeveloperCommands:
                         if len(users) > 20:  # Only add delay for large broadcasts
                             await asyncio.sleep(0.03)
                     except Exception as e:
-                        logger.debug(f"Failed to send to user {user['user_id']}: {e}")
+                        logger.warning(f"Failed to send to user {user['user_id']}: {str(e)}")
                         fail_count += 1
                 
                 # Send to groups with minimal rate limit
@@ -672,7 +672,7 @@ class DeveloperCommands:
                         if len(groups) > 20:  # Only add delay for large broadcasts
                             await asyncio.sleep(0.03)
                     except Exception as e:
-                        logger.debug(f"Failed to send to group {group['chat_id']}: {e}")
+                        logger.warning(f"Failed to send to group {group['chat_id']}: {str(e)}")
                         fail_count += 1
             
             # Store sent messages for delbroadcast feature
