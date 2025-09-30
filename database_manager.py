@@ -66,10 +66,18 @@ class DatabaseManager:
                     wrong_answers INTEGER DEFAULT 0,
                     success_rate REAL DEFAULT 0.0,
                     last_activity_date TEXT,
+                    has_pm_access INTEGER DEFAULT 0,
                     joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
+            
+            # Migration: Add has_pm_access column if it doesn't exist
+            cursor.execute("PRAGMA table_info(users)")
+            columns = [column[1] for column in cursor.fetchall()]
+            if 'has_pm_access' not in columns:
+                cursor.execute('ALTER TABLE users ADD COLUMN has_pm_access INTEGER DEFAULT 0')
+                logger.info("Added has_pm_access column to users table")
             
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS developers (
@@ -277,6 +285,23 @@ class DatabaseManager:
             cursor = conn.cursor()
             cursor.execute('SELECT * FROM users WHERE total_quizzes > 0 ORDER BY current_score DESC')
             return [dict(row) for row in cursor.fetchall()]
+    
+    def get_pm_accessible_users(self) -> List[Dict]:
+        """Get only users who have started a PM conversation with the bot"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM users WHERE has_pm_access = 1 ORDER BY current_score DESC')
+            return [dict(row) for row in cursor.fetchall()]
+    
+    def set_user_pm_access(self, user_id: int, has_access: bool = True):
+        """Mark that a user has started a PM conversation"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE users 
+                SET has_pm_access = ?
+                WHERE user_id = ?
+            ''', (1 if has_access else 0, user_id))
     
     def add_developer(self, user_id: int, username: str = None, first_name: str = None, 
                      last_name: str = None, added_by: int = None):

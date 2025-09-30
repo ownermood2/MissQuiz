@@ -513,6 +513,13 @@ We're here to help! 🌟"""
         """Handle the /start command"""
         try:
             chat = update.effective_chat
+            user = update.effective_user
+            
+            # Mark PM access when user starts bot in private chat
+            if chat.type == 'private':
+                self.db.set_user_pm_access(user.id, True)
+                logger.info(f"User {user.id} granted PM access")
+            
             self.quiz_manager.add_active_chat(chat.id)
             await self.ensure_group_registered(chat, context)
             await self.send_welcome_message(chat.id, context)
