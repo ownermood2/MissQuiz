@@ -107,6 +107,7 @@ The architecture supports future integration with database systems (Drizzle ORM 
    - Added `/allreload` for bot restarts
    - Added `/broadband` for simple broadcasts
    - Enhanced `/broadcast` with reply-to support
+   - Added `/delbroadcast` for deleting broadcast messages
 
 3. **Access Control System**
    - Strict OWNER and WIFU access control
@@ -130,14 +131,21 @@ The architecture supports future integration with database systems (Drizzle ORM 
    - Plain text broadcasts (`/broadband`)
    - Message forwarding (`/broadcast` with reply)
    - Direct message sending (`/broadcast` with text)
+   - Delete broadcasts (`/delbroadcast`)
    - Confirmation before sending
    - Rate limiting to prevent Telegram blocks
    - Success/failure statistics
+
+7. **Automatic Quiz Scheduling**
+   - Sends quiz every 30 minutes to all active groups
+   - Persistent scheduling across bot restarts
+   - Admin reminders when questions run low
 
 ### Bug Fixes
 - Fixed `/delquiz` Markdown parsing error (Can't parse entities)
 - Fixed stats button callback handler
 - Improved error handling across all commands
+- Fixed bot token exposure in logs (httpx logger set to WARNING level)
 
 ### Documentation
 - Created `DEVELOPER_COMMANDS.md` with complete command guide
@@ -160,3 +168,5 @@ The architecture supports future integration with database systems (Drizzle ORM 
 - Async/await for non-blocking operations
 - Rate limiting for broadcast operations
 - Proper exception handling throughout
+- Security hardening: Bot token protected in logs
+- Production-ready logging configuration
