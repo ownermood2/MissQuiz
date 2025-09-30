@@ -230,12 +230,29 @@ class DeveloperCommands:
                 reply = await update.message.reply_text(
                     "🔧 Developer Management\n\n"
                     "Commands:\n"
+                    "• /dev [user_id] - Add developer (quick add)\n"
                     "• /dev add [user_id] - Add developer\n"
                     "• /dev remove [user_id] - Remove developer\n"
                     "• /dev list - Show all developers"
                 )
                 await self.auto_clean_message(update.message, reply)
                 return
+            
+            # Check if first argument is a number (user ID for quick add)
+            try:
+                user_id = int(context.args[0])
+                # Quick add: /dev 123456
+                self.db.add_developer(user_id, added_by=update.effective_user.id)
+                reply = await update.message.reply_text(
+                    f"✅ Developer added successfully!\n\n"
+                    f"User ID: {user_id}"
+                )
+                logger.info(f"Developer {user_id} added by {update.effective_user.id}")
+                await self.auto_clean_message(update.message, reply)
+                return
+            except ValueError:
+                # Not a number, treat as action
+                pass
             
             action = context.args[0].lower()
             
@@ -556,13 +573,16 @@ class DeveloperCommands:
             await self.auto_clean_message(update.message, reply)
     
     async def broadcast_confirm(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Confirm and send broadcast"""
+        """Confirm and send broadcast - Optimized for instant delivery"""
         try:
             if not await self.check_access(update):
                 await self.send_unauthorized_message(update)
                 return
             
             broadcast_type = context.user_data.get('broadcast_type')
+            
+            # Track sent messages for deletion feature
+            sent_messages = {}
             if not broadcast_type:
                 reply = await update.message.reply_text("❌ No broadcast found. Please use /broadcast first.")
                 await self.auto_clean_message(update.message, reply)
@@ -576,34 +596,42 @@ class DeveloperCommands:
             success_count = 0
             fail_count = 0
             
+            # Create unique broadcast ID for tracking
+            import time
+            broadcast_id = f"broadcast_{int(time.time())}_{update.effective_user.id}"
+            
             if broadcast_type == 'forward':
                 message_id = context.user_data.get('broadcast_message_id')
                 chat_id = context.user_data.get('broadcast_chat_id')
                 
-                # Forward to users
+                # Send to users with minimal rate limit for Telegram API compliance
                 for user in users:
                     try:
-                        await context.bot.copy_message(
+                        sent_msg = await context.bot.copy_message(
                             chat_id=user['user_id'],
                             from_chat_id=chat_id,
                             message_id=message_id
                         )
+                        sent_messages[user['user_id']] = sent_msg.message_id
                         success_count += 1
-                        await asyncio.sleep(0.05)
+                        if len(users) > 20:  # Only add delay for large broadcasts
+                            await asyncio.sleep(0.03)
                     except Exception as e:
                         logger.debug(f"Failed to send to user {user['user_id']}: {e}")
                         fail_count += 1
                 
-                # Forward to groups
+                # Send to groups with minimal rate limit
                 for group in groups:
                     try:
-                        await context.bot.copy_message(
+                        sent_msg = await context.bot.copy_message(
                             chat_id=group['chat_id'],
                             from_chat_id=chat_id,
                             message_id=message_id
                         )
+                        sent_messages[group['chat_id']] = sent_msg.message_id
                         success_count += 1
-                        await asyncio.sleep(0.05)
+                        if len(groups) > 20:  # Only add delay for large broadcasts
+                            await asyncio.sleep(0.03)
                     except Exception as e:
                         logger.debug(f"Failed to send to group {group['chat_id']}: {e}")
                         fail_count += 1
@@ -611,25 +639,35 @@ class DeveloperCommands:
             else:  # text broadcast
                 message_text = context.user_data.get('broadcast_message')
                 
-                # Send to users
+                # Send to users with minimal rate limit for Telegram API compliance
                 for user in users:
                     try:
-                        await context.bot.send_message(chat_id=user['user_id'], text=message_text)
+                        sent_msg = await context.bot.send_message(chat_id=user['user_id'], text=message_text)
+                        sent_messages[user['user_id']] = sent_msg.message_id
                         success_count += 1
-                        await asyncio.sleep(0.05)
+                        if len(users) > 20:  # Only add delay for large broadcasts
+                            await asyncio.sleep(0.03)
                     except Exception as e:
                         logger.debug(f"Failed to send to user {user['user_id']}: {e}")
                         fail_count += 1
                 
-                # Send to groups
+                # Send to groups with minimal rate limit
                 for group in groups:
                     try:
-                        await context.bot.send_message(chat_id=group['chat_id'], text=message_text)
+                        sent_msg = await context.bot.send_message(chat_id=group['chat_id'], text=message_text)
+                        sent_messages[group['chat_id']] = sent_msg.message_id
                         success_count += 1
-                        await asyncio.sleep(0.05)
+                        if len(groups) > 20:  # Only add delay for large broadcasts
+                            await asyncio.sleep(0.03)
                     except Exception as e:
                         logger.debug(f"Failed to send to group {group['chat_id']}: {e}")
                         fail_count += 1
+            
+            # Store sent messages for delbroadcast feature
+            if sent_messages:
+                context.bot_data[broadcast_id] = sent_messages
+                context.bot_data['latest_broadcast'] = broadcast_id
+                logger.info(f"Stored broadcast {broadcast_id} with {len(sent_messages)} messages")
             
             await status.edit_text(
                 f"✅ Broadcast completed!\n\n"
@@ -651,38 +689,42 @@ class DeveloperCommands:
             await self.auto_clean_message(update.message, reply)
     
     async def delbroadcast(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Delete a broadcast message from all groups/users"""
+        """Delete latest broadcast from all groups/users - Works from anywhere!"""
         try:
             if not await self.check_access(update):
                 await self.send_unauthorized_message(update)
                 return
             
-            # Check if replying to a broadcast message
-            if not update.message.reply_to_message:
+            # Get latest broadcast
+            latest_broadcast = context.bot_data.get('latest_broadcast')
+            
+            if not latest_broadcast:
                 reply = await update.message.reply_text(
-                    "❌ Reply to a broadcast message with /delbroadcast to delete it from all chats"
+                    "❌ No recent broadcast found\n\n"
+                    "Broadcasts must be deleted soon after sending."
                 )
                 await self.auto_clean_message(update.message, reply)
                 return
             
-            replied_message = update.message.reply_to_message
+            broadcast_messages = context.bot_data.get(latest_broadcast, {})
+            
+            if not broadcast_messages:
+                reply = await update.message.reply_text("❌ Broadcast data not found")
+                await self.auto_clean_message(update.message, reply)
+                return
             
             # Confirm deletion
             confirm_text = (
                 "🗑️ Delete Broadcast Confirmation\n\n"
-                "This will attempt to delete the replied message from all users and groups.\n\n"
-                "⚠️ Note: Messages can only be deleted if:\n"
-                "• Bot is admin in groups\n"
-                "• Message is less than 48 hours old\n\n"
+                f"This will delete the latest broadcast from {len(broadcast_messages)} chats.\n\n"
+                "⚠️ Note: Some deletions may fail if:\n"
+                "• Bot is not admin in groups\n"
+                "• Message is older than 48 hours\n\n"
                 "Confirm: /delbroadcast_confirm"
             )
             
-            # Store message info
-            context.user_data['delbroadcast_message_id'] = replied_message.message_id
-            context.user_data['delbroadcast_chat_id'] = replied_message.chat_id
-            
             reply = await update.message.reply_text(confirm_text)
-            logger.info(f"Broadcast deletion prepared by {update.effective_user.id}")
+            logger.info(f"Broadcast deletion prepared by {update.effective_user.id} for {len(broadcast_messages)} chats")
         
         except Exception as e:
             logger.error(f"Error in delbroadcast: {e}", exc_info=True)
@@ -690,58 +732,53 @@ class DeveloperCommands:
             await self.auto_clean_message(update.message, reply)
     
     async def delbroadcast_confirm(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Confirm and execute broadcast deletion"""
+        """Confirm and execute broadcast deletion - Optimized for instant deletion"""
         try:
             if not await self.check_access(update):
                 await self.send_unauthorized_message(update)
                 return
             
-            message_id = context.user_data.get('delbroadcast_message_id')
-            if not message_id:
-                reply = await update.message.reply_text("❌ No broadcast deletion found. Please use /delbroadcast first.")
+            # Get latest broadcast data
+            latest_broadcast = context.bot_data.get('latest_broadcast')
+            
+            if not latest_broadcast:
+                reply = await update.message.reply_text("❌ No broadcast found. Please use /delbroadcast first.")
                 await self.auto_clean_message(update.message, reply)
                 return
             
-            status = await update.message.reply_text("🗑️ Deleting broadcast messages...")
+            broadcast_messages = context.bot_data.get(latest_broadcast, {})
             
-            users = self.db.get_all_users_stats()
-            groups = self.db.get_all_groups()
+            if not broadcast_messages:
+                reply = await update.message.reply_text("❌ Broadcast data not found")
+                await self.auto_clean_message(update.message, reply)
+                return
+            
+            status = await update.message.reply_text("🗑️ Deleting broadcast instantly...")
             
             success_count = 0
             fail_count = 0
             
-            # Delete from users
-            for user in users:
+            # Delete from all chats instantly
+            for chat_id, message_id in broadcast_messages.items():
                 try:
-                    await context.bot.delete_message(chat_id=user['user_id'], message_id=message_id)
+                    await context.bot.delete_message(chat_id=chat_id, message_id=message_id)
                     success_count += 1
-                    await asyncio.sleep(0.05)
                 except Exception as e:
-                    logger.debug(f"Failed to delete from user {user['user_id']}: {e}")
-                    fail_count += 1
-            
-            # Delete from groups
-            for group in groups:
-                try:
-                    await context.bot.delete_message(chat_id=group['chat_id'], message_id=message_id)
-                    success_count += 1
-                    await asyncio.sleep(0.05)
-                except Exception as e:
-                    logger.debug(f"Failed to delete from group {group['chat_id']}: {e}")
+                    logger.debug(f"Failed to delete from chat {chat_id}: {e}")
                     fail_count += 1
             
             await status.edit_text(
-                f"✅ Broadcast deletion completed!\n\n"
+                f"✅ Broadcast deleted instantly!\n\n"
                 f"• Deleted: {success_count}\n"
                 f"• Failed: {fail_count}\n\n"
-                f"Note: Failures are normal for messages older than 48h or where bot lacks permissions."
+                f"💡 Failed deletions occur when bot lacks permissions or message is too old."
             )
             
             logger.info(f"Broadcast deletion by {update.effective_user.id}: {success_count} deleted, {fail_count} failed")
             
-            # Clear data
-            context.user_data.pop('delbroadcast_message_id', None)
-            context.user_data.pop('delbroadcast_chat_id', None)
+            # Clear broadcast data
+            context.bot_data.pop(latest_broadcast, None)
+            context.bot_data.pop('latest_broadcast', None)
         
         except Exception as e:
             logger.error(f"Error in delbroadcast_confirm: {e}", exc_info=True)
