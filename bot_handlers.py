@@ -471,15 +471,15 @@ We're here to help! 🌟"""
             user = update.effective_user
             user_mention = user.first_name
             
-            help_text = f"""✨ 𝐐𝐮𝐢𝐳𝐢𝐦𝐩𝐚𝐜𝐭 | 𝐂𝐨𝐦𝐦𝐚𝐧𝐝 𝐂𝐞𝐧𝐭𝐞𝐫  
-📑 Welcome IIı {user_mention} 🇮🇳 ıII! Here's your command guide:  
+            help_text = f"""✨ 𝐐𝐮𝐢𝐳𝐢𝐦𝐩𝐚𝐜𝐭 - 𝐂𝐨𝐦𝐦𝐚𝐧𝐝 𝐂𝐞𝐧𝐭𝐞𝐫  
+📑 Welcome {user_mention}! Here's your command guide:  
 ━━━━━━━━━━━━━━━━━━━━━━━
 
-🎮 | 𝐐𝐮𝐢𝐳 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬  
+🎮 𝐐𝐮𝐢𝐳 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬  
 ➤ /quiz              🎲 Take a quiz now  
 ➤ /category          🗂️ Explore quiz topics  
 
-📊 | 𝐒𝐭𝐚𝐭𝐬 & 𝐑𝐚𝐧𝐤𝐢𝐧𝐠𝐬  
+📊 𝐒𝐭𝐚𝐭𝐬 & 𝐑𝐚𝐧𝐤𝐢𝐧𝐠𝐬  
 ➤ /mystats           📈 Your performance  
 ➤ /leaderboard       🏆 Global rankings"""
 
@@ -487,7 +487,7 @@ We're here to help! 🌟"""
             if is_dev:
                 help_text += """  
 
-🔐 | 𝐃𝐞𝐯𝐞𝐥𝐨𝐩𝐞𝐫 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬  
+🔐 𝐃𝐞𝐯𝐞𝐥𝐨𝐩𝐞𝐫 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬  
 ➤ /dev               👑 Manage developer roles  
 ➤ /stats             📊 Real-time bot stats  
 ➤ /broadcast         📣 Send announcements  
@@ -496,11 +496,11 @@ We're here to help! 🌟"""
 ➤ /delquiz           🗑️ Delete a quiz  
 ➤ /totalquiz         🔢 Total quiz count  
 ➤ /allreload         🔄 Restart bot globally  
-➤ /clear_quizzes     💣 Clear all quizzes (⚠️ irreversible)"""
+➤ /clear_quizzes     💣 Clear all quizzes"""
 
             help_text += """  
 
-💡 | 𝐓𝐢𝐩𝐬 & 𝐓𝐫𝐢𝐜𝐤𝐬  
+💡 𝐓𝐢𝐩𝐬 & 𝐓𝐫𝐢𝐜𝐤𝐬  
 • Stats auto-update in real-time ⚡  
 • Try /quiz daily to improve your rank 📈  
 • Add me to groups for team challenges 👥  
@@ -510,22 +510,12 @@ We're here to help! 🌟"""
 🔔 Need help? Use /help anytime!  
 ✨ 𝐂𝐨𝐧𝐪𝐮𝐞𝐫 𝐭𝐡𝐞 𝐐𝐮𝐢𝐳 𝐖𝐨𝐫𝐥𝐝!"""
 
-            # Send help message with better error handling
-            try:
-                await context.bot.send_message(
-                    chat_id=update.effective_chat.id,
-                    text=help_text,
-                    parse_mode=ParseMode.MARKDOWN
-                )
-                logger.info(f"Help message sent to user {update.effective_user.id}")
-            except Exception as e:
-                logger.error(f"Failed to send help message with markdown: {e}")
-                # Try sending without markdown formatting as fallback
-                await context.bot.send_message(
-                    chat_id=update.effective_chat.id,
-                    text=help_text,
-                    parse_mode=None
-                )
+            # Send help message without markdown to avoid parsing errors
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=help_text
+            )
+            logger.info(f"Help message sent to user {update.effective_user.id}")
 
         except Exception as e:
             logger.error(f"Error in help command: {e}")
