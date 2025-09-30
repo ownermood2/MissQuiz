@@ -92,15 +92,13 @@ async def main():
                     text=confirmation_message
                 )
                 
-                # Remove the flag file
+                # Remove the flag file only after successful send
                 os.remove(restart_flag_path)
-                logger.info(f"Restart confirmation sent to OWNER ({OWNER_ID})")
+                logger.info(f"Restart confirmation sent to OWNER ({OWNER_ID}) and flag removed")
                 
             except Exception as e:
                 logger.error(f"Failed to send restart confirmation: {e}")
-                # Still remove the flag file to avoid repeated attempts
-                if os.path.exists(restart_flag_path):
-                    os.remove(restart_flag_path)
+                logger.info("Flag file kept for retry on next restart")
 
         # Start health check task
         asyncio.create_task(health_check())
