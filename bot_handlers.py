@@ -277,6 +277,12 @@ class TelegramQuizBot:
                 self.handle_stats_callback,
                 pattern="^(refresh_stats|stats_)"
             ))
+            
+            # Add callback query handler for start command buttons
+            self.application.add_handler(CallbackQueryHandler(
+                self.handle_start_callback,
+                pattern="^(start_quiz|my_stats|leaderboard|help)$"
+            ))
 
             # Schedule automated quiz job - every 30 minutes
             self.application.job_queue.run_repeating(
@@ -374,37 +380,60 @@ class TelegramQuizBot:
         """Send unified welcome message when bot joins a group or starts in private chat"""
         try:
             keyboard = [
+                [
+                    InlineKeyboardButton("🎯 Start Quiz", callback_data="start_quiz"),
+                    InlineKeyboardButton("📊 My Stats", callback_data="my_stats")
+                ],
+                [
+                    InlineKeyboardButton("🏆 Leaderboard", callback_data="leaderboard"),
+                    InlineKeyboardButton("❓ Help", callback_data="help")
+                ],
                 [InlineKeyboardButton(
-                    "🔥 Add to Group/Channel 🔥",
+                    "➕ Add to Your Group",
                     url=f"https://t.me/{context.bot.username}?startgroup=true"
                 )]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
-            welcome_message = """🎯 Welcome to Miss Quiz 𓂀 Bot 🇮🇳 🎉
+            welcome_message = """╔══════════════════════╗
+║   🎯 𝗠𝗶𝘀𝘀 𝗤𝘂𝗶𝘇 𓂀 𝗕𝗼𝘁 🇮🇳   ║
+╚══════════════════════╝
 
-🚀 Why Choose Miss Quiz 𓂀 Bot?
-➜ Auto Quizzes – Fresh quizzes every 30 mins 🕒
-➜ Leaderboard – Track scores & compete for glory 🏆
-➜ Categories – GK, CA, History & more! /category 📚
-➜ Instant Results – Answers in real-time ⚡
-➜ PM Mode – Clean and clutter-free 🤫
-➜ Group Mode – Auto-cleans after completion 🧹
+✨ 𝗬𝗼𝘂𝗿 𝗨𝗹𝘁𝗶𝗺𝗮𝘁𝗲 𝗤𝘂𝗶𝘇 𝗖𝗼𝗺𝗽𝗮𝗻𝗶𝗼𝗻! ✨
 
-📝 Commands:
-/start – Begin your quiz journey 🚀
-/help – View all commands 🛠️
-/category – Explore quiz topics 📖
-/mystats – Check your performance 📊
-/leaderboard – View top scorers 🏆
+━━━━━━━━━━━━━━━━━━━━━━
+🌟 𝗣𝗿𝗲𝗺𝗶𝘂𝗺 𝗙𝗲𝗮𝘁𝘂𝗿𝗲𝘀:
+━━━━━━━━━━━━━━━━━━━━━━
 
-🔥 Add me to your groups & let the quiz fun begin! 🎯"""
+⚡ 𝗔𝘂𝘁𝗼 𝗤𝘂𝗶𝘇 𝗠𝗼𝗱𝗲
+   Fresh questions every 30 minutes
+
+🏆 𝗟𝗶𝘃𝗲 𝗟𝗲𝗮𝗱𝗲𝗿𝗯𝗼𝗮𝗿𝗱𝘀
+   Compete with players worldwide
+
+📊 𝗗𝗲𝘁𝗮𝗶𝗹𝗲𝗱 𝗦𝘁𝗮𝘁𝗶𝘀𝘁𝗶𝗰𝘀
+   Track your progress & performance
+
+🎨 𝗦𝗺𝗮𝗿𝘁 𝗜𝗻𝘁𝗲𝗿𝗳𝗮𝗰𝗲
+   Clean & professional design
+
+🚀 𝗜𝗻𝘀𝘁𝗮𝗻𝘁 𝗥𝗲𝘀𝘂𝗹𝘁𝘀
+   Real-time answer validation
+
+━━━━━━━━━━━━━━━━━━━━━━
+💎 𝗤𝘂𝗶𝗰𝗸 𝗔𝗰𝘁𝗶𝗼𝗻𝘀:
+━━━━━━━━━━━━━━━━━━━━━━
+
+👉 Use buttons below to start!
+👉 Type /help for all commands
+👉 Add me to groups for auto-quizzes
+
+🎯 𝗥𝗲𝗮𝗱𝘆 𝘁𝗼 𝘁𝗲𝘀𝘁 𝘆𝗼𝘂𝗿 𝗸𝗻𝗼𝘄𝗹𝗲𝗱𝗴𝗲? 𝗟𝗲𝘁'𝘀 𝗯𝗲𝗴𝗶𝗻! 🚀"""
 
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=welcome_message,
-                reply_markup=reply_markup,
-                parse_mode=ParseMode.MARKDOWN
+                reply_markup=reply_markup
             )
 
             # Get chat type and handle accordingly
@@ -415,11 +444,8 @@ class TelegramQuizBot:
                     await self.send_quiz(chat_id, context)
                 else:
                     await self.send_admin_reminder(chat_id, context)
-            elif chat.type == "private":
-                # In private chat, just send a demo quiz
-                await self.send_quiz(chat_id, context)
 
-            logger.info(f"Sent welcome message to chat {chat_id}")
+            logger.info(f"Sent premium welcome message to chat {chat_id}")
         except Exception as e:
             logger.error(f"Error sending welcome message: {e}")
 
@@ -1037,38 +1063,65 @@ Error: {str(e)}
             # Get leaderboard data
             leaderboard = self.quiz_manager.get_leaderboard()
 
-            # Header with description
-            leaderboard_text = f"""🏆 𝗚𝗹𝗼𝗯𝗮𝗹 𝗟𝗲𝗮𝗱𝗲𝗿𝗯𝗼𝗮𝗿𝗱
-════════════════
-📊 Top 10 Quiz Champions"""
+            # Premium header with description
+            leaderboard_text = """╔═══════════════════════╗
+║  🏆 𝗚𝗹𝗼𝗯𝗮𝗹 𝗟𝗲𝗮𝗱𝗲𝗿𝗯𝗼𝗮𝗿𝗱  ║
+╚═══════════════════════╝
+
+✨ 𝗧𝗼𝗽 𝟭𝟬 𝗤𝘂𝗶𝘇 𝗖𝗵𝗮𝗺𝗽𝗶𝗼𝗻𝘀 ✨
+━━━━━━━━━━━━━━━━━━━━━━━"""
 
             # If no participants yet
             if not leaderboard:
-                leaderboard_text += "\n\n🎯 No participants yet! Be the first champion!"
-                await update.message.reply_text(leaderboard_text, parse_mode=ParseMode.MARKDOWN)
+                leaderboard_text += "\n\n🎯 No champions yet!\n💡 Be the first to claim the throne!"
+                
+                keyboard = [[InlineKeyboardButton("🎯 Start Quiz", callback_data="start_quiz")]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                await update.message.reply_text(leaderboard_text, reply_markup=reply_markup)
                 return
 
-            # Add each user's stats
+            # Add each user's stats with premium styling
+            rank_badges = {
+                1: "👑",  # Crown for 1st
+                2: "💎",  # Diamond for 2nd
+                3: "⭐",  # Star for 3rd
+            }
             medals = ["🥇", "🥈", "🥉"]
+            
             for rank, entry in enumerate(leaderboard[:10], 1):
                 try:
-                    #                    # Get user info from Telegram
-                    user= await context.bot.get_chat(entry['user_id'])
+                    # Get user info from Telegram
+                    user = await context.bot.get_chat(entry['user_id'])
                     username = user.first_name or user.username or "Anonymous"
+                    
+                    # Limit username length
+                    if len(username) > 20:
+                        username = username[:17] + "..."
 
-                    # Rank emoji
-                    rank_emoji = medals[rank-1] if rank <= 3 else f"{rank}️⃣"
+                    # Rank display
+                    if rank <= 3:
+                        rank_display = f"{medals[rank-1]} {rank_badges[rank]}"
+                    elif rank <= 9:
+                        rank_display = f"{rank}️⃣ "
+                    else:
+                        rank_display = "🔟"
 
-                    # Add user stats with better formatting
-                    leaderboard_text += f"""
+                    # Format score with K suffix for large numbers
+                    score_display = f"{entry['score']/1000:.1f}K" if entry['score'] >= 1000 else str(entry['score'])
+                    
+                    # Add separator
+                    leaderboard_text += "\n━━━━━━━━━━━━━━━━━━━━━━━\n"
+                    
+                    # Add user stats with premium formatting
+                    leaderboard_text += f"""{rank_display} 𝗥𝗮𝗻𝗸 #{rank} • {username}
 
-{rank_emoji} {username}
-┣ 📝 Score: {entry['score']} points
-┣ ✅ Total Quizzes: {entry['total_attempts']}
+┏ 💯 Score: {score_display} points
+┣ ✅ Quizzes: {entry['total_attempts']}
 ┣ 🎯 Correct: {entry['correct_answers']}
 ┣ 📊 Accuracy: {entry['accuracy']}%
-┣ 🔥 Current Streak: {entry['current_streak']}
-┗ 👑 Best Streak: {entry['longest_streak']}"""
+┣ 🔥 Streak: {entry['current_streak']} 
+┗ 👑 Best: {entry['longest_streak']}"""
 
                 except Exception as e:
                     logger.error(f"Error getting user info for ID {entry['user_id']}: {e}")
@@ -2455,6 +2508,119 @@ Start by adding the bot to groups!
             logger.error(f"Error in stats_command: {e}")
             await update.message.reply_text("❌ Error retrieving statistics. Please try again.")
             
+    async def handle_start_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle callbacks from start command buttons"""
+        try:
+            query = update.callback_query
+            await query.answer()
+            
+            # Route to appropriate handler based on callback data
+            if query.data == "start_quiz":
+                # Start a quiz
+                await self.send_quiz(query.message.chat.id, context)
+                await query.answer("🎯 Quiz started!", show_alert=False)
+                
+            elif query.data == "my_stats":
+                # Show user stats
+                user_id = query.from_user.id
+                stats = self.quiz_manager.get_user_stats(user_id)
+                
+                if stats:
+                    stats_message = f"""📊 𝗬𝗼𝘂𝗿 𝗣𝗲𝗿𝗳𝗼𝗿𝗺𝗮𝗻𝗰𝗲 𝗦𝘁𝗮𝘁𝘀
+━━━━━━━━━━━━━━━━━━━━━
+
+💯 Total Score: {stats['score']} points
+✅ Total Quizzes: {stats['total_attempts']}
+🎯 Correct Answers: {stats['correct_answers']}
+📊 Accuracy: {stats['accuracy']}%
+🔥 Current Streak: {stats['current_streak']}
+👑 Best Streak: {stats['longest_streak']}
+
+━━━━━━━━━━━━━━━━━━━━━
+💡 Keep going to improve your rank!"""
+                else:
+                    stats_message = """📊 𝗬𝗼𝘂𝗿 𝗣𝗲𝗿𝗳𝗼𝗿𝗺𝗮𝗻𝗰𝗲 𝗦𝘁𝗮𝘁𝘀
+━━━━━━━━━━━━━━━━━━━━━
+
+🎯 No stats yet!
+Start playing quizzes to track your progress.
+
+━━━━━━━━━━━━━━━━━━━━━
+💡 Use the button below to start!"""
+                
+                keyboard = [[InlineKeyboardButton("🎯 Start Quiz Now", callback_data="start_quiz")]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await query.message.reply_text(stats_message, reply_markup=reply_markup)
+                
+            elif query.data == "leaderboard":
+                # Show leaderboard
+                leaderboard = self.quiz_manager.get_leaderboard()
+                
+                leaderboard_text = """╔═══════════════════════╗
+║  🏆 𝗚𝗹𝗼𝗯𝗮𝗹 𝗟𝗲𝗮𝗱𝗲𝗿𝗯𝗼𝗮𝗿𝗱  ║
+╚═══════════════════════╝
+
+✨ 𝗧𝗼𝗽 𝟱 𝗤𝘂𝗶𝘇 𝗖𝗵𝗮𝗺𝗽𝗶𝗼𝗻𝘀 ✨
+━━━━━━━━━━━━━━━━━━━━━━━"""
+                
+                if not leaderboard:
+                    leaderboard_text += "\n\n🎯 No champions yet!\n💡 Be the first to claim the throne!"
+                else:
+                    medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
+                    for rank, entry in enumerate(leaderboard[:5], 1):
+                        try:
+                            user = await context.bot.get_chat(entry['user_id'])
+                            username = user.first_name or user.username or "Anonymous"
+                            if len(username) > 15:
+                                username = username[:12] + "..."
+                            
+                            score_display = f"{entry['score']/1000:.1f}K" if entry['score'] >= 1000 else str(entry['score'])
+                            leaderboard_text += f"\n\n{medals[rank-1]} {username}\n💯 {score_display} pts • 🎯 {entry['accuracy']}%"
+                        except:
+                            continue
+                    
+                    leaderboard_text += "\n\n━━━━━━━━━━━━━━━━━━━━━━━\n💡 Use /leaderboard for full list"
+                
+                keyboard = [[InlineKeyboardButton("🎯 Start Quiz", callback_data="start_quiz")]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await query.message.reply_text(leaderboard_text, reply_markup=reply_markup)
+                
+            elif query.data == "help":
+                # Show help
+                help_message = """❓ 𝗛𝗲𝗹𝗽 & 𝗖𝗼𝗺𝗺𝗮𝗻𝗱𝘀
+━━━━━━━━━━━━━━━━━━━━━━
+
+📌 𝗕𝗮𝘀𝗶𝗰 𝗖𝗼𝗺𝗺𝗮𝗻𝗱𝘀:
+/start - Start the bot
+/quiz - Get a new quiz
+/mystats - View your stats
+/leaderboard - See top players
+/help - Show this help
+
+🎯 𝗛𝗼𝘄 𝘁𝗼 𝗣𝗹𝗮𝘆:
+1. Click "Start Quiz" or use /quiz
+2. Answer the question
+3. Earn points for correct answers
+4. Build your streak for bonus points
+5. Climb the leaderboard!
+
+💡 𝗧𝗶𝗽𝘀:
+• Maintain streaks for extra points
+• Check leaderboard to see your rank
+• Add bot to groups for auto-quizzes
+• Answer quickly for the best experience
+
+━━━━━━━━━━━━━━━━━━━━━━
+🚀 Ready to play? Start now!"""
+                
+                keyboard = [[InlineKeyboardButton("🎯 Start Quiz", callback_data="start_quiz")]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await query.message.reply_text(help_message, reply_markup=reply_markup)
+                
+        except Exception as e:
+            logger.error(f"Error in start callback handler: {e}")
+            await query.answer("❌ Error processing request", show_alert=True)
+    
     async def handle_stats_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle callbacks from the stats command"""
         try:
