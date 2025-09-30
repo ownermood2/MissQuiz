@@ -146,6 +146,8 @@ The architecture supports future integration with database systems (Drizzle ORM 
 - Fixed stats button callback handler
 - Improved error handling across all commands
 - Fixed bot token exposure in logs (httpx logger set to WARNING level)
+- Fixed `/dev list` to show both developer name and user ID
+- Fixed `/allreload` slow restart issue (corrected os.execv call)
 
 ### Documentation
 - Created `DEVELOPER_COMMANDS.md` with complete command guide
