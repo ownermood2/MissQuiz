@@ -343,20 +343,24 @@ class TelegramQuizBot:
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
-            welcome_message = """🎯 Welcome to IIı 𝗤𝘂𝗶𝘇𝗶𝗺𝗽𝗮𝗰𝘁𝗕𝗼𝘁 🇮🇳 ıII 🎉
+            welcome_message = """🎯 Welcome to Miss Quiz 𓂀 Bot 🇮🇳 🎉
 
-🚀 𝗪𝗵𝘆 𝗤𝘂𝗶𝘇𝗠𝗮𝘀𝘁𝗲𝗿𝗥𝗼𝗯𝗼𝘁?
-➜ Auto Quizzes – Fresh quiz every 20 mins!
-➜ Leaderboard – Track scores & compete!
-➜ Categories – GK, CA, History & more! /category
-➜ Instant Results – Answers in real-time!
+🚀 Why Choose Miss Quiz 𓂀 Bot?
+➜ Auto Quizzes – Fresh quizzes every 30 mins 🕒
+➜ Leaderboard – Track scores & compete for glory 🏆
+➜ Categories – GK, CA, History & more! /category 📚
+➜ Instant Results – Answers in real-time ⚡
+➜ PM Mode – Clean and clutter-free 🤫
+➜ Group Mode – Auto-cleans after completion 🧹
 
-📝 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗦
-/start – Begin your journey
-/help – View commands
-/category – View topics
+📝 Commands:
+/start – Begin your quiz journey 🚀
+/help – View all commands 🛠️
+/category – Explore quiz topics 📖
+/mystats – Check your performance 📊
+/leaderboard – View top scorers 🏆
 
-🔥 Add me to your groups for quiz fun!"""
+🔥 Add me to your groups & let the quiz fun begin! 🎯"""
 
             await context.bot.send_message(
                 chat_id=chat_id,
@@ -485,15 +489,16 @@ We're here to help! 🌟"""
             user = update.effective_user
             user_mention = user.first_name
             
-            help_text = f"""✨ 𝐐𝐮𝐢𝐳𝐢𝐦𝐩𝐚𝐜𝐭 - 𝐂𝐨𝐦𝐦𝐚𝐧𝐝 𝐂𝐞𝐧𝐭𝐞𝐫  
+            help_text = f"""✨ Miss Quiz 𓂀 Bot - Command Center  
 📑 Welcome {user_mention}! Here's your command guide:  
 ━━━━━━━━━━━━━━━━━━━━━━━
 
-🎮 𝐐𝐮𝐢𝐳 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬  
+🎮 Quiz Commands  
+➤ /start             🚀 Begin your journey  
 ➤ /quiz              🎲 Take a quiz now  
-➤ /category          🗂️ Explore quiz topics  
+➤ /category          📖 Explore quiz topics  
 
-📊 𝐒𝐭𝐚𝐭𝐬 & 𝐑𝐚𝐧𝐤𝐢𝐧𝐠𝐬  
+📊 Stats & Rankings  
 ➤ /mystats           📈 Your performance  
 ➤ /leaderboard       🏆 Global rankings"""
 
@@ -501,28 +506,29 @@ We're here to help! 🌟"""
             if is_dev:
                 help_text += """  
 
-🔐 𝐃𝐞𝐯𝐞𝐥𝐨𝐩𝐞𝐫 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬  
+🔐 Developer Commands  
 ➤ /dev               👑 Manage developer roles  
 ➤ /stats             📊 Real-time bot stats  
 ➤ /broadcast         📣 Send announcements  
+➤ /delbroadcast      🗑️ Delete latest broadcast  
 ➤ /addquiz           ➕ Add quiz questions  
 ➤ /editquiz          ✏️ Edit existing questions  
 ➤ /delquiz           🗑️ Delete a quiz  
 ➤ /totalquiz         🔢 Total quiz count  
-➤ /allreload         🔄 Restart bot globally  
-➤ /clear_quizzes     💣 Clear all quizzes"""
+➤ /allreload         🔄 Restart bot globally"""
 
             help_text += """  
 
-💡 𝐓𝐢𝐩𝐬 & 𝐓𝐫𝐢𝐜𝐤𝐬  
-• Stats auto-update in real-time ⚡  
-• Try /quiz daily to improve your rank 📈  
-• Add me to groups for team challenges 👥  
-• I track your growth automatically 🤖  
+💡 Tips & Tricks  
+• Auto quizzes every 30 mins in groups 🕒  
+• PM mode keeps chat clean & simple 🤫  
+• Group mode auto-cleans after completion 🧹  
+• Stats track your progress in real-time ⚡  
+• Compete with friends on the leaderboard 🏆  
 
 ━━━━━━━━━━━━━━━━━━━━━━━  
 🔔 Need help? Use /help anytime!  
-✨ 𝐂𝐨𝐧𝐪𝐮𝐞𝐫 𝐭𝐡𝐞 𝐐𝐮𝐢𝐳 𝐖𝐨𝐫𝐥𝐝!"""
+✨ Conquer the Quiz World!"""
 
             # Send help message without markdown to avoid parsing errors
             await context.bot.send_message(

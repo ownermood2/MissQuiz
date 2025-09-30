@@ -26,17 +26,23 @@ class DeveloperCommands:
         logger.info("Developer commands module initialized")
     
     async def check_access(self, update: Update) -> bool:
-        """Check if user is authorized (OWNER or WIFU)"""
+        """Check if user is authorized (OWNER, WIFU, or any developer in database)"""
         user_id = update.effective_user.id if update.effective_user else None
         if not user_id:
             return False
         
-        is_authorized = user_id in config.AUTHORIZED_USERS
+        # Check if user is OWNER or WIFU
+        if user_id in config.AUTHORIZED_USERS:
+            return True
         
-        if not is_authorized:
+        # Check if user is in developers database
+        developers = self.db.get_all_developers()
+        is_developer = any(dev['user_id'] == user_id for dev in developers)
+        
+        if not is_developer:
             logger.warning(f"Unauthorized access attempt by user {user_id}")
         
-        return is_authorized
+        return is_developer
     
     async def send_unauthorized_message(self, update: Update):
         """Send friendly unauthorized message"""
@@ -45,8 +51,14 @@ class DeveloperCommands:
         await self.auto_clean_message(update.effective_message, message)
     
     async def auto_clean_message(self, command_message, bot_reply, delay: int = 5):
-        """Auto-clean command and reply messages after delay"""
+        """Auto-clean command and reply messages after delay (ONLY in groups, not in PM)"""
         try:
+            # Only auto-clean in groups, not in private chats
+            chat_type = command_message.chat.type if command_message else None
+            if chat_type not in ["group", "supergroup"]:
+                logger.debug(f"Skipping auto-clean for {chat_type} chat (PM mode)")
+                return
+            
             await asyncio.sleep(delay)
             try:
                 await command_message.delete()
