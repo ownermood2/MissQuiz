@@ -523,7 +523,7 @@ class DeveloperCommands:
             message_text = ' '.join(context.args)
             
             # Get all users and groups
-            users = self.db.get_all_users_stats()
+            users = self.db.get_active_users()  # Only send to users who have taken quizzes
             groups = self.db.get_all_groups()
             
             total_targets = len(users) + len(groups)
@@ -563,7 +563,7 @@ class DeveloperCommands:
             
             status = await update.message.reply_text("📢 Sending broadcast...")
             
-            users = self.db.get_all_users_stats()
+            users = self.db.get_active_users()  # Only send to users who have taken quizzes
             groups = self.db.get_all_groups()
             
             success_count = 0
@@ -690,7 +690,7 @@ class DeveloperCommands:
             
             status = await update.message.reply_text("📢 Sending broadcast...")
             
-            users = self.db.get_all_users_stats()
+            users = self.db.get_active_users()  # Only send to users who have taken quizzes
             groups = self.db.get_all_groups()
             
             success_count = 0

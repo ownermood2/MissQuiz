@@ -271,6 +271,13 @@ class DatabaseManager:
             cursor.execute('SELECT * FROM users ORDER BY current_score DESC')
             return [dict(row) for row in cursor.fetchall()]
     
+    def get_active_users(self) -> List[Dict]:
+        """Get only active users who have taken at least one quiz (can receive broadcasts)"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM users WHERE total_quizzes > 0 ORDER BY current_score DESC')
+            return [dict(row) for row in cursor.fetchall()]
+    
     def add_developer(self, user_id: int, username: str = None, first_name: str = None, 
                      last_name: str = None, added_by: int = None):
         """Add a developer"""
