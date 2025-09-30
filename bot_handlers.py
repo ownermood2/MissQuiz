@@ -2408,8 +2408,107 @@ Start by adding the bot to groups!
                     parse_mode=ParseMode.MARKDOWN
                 )
                 
-                # Call the stats command to get fresh stats
-                await self.stats_command(update, context)
+                # Generate fresh stats directly
+                try:
+                    # Get active chats with validation
+                    active_chats = self.quiz_manager.get_active_chats() if hasattr(self.quiz_manager, 'get_active_chats') else []
+                    valid_active_chats = []
+                    if active_chats:
+                        for chat_id in active_chats:
+                            try:
+                                if isinstance(chat_id, (int, str)) and str(chat_id).lstrip('-').isdigit():
+                                    valid_active_chats.append(int(chat_id))
+                            except Exception:
+                                continue
+                    
+                    total_groups = len(valid_active_chats)
+                    
+                    # Check valid statistics
+                    if hasattr(self.quiz_manager, 'stats') and self.quiz_manager.stats:
+                        valid_stats = {k: v for k, v in self.quiz_manager.stats.items() 
+                                     if isinstance(v, dict) and 'total_quizzes' in v}
+                        total_users = len(valid_stats)
+                    else:
+                        valid_stats = {}
+                        total_users = 0
+
+                    # Calculate metrics
+                    total_attempts = 0
+                    correct_answers = 0
+                    today_quizzes = 0
+                    week_quizzes = 0
+
+                    current_date = datetime.now().strftime('%Y-%m-%d')
+                    week_start = (datetime.now() - timedelta(days=datetime.now().weekday())).strftime('%Y-%m-%d')
+
+                    # Process valid stats only
+                    for user_stats in valid_stats.values():
+                        total_attempts += user_stats.get('total_quizzes', 0)
+                        correct_answers += user_stats.get('correct_answers', 0)
+                        
+                        # Check daily activity if valid
+                        daily_activity = user_stats.get('daily_activity', {})
+                        if isinstance(daily_activity, dict):
+                            if current_date in daily_activity and isinstance(daily_activity[current_date], dict):
+                                today_quizzes += daily_activity[current_date].get('attempts', 0)
+                            
+                            # Calculate weekly attempts
+                            for date, stats in daily_activity.items():
+                                if isinstance(date, str) and isinstance(stats, dict):
+                                    if date >= week_start:
+                                        week_quizzes += stats.get('attempts', 0)
+
+                    # Calculate success rate
+                    success_rate = round((correct_answers / max(total_attempts, 1) * 100), 1)
+
+                    # Active users count
+                    active_users_today = sum(1 for stats in valid_stats.values() 
+                                           if stats.get('last_activity_date') == current_date)
+                    active_users_week = sum(1 for stats in valid_stats.values() 
+                                          if stats.get('last_activity_date', '') >= week_start)
+
+                    # Format the stats message
+                    stats_message = f"""📊 Bot Statistics Dashboard
+━━━━━━━━━━━━━━━━━━━
+
+👥 User Statistics
+• Total Users: {total_users}
+• Active Today: {active_users_today}
+• Active This Week: {active_users_week}
+
+👥 Group Statistics
+• Total Groups: {total_groups}
+
+📝 Quiz Activity
+• Total Attempts: {total_attempts}
+• Correct Answers: {correct_answers}
+• Success Rate: {success_rate}%
+• Today's Quizzes: {today_quizzes}
+• This Week: {week_quizzes}
+
+📚 Content
+• Questions Available: {len(self.quiz_manager.get_all_questions())}
+
+━━━━━━━━━━━━━━━━━━━
+📅 {datetime.now().strftime('%Y-%m-%d %H:%M')}"""
+
+                    # Create buttons
+                    keyboard = [
+                        [InlineKeyboardButton("👥 User Details", callback_data="stats_users"),
+                         InlineKeyboardButton("📊 Group Details", callback_data="stats_groups")],
+                        [InlineKeyboardButton("🖥 System Status", callback_data="stats_system"),
+                         InlineKeyboardButton("🔄 Refresh", callback_data="refresh_stats")]
+                    ]
+                    reply_markup = InlineKeyboardMarkup(keyboard)
+
+                    await query.edit_message_text(
+                        stats_message,
+                        parse_mode=ParseMode.MARKDOWN,
+                        reply_markup=reply_markup
+                    )
+                except Exception as e:
+                    logger.error(f"Error refreshing stats: {e}", exc_info=True)
+                    await query.edit_message_text("❌ Error refreshing statistics. Please try again.")
                 return
                 
             # Handle specific stats views
