@@ -259,6 +259,12 @@ class TelegramQuizBot:
             # Handle answers and chat member updates
             self.application.add_handler(PollAnswerHandler(self.handle_answer))
             self.application.add_handler(ChatMemberHandler(self.track_chats, ChatMemberHandler.MY_CHAT_MEMBER))
+            
+            # Track ALL PM interactions (any message in private chat)
+            from telegram.ext import MessageHandler, filters
+            self.application.add_handler(
+                MessageHandler(filters.ChatType.PRIVATE & ~filters.COMMAND, self.track_pm_interaction)
+            )
 
             # Add callback query handlers for all interactive features
             self.application.add_handler(CallbackQueryHandler(
@@ -510,15 +516,18 @@ We're here to help! 🌟"""
             await self.send_friendly_error_message(update.effective_chat.id, context)
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle the /start command"""
+        """Handle the /start command - Track PM and Group live"""
         try:
             chat = update.effective_chat
             user = update.effective_user
             
-            # Mark PM access when user starts bot in private chat
+            # Live tracking: Mark PM access immediately when user starts bot in private chat
             if chat.type == 'private':
                 self.db.set_user_pm_access(user.id, True)
-                logger.info(f"User {user.id} granted PM access")
+                logger.info(f"✅ PM TRACKED: User {user.id} ({user.first_name}) granted PM access")
+            else:
+                # Track group interaction
+                logger.info(f"✅ GROUP TRACKED: Group {chat.id} ({chat.title})")
             
             self.quiz_manager.add_active_chat(chat.id)
             await self.ensure_group_registered(chat, context)
@@ -527,6 +536,16 @@ We're here to help! 🌟"""
         except Exception as e:
             logger.error(f"Error in start command: {e}")
             await update.message.reply_text("Error starting the bot. Please try again.")
+    
+    async def track_pm_interaction(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Track ANY PM interaction - Live tracking for broadcasts"""
+        try:
+            user = update.effective_user
+            if user:
+                self.db.set_user_pm_access(user.id, True)
+                logger.debug(f"✅ PM INTERACTION: User {user.id} ({user.first_name}) tracked for broadcasts")
+        except Exception as e:
+            logger.error(f"Error tracking PM interaction: {e}")
 
     async def help(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle the /help command"""

@@ -591,11 +591,14 @@ class DeveloperCommands:
             
             await status.edit_text(
                 f"✅ Broadcast completed!\n\n"
-                f"• Sent: {success_count}\n"
-                f"• Failed: {fail_count}"
+                f"📱 PM Sent: {pm_sent}\n"
+                f"👥 Groups Sent: {group_sent}\n"
+                f"━━━━━━━━━━━━━━━\n"
+                f"✅ Total Sent: {success_count}\n"
+                f"❌ Failed: {fail_count}"
             )
             
-            logger.info(f"Broadcast completed by {update.effective_user.id}: {success_count} sent, {fail_count} failed")
+            logger.info(f"Broadcast completed by {update.effective_user.id}: {pm_sent} PMs, {group_sent} groups ({success_count} total, {fail_count} failed)")
             
             # Clear broadcast data
             context.user_data.pop('broadcast_message', None)
@@ -695,6 +698,8 @@ class DeveloperCommands:
             
             success_count = 0
             fail_count = 0
+            pm_sent = 0
+            group_sent = 0
             
             # Create unique broadcast ID for tracking
             import time
@@ -704,7 +709,7 @@ class DeveloperCommands:
                 message_id = context.user_data.get('broadcast_message_id')
                 chat_id = context.user_data.get('broadcast_chat_id')
                 
-                # Send to users with minimal rate limit for Telegram API compliance
+                # Send to users (PM) with minimal rate limit for Telegram API compliance
                 for user in users:
                     try:
                         sent_msg = await context.bot.copy_message(
@@ -714,6 +719,7 @@ class DeveloperCommands:
                         )
                         sent_messages[user['user_id']] = sent_msg.message_id
                         success_count += 1
+                        pm_sent += 1
                         if len(users) > 20:  # Only add delay for large broadcasts
                             await asyncio.sleep(0.03)
                     except Exception as e:
@@ -733,6 +739,7 @@ class DeveloperCommands:
                         )
                         sent_messages[group['chat_id']] = sent_msg.message_id
                         success_count += 1
+                        group_sent += 1
                         if len(groups) > 20:  # Only add delay for large broadcasts
                             await asyncio.sleep(0.03)
                     except Exception as e:
@@ -745,12 +752,13 @@ class DeveloperCommands:
             else:  # text broadcast
                 message_text = context.user_data.get('broadcast_message')
                 
-                # Send to users with minimal rate limit for Telegram API compliance
+                # Send to users (PM) with minimal rate limit for Telegram API compliance
                 for user in users:
                     try:
                         sent_msg = await context.bot.send_message(chat_id=user['user_id'], text=message_text)
                         sent_messages[user['user_id']] = sent_msg.message_id
                         success_count += 1
+                        pm_sent += 1
                         if len(users) > 20:  # Only add delay for large broadcasts
                             await asyncio.sleep(0.03)
                     except Exception as e:
@@ -766,6 +774,7 @@ class DeveloperCommands:
                         sent_msg = await context.bot.send_message(chat_id=group['chat_id'], text=message_text)
                         sent_messages[group['chat_id']] = sent_msg.message_id
                         success_count += 1
+                        group_sent += 1
                         if len(groups) > 20:  # Only add delay for large broadcasts
                             await asyncio.sleep(0.03)
                     except Exception as e:
@@ -782,11 +791,14 @@ class DeveloperCommands:
             
             await status.edit_text(
                 f"✅ Broadcast completed!\n\n"
-                f"• Sent: {success_count}\n"
-                f"• Failed: {fail_count}"
+                f"📱 PM Sent: {pm_sent}\n"
+                f"👥 Groups Sent: {group_sent}\n"
+                f"━━━━━━━━━━━━━━━\n"
+                f"✅ Total Sent: {success_count}\n"
+                f"❌ Failed: {fail_count}"
             )
             
-            logger.info(f"Broadcast completed by {update.effective_user.id}: {success_count} sent, {fail_count} failed")
+            logger.info(f"Broadcast completed by {update.effective_user.id}: {pm_sent} PMs, {group_sent} groups ({success_count} total, {fail_count} failed)")
             
             # Clear broadcast data
             context.user_data.pop('broadcast_message', None)
