@@ -10,6 +10,6 @@ AUTHORIZED_USERS = [OWNER_ID]
 if WIFU_ID:
     AUTHORIZED_USERS.append(WIFU_ID)
 
-UNAUTHORIZED_MESSAGE = "🚫 Only my OWNER & his Wifu can use Developer commands 💎"
+UNAUTHORIZED_MESSAGE = "𝐎𝐧𝐥𝐲 𝐑𝐞𝐬𝐩𝐞𝐜𝐭𝐞𝐝 𝐃𝐞𝐯𝐞𝐥𝐨𝐩𝐞𝐫\n👑 𝐓𝐡𝐞 𝐎𝐖𝐍𝐄𝐑 & 𝐇𝐢𝐬 𝐁𝐞𝐥𝐨𝐯𝐞𝐝 𝐖𝐢𝐟𝐮 ❤️🤌"
 
 DATABASE_PATH = "data/quiz_bot.db"
