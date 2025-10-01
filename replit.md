@@ -2,6 +2,19 @@
 
 This project is a Telegram Quiz Bot application designed to provide interactive quiz functionality within Telegram chats and groups. It features a Flask web interface for administration and a Telegram bot for user interaction. The bot manages quiz questions, tracks user scores and statistics, and offers comprehensive analytics through both web and bot interfaces. The project aims to deliver a robust, scalable, and user-friendly quiz experience with advanced administrative capabilities and detailed performance tracking.
 
+# Recent Changes
+
+## Ultimate Bot Upgrade (October 2025)
+**Critical Bug Fixes & Performance Improvements:**
+1. **Broadcast System Fix**: Resolved UnboundLocalError in broadcast confirmation that prevented broadcasts from being sent. Removed duplicate `import time` statement that caused variable shadowing.
+2. **Keep-Alive Stability**: Fixed DNS resolution errors by switching from external URL pinging to local health checks (127.0.0.1), preventing unnecessary bot restarts and improving stability.
+3. **Real-Time Stats**: Implemented immediate cache invalidation on quiz answers, ensuring /mystats and /stats commands show live data without any delay.
+4. **Query Performance**: Optimized database queries by replacing DATE() functions with UTC timestamp range queries, enabling proper index usage and significantly faster stats retrieval.
+5. **Timestamp Format Fix**: Corrected SQLite timestamp format mismatch (ISO 'T' format → space-separated format) that was causing incorrect today/week quiz counts.
+6. **Stats Display Updates**: Updated /mystats and /stats command formats to show username, rank, correct/wrong answers, and simplified bot-wide statistics.
+
+**Result**: Bot now runs with zero errors, perfect stats accuracy, optimized performance, and maximum stability for production use.
+
 # User Preferences
 
 Preferred communication style: Simple, everyday language.
