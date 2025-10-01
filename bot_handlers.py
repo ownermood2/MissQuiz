@@ -1237,7 +1237,9 @@ This command works in groups! To use it:
                 
                 # Handle case where group has no stats
                 if not stats or not stats.get('leaderboard'):
-                    welcome_text = f"""👋 Welcome to {chat.title}'s Quiz Arena!
+                    # Escape special Markdown characters in chat title
+                    escaped_title_welcome = chat.title.replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace('`', '\\`')
+                    welcome_text = f"""👋 Welcome to {escaped_title_welcome}'s Quiz Arena!
 
 📝 No quizzes taken yet in this group.
 To get started:
@@ -1253,7 +1255,10 @@ Ready for a quiz challenge? Try /quiz now! 🎯"""
                 active_now = len([u for u in stats['leaderboard'] if u.get('last_active') == datetime.now().strftime('%Y-%m-%d')])
                 participation_rate = (active_now / len(stats['leaderboard'])) * 100 if stats['leaderboard'] else 0
 
-                stats_message = f"""📊 𝗚𝗿𝗼𝘂𝗽 𝗦𝘁𝗮𝘁𝘀: {chat.title}
+                # Escape special Markdown characters in chat title
+                escaped_title = chat.title.replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace('`', '\\`')
+                
+                stats_message = f"""📊 𝗚𝗿𝗼𝘂𝗽 𝗦𝘁𝗮𝘁𝘀: {escaped_title}
 ══════════════════
 ⚡ 𝗥𝗲𝗮𝗹-𝘁𝗶𝗺𝗲 𝗠𝗲𝘁𝗿𝗶𝗰𝘀
 • Active Now: {active_now} users
@@ -1278,6 +1283,8 @@ Ready for a quiz challenge? Try /quiz now! 🎯"""
                         try:
                             user = await context.bot.get_chat(entry['user_id'])
                             username = user.first_name or user.username or "Anonymous"
+                            # Escape special Markdown characters in username
+                            username = username.replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace('`', '\\`')
                             activity_indicator = "🟢" if entry.get('last_active') == datetime.now().strftime('%Y-%m-%d') else "⚪"
                             
                             stats_message += f"""
