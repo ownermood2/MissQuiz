@@ -570,3 +570,31 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error deleting broadcast: {e}")
             return False
+    
+    def remove_inactive_user(self, user_id: int) -> bool:
+        """Remove inactive user from database (blocked bot or deactivated)"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('DELETE FROM users WHERE user_id = ?', (user_id,))
+                success = cursor.rowcount > 0
+                if success:
+                    logger.info(f"Removed inactive user {user_id} from database")
+                return success
+        except Exception as e:
+            logger.error(f"Error removing inactive user {user_id}: {e}")
+            return False
+    
+    def remove_inactive_group(self, chat_id: int) -> bool:
+        """Remove inactive group from database (bot was kicked or not a member)"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('DELETE FROM groups WHERE chat_id = ?', (chat_id,))
+                success = cursor.rowcount > 0
+                if success:
+                    logger.info(f"Removed inactive group {chat_id} from database")
+                return success
+        except Exception as e:
+            logger.error(f"Error removing inactive group {chat_id}: {e}")
+            return False

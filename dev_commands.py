@@ -7,6 +7,8 @@ import logging
 import asyncio
 import sys
 import os
+import re
+import json
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
@@ -81,6 +83,176 @@ class DeveloperCommands:
             return f"{num / 1_000:.2f}K"
         else:
             return f"{num:,}"
+    
+    def parse_inline_buttons(self, text: str) -> tuple:
+        """
+        Parse inline buttons from text format with robust support for multiple formats:
+        - Single row: [["Button1","URL1"],["Button2","URL2"]] → 2 buttons in 1 row
+        - Multiple rows: [[["B1","URL1"],["B2","URL2"]],[["B3","URL3"]]] → 2 rows
+        Returns: (cleaned_text, InlineKeyboardMarkup or None)
+        """
+        try:
+            # Trim whitespace and newlines from text
+            text = text.strip()
+            
+            # More forgiving regex: match [[...]] at end, allow trailing whitespace/newlines
+            button_pattern = r'\[\[(.*?)\]\]\s*$'
+            match = re.search(button_pattern, text, re.DOTALL)
+            
+            if not match:
+                return text, None
+            
+            # Extract button JSON and clean text
+            button_json = '[[' + match.group(1) + ']]'
+            cleaned_text = text[:match.start()].strip()
+            
+            # Parse button data
+            button_data = json.loads(button_json)
+            
+            if not button_data or not isinstance(button_data, list):
+                return text, None
+            
+            # Determine format: nested array (multiple rows) or flat array (single row)
+            keyboard = []
+            total_buttons = 0
+            
+            # Check if it's a nested array (multiple rows format)
+            if button_data and isinstance(button_data[0], list) and len(button_data[0]) > 0 and isinstance(button_data[0][0], list):
+                # Multiple rows format: [[["B1","URL1"],["B2","URL2"]],[["B3","URL3"]]]
+                for row_data in button_data:
+                    if not isinstance(row_data, list):
+                        continue
+                    
+                    row_buttons = []
+                    for button in row_data:
+                        if total_buttons >= 100:  # Telegram limit: 100 buttons total
+                            break
+                        
+                        if isinstance(button, list) and len(button) >= 2:
+                            button_text = str(button[0]).strip()
+                            button_url = str(button[1]).strip()
+                            
+                            # Validate URL scheme
+                            if button_text and button_url and (
+                                button_url.startswith('http://') or 
+                                button_url.startswith('https://') or 
+                                button_url.startswith('t.me/')
+                            ):
+                                row_buttons.append(InlineKeyboardButton(button_text, url=button_url))
+                                total_buttons += 1
+                                
+                                if len(row_buttons) >= 8:  # Telegram limit: 8 buttons per row
+                                    break
+                    
+                    if row_buttons:
+                        keyboard.append(row_buttons)
+                    
+                    if total_buttons >= 100:
+                        break
+            
+            else:
+                # Single row format: [["Button1","URL1"],["Button2","URL2"]]
+                row_buttons = []
+                for button in button_data:
+                    if total_buttons >= 100:
+                        break
+                    
+                    if isinstance(button, list) and len(button) >= 2:
+                        button_text = str(button[0]).strip()
+                        button_url = str(button[1]).strip()
+                        
+                        # Validate URL scheme
+                        if button_text and button_url and (
+                            button_url.startswith('http://') or 
+                            button_url.startswith('https://') or 
+                            button_url.startswith('t.me/')
+                        ):
+                            row_buttons.append(InlineKeyboardButton(button_text, url=button_url))
+                            total_buttons += 1
+                            
+                            if len(row_buttons) >= 8:
+                                break
+                
+                if row_buttons:
+                    keyboard.append(row_buttons)
+            
+            if keyboard:
+                logger.info(f"Parsed {sum(len(row) for row in keyboard)} inline buttons in {len(keyboard)} row(s) from broadcast text")
+                return cleaned_text, InlineKeyboardMarkup(keyboard)
+            
+            return text, None
+        
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse button JSON: {e}")
+            return text, None
+        except Exception as e:
+            logger.error(f"Error parsing inline buttons: {e}")
+            return text, None
+    
+    async def replace_placeholders(self, text: str, chat_id: int, context: ContextTypes.DEFAULT_TYPE, 
+                                   user_data: dict = None, group_data: dict = None, 
+                                   bot_name_cache: str = None) -> str:
+        """
+        Replace placeholders in text (OPTIMIZED - uses database data to avoid API calls):
+        {first_name} -> recipient's first name
+        {username} -> recipient's username (with @)
+        {chat_title} -> group title or first name for PMs
+        {bot_name} -> bot's name
+        
+        Args:
+            text: Text with placeholders
+            chat_id: Chat ID for fallback lookup
+            context: Telegram context
+            user_data: User dict from database (if PM) - has first_name, username
+            group_data: Group dict from database (if group) - has chat_title
+            bot_name_cache: Cached bot name to avoid repeated lookups
+        """
+        if not text:
+            return text
+        
+        try:
+            # Replace bot name (use cached value to avoid API call)
+            bot_name = bot_name_cache if bot_name_cache else (context.bot.first_name or "Bot")
+            text = text.replace('{bot_name}', bot_name)
+            
+            # Use provided data from database instead of making API call
+            if user_data:
+                # PM - use user's info from database
+                first_name = user_data.get('first_name') or "User"
+                username = f"@{user_data.get('username')}" if user_data.get('username') else "User"
+                chat_title = first_name
+            elif group_data:
+                # Group - use group info from database
+                first_name = "Member"
+                username = "User"
+                chat_title = group_data.get('chat_title') or "Group"
+            else:
+                # Fallback: fetch from API only if data not provided
+                try:
+                    chat = await context.bot.get_chat(chat_id)
+                    if chat.type == 'private':
+                        first_name = chat.first_name or "User"
+                        username = f"@{chat.username}" if chat.username else "User"
+                        chat_title = first_name
+                    else:
+                        first_name = "Member"
+                        username = "User"
+                        chat_title = chat.title or "Group"
+                except Exception as api_error:
+                    logger.warning(f"Fallback get_chat failed for {chat_id}: {api_error}")
+                    first_name = "User"
+                    username = "User"
+                    chat_title = "Chat"
+            
+            text = text.replace('{first_name}', first_name)
+            text = text.replace('{username}', username)
+            text = text.replace('{chat_title}', chat_title)
+            
+            return text
+        
+        except Exception as e:
+            logger.error(f"Error replacing placeholders for chat {chat_id}: {e}")
+            return text
     
     async def delquiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Delete quiz questions - Fixed version without Markdown parsing errors"""
@@ -610,7 +782,7 @@ class DeveloperCommands:
             await self.auto_clean_message(update.message, reply)
     
     async def broadcast(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Enhanced broadcast supporting both reply and direct message"""
+        """Enhanced broadcast supporting media, buttons, placeholders, and auto-cleanup"""
         try:
             if not await self.check_access(update):
                 await self.send_unauthorized_message(update)
@@ -624,37 +796,91 @@ class DeveloperCommands:
                 groups = self.db.get_all_groups()
                 total_targets = len(users) + len(groups)
                 
+                # Detect media type
+                media_type = None
+                media_file_id = None
+                media_caption = None
+                media_preview = ""
+                
+                if replied_message.photo:
+                    media_type = 'photo'
+                    media_file_id = replied_message.photo[-1].file_id
+                    media_caption = replied_message.caption
+                    media_preview = "📷 Photo"
+                    logger.info("Detected photo in broadcast")
+                elif replied_message.video:
+                    media_type = 'video'
+                    media_file_id = replied_message.video.file_id
+                    media_caption = replied_message.caption
+                    media_preview = "🎥 Video"
+                    logger.info("Detected video in broadcast")
+                elif replied_message.document:
+                    media_type = 'document'
+                    media_file_id = replied_message.document.file_id
+                    media_caption = replied_message.caption
+                    media_preview = "📄 Document"
+                    logger.info("Detected document in broadcast")
+                elif replied_message.animation:
+                    media_type = 'animation'
+                    media_file_id = replied_message.animation.file_id
+                    media_caption = replied_message.caption
+                    media_preview = "🎬 GIF/Animation"
+                    logger.info("Detected animation in broadcast")
+                
                 confirm_text = f"📢 Broadcast Confirmation\n\n"
-                confirm_text += f"Forwarding message to:\n"
+                
+                if media_type:
+                    confirm_text += f"Type: {media_preview}\n"
+                    if media_caption:
+                        confirm_text += f"Caption: {media_caption[:100]}{'...' if len(media_caption) > 100 else ''}\n"
+                    confirm_text += f"\n"
+                else:
+                    confirm_text += f"Forwarding message to:\n"
+                
+                confirm_text += f"Recipients:\n"
                 confirm_text += f"• {len(users)} users\n"
                 confirm_text += f"• {len(groups)} groups\n"
                 confirm_text += f"• Total: {total_targets} recipients\n\n"
                 confirm_text += f"Confirm: /broadcast_confirm"
                 
-                # Store message ID for forwarding
-                context.user_data['broadcast_message_id'] = replied_message.message_id
-                context.user_data['broadcast_chat_id'] = replied_message.chat_id
-                context.user_data['broadcast_type'] = 'forward'
+                # Store broadcast data
+                if media_type:
+                    context.user_data['broadcast_type'] = media_type
+                    context.user_data['broadcast_media_id'] = media_file_id
+                    context.user_data['broadcast_caption'] = media_caption
+                else:
+                    context.user_data['broadcast_message_id'] = replied_message.message_id
+                    context.user_data['broadcast_chat_id'] = replied_message.chat_id
+                    context.user_data['broadcast_type'] = 'forward'
                 
                 reply = await update.message.reply_text(confirm_text)
-                logger.info(f"Broadcast (forward) prepared by {update.effective_user.id}")
+                logger.info(f"Broadcast ({media_type or 'forward'}) prepared by {update.effective_user.id}")
             
             elif context.args:
                 message_text = ' '.join(context.args)
+                
+                # Parse inline buttons from text
+                cleaned_text, reply_markup = self.parse_inline_buttons(message_text)
                 
                 users = self.db.get_all_users_stats()
                 groups = self.db.get_all_groups()
                 total_targets = len(users) + len(groups)
                 
                 confirm_text = f"📢 Broadcast Confirmation\n\n"
-                confirm_text += f"Message: {message_text}\n\n"
-                confirm_text += f"Will be sent to:\n"
+                confirm_text += f"Message: {cleaned_text[:200]}{'...' if len(cleaned_text) > 200 else ''}\n\n"
+                
+                if reply_markup:
+                    button_count = sum(len(row) for row in reply_markup.inline_keyboard)
+                    confirm_text += f"🔘 Buttons: {button_count} inline button(s)\n\n"
+                
+                confirm_text += f"Recipients:\n"
                 confirm_text += f"• {len(users)} users\n"
                 confirm_text += f"• {len(groups)} groups\n"
                 confirm_text += f"• Total: {total_targets} recipients\n\n"
                 confirm_text += f"Confirm: /broadcast_confirm"
                 
-                context.user_data['broadcast_message'] = message_text
+                context.user_data['broadcast_message'] = cleaned_text
+                context.user_data['broadcast_buttons'] = reply_markup
                 context.user_data['broadcast_type'] = 'text'
                 
                 reply = await update.message.reply_text(confirm_text)
@@ -664,9 +890,11 @@ class DeveloperCommands:
                 reply = await update.message.reply_text(
                     "📢 Broadcast Message\n\n"
                     "Usage:\n"
-                    "1. Reply to a message with /broadcast (will forward that message)\n"
-                    "2. /broadcast [message text] (will send as new message)\n\n"
-                    "The message will be sent to all users and groups."
+                    "1. Reply to a message/media with /broadcast\n"
+                    "2. /broadcast [message text]\n"
+                    "3. /broadcast Message [[\"Button\",\"URL\"]]\n\n"
+                    "Supported media: Photos, Videos, Documents, GIFs\n"
+                    "Placeholders: {first_name}, {username}, {chat_title}, {bot_name}"
                 )
                 await self.auto_clean_message(update.message, reply)
         
@@ -676,7 +904,7 @@ class DeveloperCommands:
             await self.auto_clean_message(update.message, reply)
     
     async def broadcast_confirm(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Confirm and send broadcast - Optimized for instant delivery"""
+        """Confirm and send broadcast with media, buttons, placeholders, and auto-cleanup"""
         try:
             if not await self.check_access(update):
                 await self.send_unauthorized_message(update)
@@ -693,23 +921,28 @@ class DeveloperCommands:
             
             status = await update.message.reply_text("📢 Sending broadcast...")
             
-            users = self.db.get_active_users()  # Send to all active users, errors handled gracefully
+            users = self.db.get_active_users()
             groups = self.db.get_all_groups()
             
             success_count = 0
             fail_count = 0
             pm_sent = 0
             group_sent = 0
+            skipped_count = 0  # Auto-removed users/groups
             
             # Create unique broadcast ID for tracking
             import time
             broadcast_id = f"broadcast_{int(time.time())}_{update.effective_user.id}"
             
+            # OPTIMIZATION: Cache bot name once instead of calling for each recipient
+            bot_name_cache = context.bot.first_name if context.bot.first_name else "Bot"
+            
+            # Get broadcast data based on type
             if broadcast_type == 'forward':
                 message_id = context.user_data.get('broadcast_message_id')
                 chat_id = context.user_data.get('broadcast_chat_id')
                 
-                # Send to users (PM) with minimal rate limit for Telegram API compliance
+                # Send to users (PM)
                 for user in users:
                     try:
                         sent_msg = await context.bot.copy_message(
@@ -720,16 +953,28 @@ class DeveloperCommands:
                         sent_messages[user['user_id']] = sent_msg.message_id
                         success_count += 1
                         pm_sent += 1
-                        if len(users) > 20:  # Only add delay for large broadcasts
+                        if len(users) > 20:
                             await asyncio.sleep(0.03)
                     except Exception as e:
                         error_msg = str(e)
-                        # Only count real failures, not permission issues (user hasn't started PM)
-                        if "Forbidden" not in error_msg:
+                        # CONSTRAINED AUTO-CLEANUP: Only delete on specific permission errors
+                        if "Forbidden: bot was blocked by the user" in error_msg:
+                            logger.info(f"AUTO-CLEANUP: Removing user {user['user_id']} - {error_msg}")
+                            self.db.remove_inactive_user(user['user_id'])
+                            skipped_count += 1
+                        elif "Forbidden: user is deactivated" in error_msg:
+                            logger.info(f"AUTO-CLEANUP: Removing user {user['user_id']} - {error_msg}")
+                            self.db.remove_inactive_user(user['user_id'])
+                            skipped_count += 1
+                        elif "Forbidden" in error_msg:
+                            # Generic Forbidden - don't delete, just log
+                            logger.warning(f"SAFETY: Not removing user {user['user_id']} - error was: {error_msg}")
+                            fail_count += 1
+                        else:
                             logger.warning(f"Failed to send to user {user['user_id']}: {error_msg}")
                             fail_count += 1
                 
-                # Send to groups with minimal rate limit
+                # Send to groups
                 for group in groups:
                     try:
                         sent_msg = await context.bot.copy_message(
@@ -740,71 +985,259 @@ class DeveloperCommands:
                         sent_messages[group['chat_id']] = sent_msg.message_id
                         success_count += 1
                         group_sent += 1
-                        if len(groups) > 20:  # Only add delay for large broadcasts
+                        if len(groups) > 20:
                             await asyncio.sleep(0.03)
                     except Exception as e:
                         error_msg = str(e)
-                        # Only count real failures, not permission issues
-                        if "Forbidden" not in error_msg and "bot was kicked" not in error_msg:
+                        # CONSTRAINED AUTO-CLEANUP: Only delete on specific permission errors
+                        if "Forbidden: bot was kicked from the group" in error_msg or "Forbidden: bot is not a member of the group chat" in error_msg:
+                            logger.info(f"AUTO-CLEANUP: Removing group {group['chat_id']} - {error_msg}")
+                            self.db.remove_inactive_group(group['chat_id'])
+                            skipped_count += 1
+                        elif "Forbidden" in error_msg:
+                            # Generic Forbidden - don't delete, just log
+                            logger.warning(f"SAFETY: Not removing group {group['chat_id']} - error was: {error_msg}")
+                            fail_count += 1
+                        else:
                             logger.warning(f"Failed to send to group {group['chat_id']}: {error_msg}")
                             fail_count += 1
             
-            else:  # text broadcast
-                message_text = context.user_data.get('broadcast_message')
+            elif broadcast_type in ['photo', 'video', 'document', 'animation']:
+                # Media broadcast with placeholder support
+                media_file_id = context.user_data.get('broadcast_media_id')
+                base_caption = context.user_data.get('broadcast_caption') or ""
+                reply_markup = context.user_data.get('broadcast_buttons')
                 
-                # Send to users (PM) with minimal rate limit for Telegram API compliance
+                # Truncate caption to Telegram's 1024 character limit
+                if len(base_caption) > 1024:
+                    base_caption = base_caption[:1021] + "..."
+                    logger.warning(f"Caption truncated to 1024 chars for broadcast")
+                
+                # Send to users (PM)
                 for user in users:
                     try:
-                        sent_msg = await context.bot.send_message(chat_id=user['user_id'], text=message_text)
+                        # OPTIMIZED: Apply placeholders using database data (no API call!)
+                        caption = await self.replace_placeholders(
+                            base_caption, user['user_id'], context, 
+                            user_data=user, bot_name_cache=bot_name_cache
+                        )
+                        
+                        # Send appropriate media type
+                        if broadcast_type == 'photo':
+                            sent_msg = await context.bot.send_photo(
+                                chat_id=user['user_id'],
+                                photo=media_file_id,
+                                caption=caption if caption else None,
+                                reply_markup=reply_markup
+                            )
+                        elif broadcast_type == 'video':
+                            sent_msg = await context.bot.send_video(
+                                chat_id=user['user_id'],
+                                video=media_file_id,
+                                caption=caption if caption else None,
+                                reply_markup=reply_markup
+                            )
+                        elif broadcast_type == 'document':
+                            sent_msg = await context.bot.send_document(
+                                chat_id=user['user_id'],
+                                document=media_file_id,
+                                caption=caption if caption else None,
+                                reply_markup=reply_markup
+                            )
+                        elif broadcast_type == 'animation':
+                            sent_msg = await context.bot.send_animation(
+                                chat_id=user['user_id'],
+                                animation=media_file_id,
+                                caption=caption if caption else None,
+                                reply_markup=reply_markup
+                            )
+                        
                         sent_messages[user['user_id']] = sent_msg.message_id
                         success_count += 1
                         pm_sent += 1
-                        if len(users) > 20:  # Only add delay for large broadcasts
+                        if len(users) > 20:
                             await asyncio.sleep(0.03)
                     except Exception as e:
                         error_msg = str(e)
-                        # Only count real failures, not permission issues (user hasn't started PM)
-                        if "Forbidden" not in error_msg:
+                        # CONSTRAINED AUTO-CLEANUP: Only delete on specific permission errors
+                        if "Forbidden: bot was blocked by the user" in error_msg:
+                            logger.info(f"AUTO-CLEANUP: Removing user {user['user_id']} - {error_msg}")
+                            self.db.remove_inactive_user(user['user_id'])
+                            skipped_count += 1
+                        elif "Forbidden: user is deactivated" in error_msg:
+                            logger.info(f"AUTO-CLEANUP: Removing user {user['user_id']} - {error_msg}")
+                            self.db.remove_inactive_user(user['user_id'])
+                            skipped_count += 1
+                        elif "Forbidden" in error_msg:
+                            # Generic Forbidden - don't delete, just log
+                            logger.warning(f"SAFETY: Not removing user {user['user_id']} - error was: {error_msg}")
+                            fail_count += 1
+                        else:
                             logger.warning(f"Failed to send to user {user['user_id']}: {error_msg}")
                             fail_count += 1
                 
-                # Send to groups with minimal rate limit
+                # Send to groups
                 for group in groups:
                     try:
-                        sent_msg = await context.bot.send_message(chat_id=group['chat_id'], text=message_text)
+                        # OPTIMIZED: Apply placeholders using database data (no API call!)
+                        caption = await self.replace_placeholders(
+                            base_caption, group['chat_id'], context, 
+                            group_data=group, bot_name_cache=bot_name_cache
+                        )
+                        
+                        # Send appropriate media type
+                        if broadcast_type == 'photo':
+                            sent_msg = await context.bot.send_photo(
+                                chat_id=group['chat_id'],
+                                photo=media_file_id,
+                                caption=caption if caption else None,
+                                reply_markup=reply_markup
+                            )
+                        elif broadcast_type == 'video':
+                            sent_msg = await context.bot.send_video(
+                                chat_id=group['chat_id'],
+                                video=media_file_id,
+                                caption=caption if caption else None,
+                                reply_markup=reply_markup
+                            )
+                        elif broadcast_type == 'document':
+                            sent_msg = await context.bot.send_document(
+                                chat_id=group['chat_id'],
+                                document=media_file_id,
+                                caption=caption if caption else None,
+                                reply_markup=reply_markup
+                            )
+                        elif broadcast_type == 'animation':
+                            sent_msg = await context.bot.send_animation(
+                                chat_id=group['chat_id'],
+                                animation=media_file_id,
+                                caption=caption if caption else None,
+                                reply_markup=reply_markup
+                            )
+                        
                         sent_messages[group['chat_id']] = sent_msg.message_id
                         success_count += 1
                         group_sent += 1
-                        if len(groups) > 20:  # Only add delay for large broadcasts
+                        if len(groups) > 20:
                             await asyncio.sleep(0.03)
                     except Exception as e:
                         error_msg = str(e)
-                        # Only count real failures, not permission issues
-                        if "Forbidden" not in error_msg and "bot was kicked" not in error_msg:
+                        # CONSTRAINED AUTO-CLEANUP: Only delete on specific permission errors
+                        if "Forbidden: bot was kicked from the group" in error_msg or "Forbidden: bot is not a member of the group chat" in error_msg:
+                            logger.info(f"AUTO-CLEANUP: Removing group {group['chat_id']} - {error_msg}")
+                            self.db.remove_inactive_group(group['chat_id'])
+                            skipped_count += 1
+                        elif "Forbidden" in error_msg:
+                            # Generic Forbidden - don't delete, just log
+                            logger.warning(f"SAFETY: Not removing group {group['chat_id']} - error was: {error_msg}")
+                            fail_count += 1
+                        else:
                             logger.warning(f"Failed to send to group {group['chat_id']}: {error_msg}")
                             fail_count += 1
             
-            # Store sent messages in database for delbroadcast feature (persists across restarts)
+            else:  # text broadcast with buttons and placeholders
+                base_message_text = context.user_data.get('broadcast_message')
+                reply_markup = context.user_data.get('broadcast_buttons')
+                
+                # Send to users (PM)
+                for user in users:
+                    try:
+                        # OPTIMIZED: Apply placeholders using database data (no API call!)
+                        message_text = await self.replace_placeholders(
+                            base_message_text, user['user_id'], context,
+                            user_data=user, bot_name_cache=bot_name_cache
+                        )
+                        
+                        sent_msg = await context.bot.send_message(
+                            chat_id=user['user_id'],
+                            text=message_text,
+                            reply_markup=reply_markup
+                        )
+                        sent_messages[user['user_id']] = sent_msg.message_id
+                        success_count += 1
+                        pm_sent += 1
+                        if len(users) > 20:
+                            await asyncio.sleep(0.03)
+                    except Exception as e:
+                        error_msg = str(e)
+                        # CONSTRAINED AUTO-CLEANUP: Only delete on specific permission errors
+                        if "Forbidden: bot was blocked by the user" in error_msg:
+                            logger.info(f"AUTO-CLEANUP: Removing user {user['user_id']} - {error_msg}")
+                            self.db.remove_inactive_user(user['user_id'])
+                            skipped_count += 1
+                        elif "Forbidden: user is deactivated" in error_msg:
+                            logger.info(f"AUTO-CLEANUP: Removing user {user['user_id']} - {error_msg}")
+                            self.db.remove_inactive_user(user['user_id'])
+                            skipped_count += 1
+                        elif "Forbidden" in error_msg:
+                            # Generic Forbidden - don't delete, just log
+                            logger.warning(f"SAFETY: Not removing user {user['user_id']} - error was: {error_msg}")
+                            fail_count += 1
+                        else:
+                            logger.warning(f"Failed to send to user {user['user_id']}: {error_msg}")
+                            fail_count += 1
+                
+                # Send to groups
+                for group in groups:
+                    try:
+                        # OPTIMIZED: Apply placeholders using database data (no API call!)
+                        message_text = await self.replace_placeholders(
+                            base_message_text, group['chat_id'], context,
+                            group_data=group, bot_name_cache=bot_name_cache
+                        )
+                        
+                        sent_msg = await context.bot.send_message(
+                            chat_id=group['chat_id'],
+                            text=message_text,
+                            reply_markup=reply_markup
+                        )
+                        sent_messages[group['chat_id']] = sent_msg.message_id
+                        success_count += 1
+                        group_sent += 1
+                        if len(groups) > 20:
+                            await asyncio.sleep(0.03)
+                    except Exception as e:
+                        error_msg = str(e)
+                        # CONSTRAINED AUTO-CLEANUP: Only delete on specific permission errors
+                        if "Forbidden: bot was kicked from the group" in error_msg or "Forbidden: bot is not a member of the group chat" in error_msg:
+                            logger.info(f"AUTO-CLEANUP: Removing group {group['chat_id']} - {error_msg}")
+                            self.db.remove_inactive_group(group['chat_id'])
+                            skipped_count += 1
+                        elif "Forbidden" in error_msg:
+                            # Generic Forbidden - don't delete, just log
+                            logger.warning(f"SAFETY: Not removing group {group['chat_id']} - error was: {error_msg}")
+                            fail_count += 1
+                        else:
+                            logger.warning(f"Failed to send to group {group['chat_id']}: {error_msg}")
+                            fail_count += 1
+            
+            # Store sent messages in database for delbroadcast feature
             if sent_messages:
                 self.db.save_broadcast(broadcast_id, update.effective_user.id, sent_messages)
                 logger.info(f"Saved broadcast {broadcast_id} to database with {len(sent_messages)} messages")
             
-            await status.edit_text(
-                f"✅ Broadcast completed!\n\n"
-                f"📱 PM Sent: {pm_sent}\n"
-                f"👥 Groups Sent: {group_sent}\n"
-                f"━━━━━━━━━━━━━━━\n"
-                f"✅ Total Sent: {success_count}\n"
-                f"❌ Failed: {fail_count}"
-            )
+            # Build result message
+            result_text = f"✅ Broadcast completed!\n\n"
+            result_text += f"📱 PM Sent: {pm_sent}\n"
+            result_text += f"👥 Groups Sent: {group_sent}\n"
+            result_text += f"━━━━━━━━━━━━━━━\n"
+            result_text += f"✅ Total Sent: {success_count}\n"
+            result_text += f"❌ Failed: {fail_count}\n"
+            if skipped_count > 0:
+                result_text += f"🗑️ Auto-Removed: {skipped_count}"
             
-            logger.info(f"Broadcast completed by {update.effective_user.id}: {pm_sent} PMs, {group_sent} groups ({success_count} total, {fail_count} failed)")
+            await status.edit_text(result_text)
+            
+            logger.info(f"Broadcast completed by {update.effective_user.id}: {pm_sent} PMs, {group_sent} groups ({success_count} total, {fail_count} failed, {skipped_count} auto-removed)")
             
             # Clear broadcast data
             context.user_data.pop('broadcast_message', None)
             context.user_data.pop('broadcast_message_id', None)
             context.user_data.pop('broadcast_chat_id', None)
             context.user_data.pop('broadcast_type', None)
+            context.user_data.pop('broadcast_media_id', None)
+            context.user_data.pop('broadcast_caption', None)
+            context.user_data.pop('broadcast_buttons', None)
         
         except Exception as e:
             logger.error(f"Error in broadcast_confirm: {e}", exc_info=True)
