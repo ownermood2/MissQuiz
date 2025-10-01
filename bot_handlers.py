@@ -1062,37 +1062,30 @@ Ready to begin? Try /quiz now! 🚀"""
                     await loading_msg.edit_text(welcome_text, parse_mode=ParseMode.MARKDOWN)
                     return
 
-                # Format stats with real-time tracking
-                daily_progress = min((stats.get('today_quizzes', 0) / 10) * 100, 100)
-                weekly_progress = min((stats.get('week_quizzes', 0) / 50) * 100, 100)
+                # Get user rank
+                leaderboard = self.db.get_leaderboard_realtime(limit=1000)
+                user_rank = next((i+1 for i, u in enumerate(leaderboard) if u['user_id'] == user.id), 'N/A')
+                
+                # Get username display
+                username = f"@{user.username}" if user.username else user.first_name
+                
+                # Format stats according to user's specification
+                quiz_attempts = stats.get('total_quizzes', 0)
+                correct_answers = stats.get('correct_answers', 0)
+                wrong_answers = stats.get('wrong_answers', 0)
 
-                # Progress bars
-                daily_bar = "▓" * int(daily_progress/10) + "░" * (10 - int(daily_progress/10))
-                weekly_bar = "▓" * int(weekly_progress/10) + "░" * (10 - int(weekly_progress/10))
+                stats_message = f"""📊 Bot & User Stats Dashboard
+━━━━━━━━━━━━━━━━━━━━━━
+👮 Stats for: {username}
+🏆 Total Quizzes Attempted: • {quiz_attempts}
+💡 Your Rank: • {user_rank}
 
-                stats_message = f"""📊 𝗦𝘁𝗮𝘁𝘀 𝗳𝗼𝗿 {user.first_name}
+📊 𝗦𝘁𝗮𝘁𝘀 𝗳𝗼𝗿 {username}
 ══════════════════
 🎯 𝗣𝗲𝗿𝗳𝗼𝗿𝗺𝗮𝗻𝗰𝗲
-• Score: {stats.get('current_score', 0)} points
-• Success Rate: {stats.get('success_rate', 0)}%
-• Total Quizzes: {stats.get('total_quizzes', 0)}
-• Correct Answers: {stats.get('correct_answers', 0)}
-
-📈 𝗣𝗿𝗼𝗴𝗿𝗲𝘀𝘀 𝗧𝗿𝗮𝗰𝗸𝗶𝗻𝗴
-𝗗𝗮𝗶𝗹𝘆: {stats.get('today_quizzes', 0)}/10
-{daily_bar} {daily_progress:.1f}%
-
-𝗪𝗲𝗲𝗸𝗹𝘆: {stats.get('week_quizzes', 0)}/50
-{weekly_bar} {weekly_progress:.1f}%
-
-🔥 𝗦𝘁𝗿𝗲𝗮𝗸
-• Current: {stats.get('streak', 0)} correct in a row
-
-⚡ 𝗥𝗲𝗮𝗹-𝘁𝗶𝗺𝗲 𝗔𝗰𝘁𝗶𝘃𝗶𝘁𝘆
-• Wrong Answers: {stats.get('wrong_answers', 0)}
-• Last Active: Just now
-══════════════════
-🔄 Auto-updates every quiz"""
+• Total Quizzes: {quiz_attempts}
+• Correct Answers: {correct_answers}
+• Wrong Answers: {wrong_answers}"""
 
                 await loading_msg.edit_text(
                     stats_message,
@@ -2779,50 +2772,23 @@ No changes were made.
             if not trending_text:
                 trending_text = "No commands used yet\n"
             
-            stats_message = f"""📊 Real-Time Dashboard
-━━━━━━━━━━━━━━━━━━━
+            stats_message = f"""📊 𝗕𝗼𝘁 𝗦𝘁𝗮𝘁𝘀
+━━━━━━━━━━━━━━━━━━━━
+• 🌐 Total Groups: {total_groups:,}
+• 👥 Total Users: {total_users:,}
 
-👥 User Engagement
-• Total Users: {total_users:,}
-• Active Today: {active_today}
-• Active This Week: {active_week}
+════════════════════
+🤖 𝗢𝘃𝗲𝗿𝗮𝗹𝗹 𝗣𝗲𝗿𝗳𝗼𝗿𝗺𝗮𝗻𝗰𝗲
+────────────────────
+• Today: {quiz_today['quizzes_sent']:,}
+• This Week: {quiz_week['quizzes_sent']:,}
+• This Month: {quiz_month['quizzes_sent']:,}
+• Total: {quiz_all['quizzes_sent']:,}
 
-📝 Quiz Activity (Today/Week/Month/All)
-• Quizzes Sent: {quiz_today['quizzes_sent']}/{quiz_week['quizzes_sent']}/{quiz_month['quizzes_sent']}/{quiz_all['quizzes_sent']}
-• Success Rate: {quiz_all['success_rate']}%
-
-📊 Groups
-• Total Groups: {total_groups:,}
-
-⚡ Performance (24h)
-• Avg Response Time: {perf_metrics['avg_response_time']:.0f}ms
-• Commands Executed: {perf_metrics['total_api_calls']:,}
-• Error Rate: {perf_metrics['error_rate']:.1f}%
-• Memory Usage: {memory_mb:.1f}MB
-
-🔥 Trending Commands (7d)
-{trending_text}
-📜 Recent Activity
-{activity_feed}
-━━━━━━━━━━━━━━━━━━━
-⚙️ Uptime: {uptime_str} | 🕐 Load: {(time.time() - start_time)*1000:.0f}ms"""
+━━━━━━━━━━━━━━━━━━━━
+✨ Keep quizzing & growing! 🚀"""
             
-            keyboard = [
-                [
-                    InlineKeyboardButton("🔄 Refresh", callback_data="stats_refresh"),
-                    InlineKeyboardButton("📊 Activity", callback_data="stats_activity")
-                ],
-                [
-                    InlineKeyboardButton("⚡ Performance", callback_data="stats_performance"),
-                    InlineKeyboardButton("📈 Trends", callback_data="stats_trends")
-                ]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            
-            await loading_msg.edit_text(
-                stats_message,
-                reply_markup=reply_markup
-            )
+            await loading_msg.edit_text(stats_message)
             
             logger.info(f"Showed stats to user {update.effective_user.id} in {(time.time() - start_time)*1000:.0f}ms")
             
