@@ -36,11 +36,6 @@ class TelegramQuizBot:
         self.cleanup_interval = 3600  # 1 hour in seconds
         self.bot_start_time = datetime.now()
         
-        # OPTIMIZATION: Add stats caching to reduce database queries
-        self._stats_cache = None
-        self._stats_cache_time = None
-        self._stats_cache_duration = timedelta(seconds=30)  # Cache stats for 30 seconds
-        
         self.db = DatabaseManager()
         self.dev_commands = DeveloperCommands(self.db, quiz_manager)
         logger.info("TelegramQuizBot initialized with database and developer commands")
@@ -677,22 +672,31 @@ class TelegramQuizBot:
                 'timestamp': datetime.now().isoformat()
             }
 
-            # Record both global and group-specific score
+            # Update stats IMMEDIATELY in database (no caching)
+            activity_date = datetime.now().strftime('%Y-%m-%d')
+            self.db.update_user_score(answer.user.id, is_correct, activity_date)
+            logger.info(f"Updated stats in database for user {answer.user.id}: correct={is_correct}")
+            
+            # Also record in quiz_history for tracking purposes
+            if question_id and selected_answer is not None:
+                self.db.record_quiz_answer(
+                    user_id=answer.user.id,
+                    chat_id=chat_id,
+                    question_id=question_id,
+                    question_text=poll_data.get('question', ''),
+                    user_answer=selected_answer,
+                    correct_answer=poll_data['correct_option_id']
+                )
+            
+            # Keep quiz_manager in sync for compatibility (but DB is source of truth)
             if is_correct:
                 self.quiz_manager.increment_score(answer.user.id)
-                logger.info(f"Recorded correct answer for user {answer.user.id}")
-
-            # Record group attempt
             self.quiz_manager.record_group_attempt(
                 user_id=answer.user.id,
                 chat_id=chat_id,
                 is_correct=is_correct
             )
-            logger.info(f"Recorded group attempt for user {answer.user.id} in chat {chat_id} (correct: {is_correct})")
-            
-            # Invalidate stats cache for real-time updates
-            self._stats_cache = None
-            logger.debug(f"Stats cache invalidated after quiz answer from user {answer.user.id}")
+            logger.info(f"Recorded quiz attempt for user {answer.user.id} in chat {chat_id} (correct: {is_correct})")
 
         except Exception as e:
             logger.error(f"Error handling answer: {str(e)}\n{traceback.format_exc()}")

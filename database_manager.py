@@ -1719,7 +1719,7 @@ class DatabaseManager:
                     ''')
                     total_count = cursor.fetchone()[0]
                 
-                # Get the paginated leaderboard data
+                # Get the paginated leaderboard data - RANKED BY CORRECT ANSWERS
                 cursor.execute('''
                     SELECT 
                         u.user_id,
@@ -1734,7 +1734,7 @@ class DatabaseManager:
                         u.last_activity_date
                     FROM users u
                     WHERE u.total_quizzes > 0
-                    ORDER BY u.current_score DESC, u.success_rate DESC, u.total_quizzes DESC
+                    ORDER BY u.correct_answers DESC, u.total_quizzes DESC
                     LIMIT ? OFFSET ?
                 ''', (limit, offset))
                 
