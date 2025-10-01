@@ -925,55 +925,61 @@ We're here to help! 🌟"""
             # Check if user is developer
             is_dev = await self.is_developer(update.message.from_user.id)
             
-            # Get user's username or first name
+            # Get user and bot links
             user = update.effective_user
-            user_mention = user.first_name
+            user_name_link = f"[{user.first_name}](tg://user?id={user.id})"
+            bot_link = f"[Miss Quiz 𓂀 Bot](https://t.me/{context.bot.username})"
             
-            help_text = f"""✨ Miss Quiz 𓂀 Bot - Command Center  
-📑 Welcome {user_mention}! Here's your command guide:  
-━━━━━━━━━━━━━━━━━━━━━━━
+            help_text = f"""╔══════════════════════════════════╗
+║ ✨ Miss Quiz 𓂀 Bot - Command Center ║
+╚══════════════════════════════════╝
 
-🎮 Quiz Commands  
-➤ /start             🚀 Begin your journey  
-➤ /quiz              🎲 Take a quiz now  
-➤ /category          📖 Explore quiz topics  
+📑 Welcome {user_name_link}!
+Here's your complete command guide:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📊 Stats & Rankings  
-➤ /mystats           📈 Your performance  
-➤ /leaderboard       🏆 Global rankings"""
+🎮 𝗤𝘂𝗶𝘇 𝗖𝗼𝗺𝗺𝗮𝗻𝗱𝘀
+➤ /start       🚀 Begin your quiz journey
+➤ /quiz        🎲 Take a quiz now
+➤ /category    📖 Explore quiz topics
+
+📊 𝗦𝘁𝗮𝘁𝘀 & 𝗥𝗮𝗻𝗸𝗶𝗻𝗴𝘀
+➤ /mystats       📈 View your performance
+➤ /leaderboard   🏆 View global rankings"""
 
             # Add developer commands only for developers
             if is_dev:
-                help_text += """  
+                help_text += """
 
-🔐 Developer Commands  
-➤ /dev               👑 Manage developer roles  
-➤ /stats             📊 Real-time bot stats  
-➤ /broadcast         📣 Send announcements  
-➤ /delbroadcast      🗑️ Delete latest broadcast  
-➤ /addquiz           ➕ Add quiz questions  
-➤ /editquiz          ✏️ Edit existing questions  
-➤ /delquiz           🗑️ Delete a quiz  
-➤ /totalquiz         🔢 Total quiz count  
-➤ /allreload         🔄 Restart bot globally"""
+🔐 𝗗𝗲𝘃𝗲𝗹𝗼𝗽𝗲𝗿 𝗖𝗼𝗺𝗺𝗮𝗻𝗱𝘀
+➤ /dev            👑 Manage developer roles
+➤ /stats          📊 Real-time bot stats
+➤ /broadcast      📣 Send announcements
+➤ /delbroadcast   🗑️ Delete latest broadcast
+➤ /addquiz        ➕ Add quiz questions
+➤ /editquiz       ✏️ Edit existing questions
+➤ /delquiz        🗑️ Delete a quiz
+➤ /totalquiz      🔢 Total quiz count
+➤ /allreload      🔄 Restart bot globally"""
 
-            help_text += """  
+            help_text += f"""
 
-💡 Tips & Tricks  
-• Auto quizzes every 30 mins in groups 🕒  
-• PM mode keeps chat clean & simple 🤫  
-• Group mode auto-cleans after completion 🧹  
-• Stats track your progress in real-time ⚡  
-• Compete with friends on the leaderboard 🏆  
+💡 𝗧𝗶𝗽𝘀 & 𝗧𝗿𝗶𝗰𝗸𝘀
+• 🕒 Auto quizzes every 30 mins in groups
+• 🤫 PM mode keeps chat clean & simple
+• 🧹 Group mode auto-cleans after completion
+• ⚡ Stats track your progress in real-time
+• 🏆 Compete with friends on the leaderboard
 
-━━━━━━━━━━━━━━━━━━━━━━━  
-🔔 Need help? Use /help anytime!  
-✨ Conquer the Quiz World!"""
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔔 Need help? Use /help anytime!
+✨ Conquer the Quiz World with {bot_link}!"""
 
-            # Send help message without markdown to avoid parsing errors
+            # Send help message with markdown for clickable links
             await context.bot.send_message(
                 chat_id=update.effective_chat.id,
-                text=help_text
+                text=help_text,
+                parse_mode=ParseMode.MARKDOWN
             )
             
             response_time = int((time.time() - start_time) * 1000)
