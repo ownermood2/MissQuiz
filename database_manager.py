@@ -22,6 +22,14 @@ class DatabaseManager:
         self.db_path = db_path or config.DATABASE_PATH
         self.init_database()
         logger.info(f"Database initialized at {self.db_path}")
+        
+        # Run timestamp migration to fix ISO format timestamps
+        try:
+            migration_result = self.migrate_iso_timestamps_to_space_format()
+            if migration_result['activity_logs'] > 0 or migration_result['performance_metrics'] > 0:
+                logger.info(f"Migrated timestamps: activity_logs={migration_result['activity_logs']}, performance_metrics={migration_result['performance_metrics']}")
+        except Exception as e:
+            logger.error(f"Timestamp migration failed (non-critical): {e}")
     
     @contextmanager
     def get_connection(self):
@@ -877,7 +885,7 @@ class DatabaseManager:
             response_time_ms: Response time in milliseconds (optional)
         """
         try:
-            timestamp = datetime.now().isoformat()
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
             details_json = json.dumps(details) if details else None
             success_int = 1 if success else 0
             
@@ -1025,15 +1033,17 @@ class DatabaseManager:
             Count of activities for today
         """
         try:
-            today = datetime.now().strftime('%Y-%m-%d')
+            now = datetime.now()
+            today_start = datetime(now.year, now.month, now.day, 0, 0, 0).strftime('%Y-%m-%d %H:%M:%S')
+            today_end = datetime(now.year, now.month, now.day, 23, 59, 59).strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute('''
                     SELECT COUNT(*) as count 
                     FROM activity_logs 
-                    WHERE DATE(timestamp) = ?
-                ''', (today,))
+                    WHERE timestamp >= ? AND timestamp <= ?
+                ''', (today_start, today_end))
                 
                 row = cursor.fetchone()
                 count = row['count'] if row else 0
@@ -1060,7 +1070,8 @@ class DatabaseManager:
         """
         try:
             from datetime import timedelta
-            start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+            start_datetime = datetime.now() - timedelta(days=days)
+            start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
                 cursor = conn.cursor()
@@ -1068,26 +1079,26 @@ class DatabaseManager:
                 cursor.execute('''
                     SELECT COUNT(*) as total 
                     FROM activity_logs 
-                    WHERE DATE(timestamp) >= ?
-                ''', (start_date,))
+                    WHERE timestamp >= ?
+                ''', (start_timestamp,))
                 total_activities = cursor.fetchone()['total']
                 
                 cursor.execute('''
                     SELECT activity_type, COUNT(*) as count 
                     FROM activity_logs 
-                    WHERE DATE(timestamp) >= ?
+                    WHERE timestamp >= ?
                     GROUP BY activity_type
                     ORDER BY count DESC
-                ''', (start_date,))
+                ''', (start_timestamp,))
                 activities_by_type = {row['activity_type']: row['count'] for row in cursor.fetchall()}
                 
                 cursor.execute('''
-                    SELECT DATE(timestamp) as date, COUNT(*) as count 
+                    SELECT strftime('%Y-%m-%d', timestamp) as date, COUNT(*) as count 
                     FROM activity_logs 
-                    WHERE DATE(timestamp) >= ?
-                    GROUP BY DATE(timestamp)
+                    WHERE timestamp >= ?
+                    GROUP BY strftime('%Y-%m-%d', timestamp)
                     ORDER BY date DESC
-                ''', (start_date,))
+                ''', (start_timestamp,))
                 activities_by_day = {row['date']: row['count'] for row in cursor.fetchall()}
                 
                 cursor.execute('''
@@ -1095,8 +1106,8 @@ class DatabaseManager:
                         COUNT(*) as total,
                         SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successful
                     FROM activity_logs 
-                    WHERE DATE(timestamp) >= ?
-                ''', (start_date,))
+                    WHERE timestamp >= ?
+                ''', (start_timestamp,))
                 row = cursor.fetchone()
                 total = row['total']
                 successful = row['successful']
@@ -1105,8 +1116,8 @@ class DatabaseManager:
                 cursor.execute('''
                     SELECT AVG(response_time_ms) as avg_time 
                     FROM activity_logs 
-                    WHERE DATE(timestamp) >= ? AND response_time_ms IS NOT NULL
-                ''', (start_date,))
+                    WHERE timestamp >= ? AND response_time_ms IS NOT NULL
+                ''', (start_timestamp,))
                 row = cursor.fetchone()
                 avg_response_time = round(row['avg_time'], 2) if row['avg_time'] else 0
                 
@@ -1117,7 +1128,7 @@ class DatabaseManager:
                     'success_rate': success_rate,
                     'avg_response_time_ms': avg_response_time,
                     'period_days': days,
-                    'start_date': start_date
+                    'start_date': start_timestamp
                 }
                 
                 logger.debug(f"Retrieved activity stats for last {days} days: {total_activities} activities")
@@ -1146,17 +1157,18 @@ class DatabaseManager:
         """
         try:
             from datetime import timedelta
-            cutoff_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+            cutoff_datetime = datetime.now() - timedelta(days=days)
+            cutoff_timestamp = cutoff_datetime.strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute('''
                     DELETE FROM activity_logs 
-                    WHERE DATE(timestamp) < ?
-                ''', (cutoff_date,))
+                    WHERE timestamp < ?
+                ''', (cutoff_timestamp,))
                 
                 deleted_count = cursor.rowcount
-                logger.info(f"Cleaned up {deleted_count} activities older than {days} days (before {cutoff_date})")
+                logger.info(f"Cleaned up {deleted_count} activities older than {days} days (before {cutoff_timestamp})")
                 return deleted_count
         except Exception as e:
             logger.error(f"Error cleaning up old activities: {e}")
@@ -1176,7 +1188,8 @@ class DatabaseManager:
             import time
             start_time = time.time()
             from datetime import timedelta
-            start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+            start_datetime = datetime.now() - timedelta(days=days)
+            start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
                 cursor = conn.cursor()
@@ -1184,10 +1197,10 @@ class DatabaseManager:
                     SELECT command, COUNT(*) as count 
                     FROM activity_logs 
                     WHERE command IS NOT NULL 
-                      AND DATE(timestamp) >= ?
+                      AND timestamp >= ?
                     GROUP BY command
                     ORDER BY count DESC
-                ''', (start_date,))
+                ''', (start_timestamp,))
                 
                 stats = {row['command']: row['count'] for row in cursor.fetchall()}
                 
@@ -1216,7 +1229,8 @@ class DatabaseManager:
             import time
             start_time = time.time()
             from datetime import timedelta
-            start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+            start_datetime = datetime.now() - timedelta(days=days)
+            start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
                 cursor = conn.cursor()
@@ -1225,17 +1239,17 @@ class DatabaseManager:
                     SELECT COUNT(*) as count 
                     FROM activity_logs 
                     WHERE activity_type = 'quiz_sent' 
-                      AND DATE(timestamp) >= ?
+                      AND timestamp >= ?
                       AND (details NOT LIKE '%auto_delete%' OR details IS NULL)
-                ''', (start_date,))
+                ''', (start_timestamp,))
                 total_sent = cursor.fetchone()['count'] or 0
                 
                 cursor.execute('''
                     SELECT COUNT(*) as total,
                            SUM(CASE WHEN is_correct = 1 THEN 1 ELSE 0 END) as correct
                     FROM quiz_history
-                    WHERE DATE(answered_at) >= ?
-                ''', (start_date,))
+                    WHERE answered_at >= ?
+                ''', (start_timestamp,))
                 row = cursor.fetchone()
                 total_answered = row['total'] or 0
                 correct_answers = row['correct'] or 0
@@ -1246,8 +1260,8 @@ class DatabaseManager:
                     FROM activity_logs 
                     WHERE activity_type = 'quiz_answer'
                       AND response_time_ms IS NOT NULL
-                      AND DATE(timestamp) >= ?
-                ''', (start_date,))
+                      AND timestamp >= ?
+                ''', (start_timestamp,))
                 row = cursor.fetchone()
                 avg_response_time = round(row['avg_time'], 2) if row['avg_time'] else 0
                 
@@ -1291,9 +1305,11 @@ class DatabaseManager:
             start_time = time.time()
             from datetime import timedelta
             
-            today = datetime.now().strftime('%Y-%m-%d')
-            week_start = (datetime.now() - timedelta(days=datetime.now().weekday())).strftime('%Y-%m-%d')
-            month_start = datetime.now().replace(day=1).strftime('%Y-%m-%d')
+            now = datetime.now()
+            today_start = datetime(now.year, now.month, now.day, 0, 0, 0).strftime('%Y-%m-%d %H:%M:%S')
+            today_end = datetime(now.year, now.month, now.day, 23, 59, 59).strftime('%Y-%m-%d %H:%M:%S')
+            week_start = (datetime(now.year, now.month, now.day, 0, 0, 0) - timedelta(days=now.weekday())).strftime('%Y-%m-%d %H:%M:%S')
+            month_start = datetime(now.year, now.month, 1, 0, 0, 0).strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
                 cursor = conn.cursor()
@@ -1305,15 +1321,15 @@ class DatabaseManager:
                     SELECT COUNT(DISTINCT user_id) as count 
                     FROM activity_logs 
                     WHERE user_id IS NOT NULL 
-                      AND DATE(timestamp) = ?
-                ''', (today,))
+                      AND timestamp >= ? AND timestamp <= ?
+                ''', (today_start, today_end))
                 active_today = cursor.fetchone()['count']
                 
                 cursor.execute('''
                     SELECT COUNT(DISTINCT user_id) as count 
                     FROM activity_logs 
                     WHERE user_id IS NOT NULL 
-                      AND DATE(timestamp) >= ?
+                      AND timestamp >= ?
                 ''', (week_start,))
                 active_week = cursor.fetchone()['count']
                 
@@ -1321,7 +1337,7 @@ class DatabaseManager:
                     SELECT COUNT(DISTINCT user_id) as count 
                     FROM activity_logs 
                     WHERE user_id IS NOT NULL 
-                      AND DATE(timestamp) >= ?
+                      AND timestamp >= ?
                 ''', (month_start,))
                 active_month = cursor.fetchone()['count']
                 
@@ -1400,7 +1416,8 @@ class DatabaseManager:
             import time
             start_time = time.time()
             from datetime import timedelta
-            start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+            start_datetime = datetime.now() - timedelta(days=days)
+            start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
                 cursor = conn.cursor()
@@ -1410,8 +1427,8 @@ class DatabaseManager:
                         COUNT(*) as total,
                         SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as errors
                     FROM activity_logs 
-                    WHERE DATE(timestamp) >= ?
-                ''', (start_date,))
+                    WHERE timestamp >= ?
+                ''', (start_timestamp,))
                 row = cursor.fetchone()
                 total_activities = row['total'] or 0
                 total_errors = row['errors'] or 0
@@ -1421,11 +1438,11 @@ class DatabaseManager:
                     SELECT activity_type, COUNT(*) as count
                     FROM activity_logs 
                     WHERE success = 0 
-                      AND DATE(timestamp) >= ?
+                      AND timestamp >= ?
                     GROUP BY activity_type
                     ORDER BY count DESC
                     LIMIT 5
-                ''', (start_date,))
+                ''', (start_timestamp,))
                 common_errors = {row['activity_type']: row['count'] for row in cursor.fetchall()}
                 
                 query_time = int((time.time() - start_time) * 1000)
@@ -1528,7 +1545,8 @@ class DatabaseManager:
             import time
             start_time = time.time()
             from datetime import timedelta
-            start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+            start_datetime = datetime.now() - timedelta(days=days)
+            start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
                 cursor = conn.cursor()
@@ -1540,10 +1558,10 @@ class DatabaseManager:
                     FROM activity_logs 
                     WHERE command IS NOT NULL 
                       AND response_time_ms IS NOT NULL
-                      AND DATE(timestamp) >= ?
+                      AND timestamp >= ?
                     GROUP BY command
                     ORDER BY avg_time DESC
-                ''', (start_date,))
+                ''', (start_timestamp,))
                 
                 stats = {row['command']: round(row['avg_time'], 2) for row in cursor.fetchall()}
                 
@@ -1575,8 +1593,8 @@ class DatabaseManager:
             start_time = time.time()
             from datetime import timedelta
             
-            # Use UTC datetime ranges for proper index usage
-            now = datetime.utcnow()
+            # Use datetime ranges for proper index usage
+            now = datetime.now()
             today_start = datetime(now.year, now.month, now.day, 0, 0, 0).strftime('%Y-%m-%d %H:%M:%S')
             today_end = datetime(now.year, now.month, now.day, 23, 59, 59).strftime('%Y-%m-%d %H:%M:%S')
             
@@ -1948,14 +1966,15 @@ class DatabaseManager:
         """
         try:
             from datetime import timedelta
-            cutoff_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+            cutoff_datetime = datetime.now() - timedelta(days=days)
+            cutoff_timestamp = cutoff_datetime.strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute('''
                     DELETE FROM performance_metrics 
-                    WHERE DATE(timestamp) < ?
-                ''', (cutoff_date,))
+                    WHERE timestamp < ?
+                ''', (cutoff_timestamp,))
                 
                 deleted_count = cursor.rowcount
                 logger.info(f"Cleaned up {deleted_count} performance metrics older than {days} days")
@@ -1977,7 +1996,8 @@ class DatabaseManager:
         """
         try:
             from datetime import timedelta
-            start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+            start_datetime = datetime.now() - timedelta(days=days)
+            start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
                 cursor = conn.cursor()
@@ -1987,11 +2007,11 @@ class DatabaseManager:
                         COUNT(*) as count
                     FROM activity_logs
                     WHERE activity_type = 'command'
-                      AND DATE(timestamp) >= ?
+                      AND timestamp >= ?
                     GROUP BY details
                     ORDER BY count DESC
                     LIMIT ?
-                ''', (start_date, limit))
+                ''', (start_timestamp, limit))
                 
                 trending = []
                 for row in cursor.fetchall():
@@ -2024,14 +2044,17 @@ class DatabaseManager:
         try:
             from datetime import timedelta
             
+            now = datetime.now()
             if period == 'today':
-                start_date = datetime.now().strftime('%Y-%m-%d')
+                start_timestamp = datetime(now.year, now.month, now.day, 0, 0, 0).strftime('%Y-%m-%d %H:%M:%S')
             elif period == 'week':
-                start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+                start_datetime = datetime.now() - timedelta(days=7)
+                start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
             elif period == 'month':
-                start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+                start_datetime = datetime.now() - timedelta(days=30)
+                start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
             else:
-                start_date = datetime.now().strftime('%Y-%m-%d')
+                start_timestamp = datetime(now.year, now.month, now.day, 0, 0, 0).strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
                 cursor = conn.cursor()
@@ -2039,8 +2062,8 @@ class DatabaseManager:
                     SELECT COUNT(DISTINCT user_id) as count
                     FROM activity_logs
                     WHERE user_id IS NOT NULL
-                      AND DATE(timestamp) >= ?
-                ''', (start_date,))
+                      AND timestamp >= ?
+                ''', (start_timestamp,))
                 
                 row = cursor.fetchone()
                 count = row['count'] if row else 0
@@ -2062,15 +2085,16 @@ class DatabaseManager:
         """
         try:
             from datetime import timedelta
-            start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+            start_datetime = datetime.now() - timedelta(days=days)
+            start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute('''
                     SELECT * FROM users
-                    WHERE DATE(joined_at) >= ?
+                    WHERE joined_at >= ?
                     ORDER BY joined_at DESC
-                ''', (start_date,))
+                ''', (start_timestamp,))
                 
                 users = [dict(row) for row in cursor.fetchall()]
                 logger.debug(f"Found {len(users)} new users in last {days} days")
@@ -2092,7 +2116,8 @@ class DatabaseManager:
         """
         try:
             from datetime import timedelta
-            start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+            start_datetime = datetime.now() - timedelta(days=days)
+            start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
                 cursor = conn.cursor()
@@ -2107,12 +2132,12 @@ class DatabaseManager:
                         COUNT(a.id) as activity_count
                     FROM users u
                     LEFT JOIN activity_logs a ON u.user_id = a.user_id
-                      AND DATE(a.timestamp) >= ?
+                      AND a.timestamp >= ?
                     WHERE u.total_quizzes > 0
                     GROUP BY u.user_id
                     ORDER BY activity_count DESC, u.total_quizzes DESC
                     LIMIT ?
-                ''', (start_date, limit))
+                ''', (start_timestamp, limit))
                 
                 users = []
                 for row in cursor.fetchall():
@@ -2157,14 +2182,17 @@ class DatabaseManager:
                         WHERE activity_type IN ('quiz_sent', 'quiz_answered')
                     ''')
                 else:
+                    now = datetime.now()
                     if period == 'today':
-                        start_date = datetime.now().strftime('%Y-%m-%d')
+                        start_timestamp = datetime(now.year, now.month, now.day, 0, 0, 0).strftime('%Y-%m-%d %H:%M:%S')
                     elif period == 'week':
-                        start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+                        start_datetime = datetime.now() - timedelta(days=7)
+                        start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
                     elif period == 'month':
-                        start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+                        start_datetime = datetime.now() - timedelta(days=30)
+                        start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
                     else:
-                        start_date = datetime.now().strftime('%Y-%m-%d')
+                        start_timestamp = datetime(now.year, now.month, now.day, 0, 0, 0).strftime('%Y-%m-%d %H:%M:%S')
                     
                     cursor.execute('''
                         SELECT 
@@ -2172,8 +2200,8 @@ class DatabaseManager:
                             SUM(CASE WHEN activity_type = 'quiz_answered' THEN 1 ELSE 0 END) as total_answered
                         FROM activity_logs
                         WHERE activity_type IN ('quiz_sent', 'quiz_answered')
-                          AND DATE(timestamp) >= ?
-                    ''', (start_date,))
+                          AND timestamp >= ?
+                    ''', (start_timestamp,))
                 
                 row = cursor.fetchone()
                 total_sent = row['total_sent'] if row and row['total_sent'] else 0
@@ -2208,6 +2236,59 @@ class DatabaseManager:
                 'success_rate': 0,
                 'period': period
             }
+    
+    def migrate_iso_timestamps_to_space_format(self) -> Dict[str, int]:
+        """
+        Migrate timestamps from ISO format (with 'T') to space-separated format
+        This is a one-time migration to fix timestamp format inconsistency
+        
+        Returns:
+            Dictionary with migration counts for each table
+        """
+        migration_counts = {
+            'activity_logs': 0,
+            'performance_metrics': 0
+        }
+        
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Migrate activity_logs timestamps
+                cursor.execute("SELECT id, timestamp FROM activity_logs WHERE timestamp LIKE '%T%'")
+                rows = cursor.fetchall()
+                for row in rows:
+                    old_timestamp = row['timestamp']
+                    try:
+                        # Convert ISO format to space-separated format
+                        dt = datetime.fromisoformat(old_timestamp.replace('Z', '+00:00'))
+                        new_timestamp = dt.strftime('%Y-%m-%d %H:%M:%S.%f')
+                        cursor.execute("UPDATE activity_logs SET timestamp = ? WHERE id = ?", 
+                                     (new_timestamp, row['id']))
+                        migration_counts['activity_logs'] += 1
+                    except Exception as e:
+                        logger.error(f"Error migrating activity_logs timestamp {old_timestamp}: {e}")
+                
+                # Migrate performance_metrics timestamps
+                cursor.execute("SELECT id, timestamp FROM performance_metrics WHERE timestamp LIKE '%T%'")
+                rows = cursor.fetchall()
+                for row in rows:
+                    old_timestamp = row['timestamp']
+                    try:
+                        # Convert ISO format to space-separated format
+                        dt = datetime.fromisoformat(old_timestamp.replace('Z', '+00:00'))
+                        new_timestamp = dt.strftime('%Y-%m-%d %H:%M:%S.%f')
+                        cursor.execute("UPDATE performance_metrics SET timestamp = ? WHERE id = ?", 
+                                     (new_timestamp, row['id']))
+                        migration_counts['performance_metrics'] += 1
+                    except Exception as e:
+                        logger.error(f"Error migrating performance_metrics timestamp {old_timestamp}: {e}")
+                
+                logger.info(f"Timestamp migration completed: {migration_counts}")
+                return migration_counts
+        except Exception as e:
+            logger.error(f"Error during timestamp migration: {e}")
+            return migration_counts
     
     @staticmethod
     def format_relative_time(timestamp_str: str) -> str:
