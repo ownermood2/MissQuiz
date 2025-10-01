@@ -421,6 +421,12 @@ class TelegramQuizBot:
                 pattern="^leaderboard_page:"
             ))
             
+            # Add callback query handler for leaderboard toggle (group <-> global)
+            self.application.add_handler(CallbackQueryHandler(
+                self.handle_leaderboard_toggle,
+                pattern="^leaderboard_toggle:"
+            ))
+            
             # Add callback query handler for category selection
             self.application.add_handler(CallbackQueryHandler(
                 self.handle_category_callback,
@@ -604,7 +610,7 @@ class TelegramQuizBot:
 ➤ 📚 Categories – GK, CA, History & more! /category
 ➤ ⚡ Instant Results – Answers in real-time
 ➤ 🤫 PM Mode – Clean, clutter-free experience
-➤ 🧹 Group Mode – Auto-cleans after completion
+➤ 🧹 Group Mode – Auto-deletes quiz messages for cleaner chat
 
 ──────────────────────────────
 📝 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬:
@@ -986,7 +992,7 @@ Here's your complete command guide:
 💡 𝗧𝗶𝗽𝘀 & 𝗧𝗿𝗶𝗰𝗸𝘀
 • 🕒 Auto quizzes every 30 mins in groups
 • 🤫 PM mode keeps chat clean & simple
-• 🧹 Group mode auto-cleans after completion
+• 🧹 Group mode auto-deletes old quiz messages when sending new ones
 • ⚡ Stats track your progress in real-time
 • 🏆 Compete with friends on the leaderboard
 
@@ -1610,7 +1616,7 @@ Error: {str(e)}
             await update.message.reply_text("❌ Error during reload. Please try again.")
 
     async def leaderboard(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Show global leaderboard with top 20 performers, paginated (2 per page)"""
+        """Show context-aware leaderboard - group stats in groups, global in private chats"""
         start_time = time.time()
         try:
             # Log command immediately
@@ -1624,11 +1630,22 @@ Error: {str(e)}
                 success=True
             )
             
-            # Show page 0 by default
-            await self._show_leaderboard_page(update, context, page=0)
+            # Detect chat type and show appropriate leaderboard
+            chat = update.effective_chat
+            if chat.type in ['group', 'supergroup']:
+                # Show group leaderboard in groups
+                scope = 'group'
+                logger.info(f"Showing group leaderboard for chat {chat.id}")
+            else:
+                # Show global leaderboard in private chats
+                scope = 'global'
+                logger.info(f"Showing global leaderboard for user {update.effective_user.id}")
+            
+            # Show page 0 by default with detected scope
+            await self._show_leaderboard_page(update, context, page=0, scope=scope)
             
             response_time = int((time.time() - start_time) * 1000)
-            logger.info(f"Leaderboard shown successfully in {response_time}ms")
+            logger.info(f"Leaderboard ({scope}) shown successfully in {response_time}ms")
             
             self.db.log_performance_metric(
                 metric_type='response_time',
@@ -1651,25 +1668,38 @@ Error: {str(e)}
             logger.error(f"Error showing leaderboard: {e}\n{traceback.format_exc()}")
             await update.message.reply_text("❌ Error retrieving leaderboard. Please try again.")
     
-    async def _show_leaderboard_page(self, update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 0, edit: bool = False) -> None:
-        """Display a specific page of the leaderboard (2 entries per page)"""
+    async def _show_leaderboard_page(self, update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 0, edit: bool = False, scope: str = 'global') -> None:
+        """Display a specific page of the leaderboard (2 entries per page) - supports group and global scopes"""
         try:
-            # Get top 20 users from database in real-time
-            leaderboard = self.db.get_leaderboard_realtime(limit=20)
-            
-            # Professional header with clickable bot branding
+            chat = update.effective_chat
             bot_link = f"[Miss Quiz 𓂀 Bot](https://t.me/{context.bot.username})"
+            
+            # Fetch leaderboard data based on scope
+            if scope == 'group':
+                # Get group-specific leaderboard
+                stats = self.quiz_manager.get_group_leaderboard(chat.id)
+                leaderboard = stats.get('leaderboard', [])
+                scope_title = f"👥 Group Leaderboard: {chat.title}"
+                scope_emoji = "👥"
+            else:
+                # Get global leaderboard
+                leaderboard = self.db.get_leaderboard_realtime(limit=20)
+                scope_title = "🌍 Global Leaderboard"
+                scope_emoji = "🌍"
+            
+            # Header
             leaderboard_text = f"""╔════════════════════════════════╗
-║ 🏆 {bot_link} 🇮🇳 Leaderboard ║
+║ 🏆 {bot_link} 🇮🇳 ║
 ╚════════════════════════════════╝
 
+{scope_emoji} {scope_title}
 ✨ Top Quiz Champions - Live Rankings ✨
 
 ──────────────────────────────"""
 
             # If no participants yet
             if not leaderboard:
-                leaderboard_text += """\n
+                leaderboard_text += f"""\n
 🎯 No champions yet!
 💡 Be the first to claim the throne!
 
@@ -1677,6 +1707,13 @@ Error: {str(e)}
 🔥 Use /quiz to start your journey! 🎯"""
                 
                 keyboard = [[InlineKeyboardButton("🎯 Start Quiz", callback_data="start_quiz")]]
+                
+                # Add scope toggle if in group
+                if chat.type in ['group', 'supergroup']:
+                    toggle_scope = 'global' if scope == 'group' else 'group'
+                    toggle_label = "🌍 View Global" if scope == 'group' else "👥 View Group"
+                    keyboard.insert(0, [InlineKeyboardButton(toggle_label, callback_data=f"leaderboard_toggle:{toggle_scope}:0")])
+                
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
                 if edit and update.callback_query:
@@ -1718,13 +1755,10 @@ Error: {str(e)}
                         first_name = entry.get('first_name', '')
                         db_username = entry.get('username', '')
                         if first_name:
-                            # Use first name from database with clickable link
                             username = f"[{first_name}](tg://user?id={user_id})"
                         elif db_username:
-                            # Use username with clickable link (not just @username text)
                             username = f"[{db_username}](tg://user?id={user_id})"
                         else:
-                            # Even anonymous users get clickable link
                             username = f"[User](tg://user?id={user_id})"
                     
                     # Rank display
@@ -1735,11 +1769,22 @@ Error: {str(e)}
                     else:
                         rank_display = f"🔟" if rank == 10 else f"#{rank}"
 
-                    # Format score with K suffix for large numbers
-                    score_display = f"{entry['score']/1000:.1f}K" if entry['score'] >= 1000 else str(entry['score'])
-                    
-                    # Add user stats with professional formatting
-                    leaderboard_text += f"""
+                    # Format stats based on scope
+                    if scope == 'group':
+                        # Group leaderboard format
+                        score_display = entry.get('score', 0)
+                        accuracy = entry.get('accuracy', 0)
+                        leaderboard_text += f"""
+{rank_display} 𝗥𝗮𝗻𝗸 #{rank} • {username}
+💯 Score: {score_display} pts • 🎯 Accuracy: {accuracy}%
+┣ ✅ Correct: {entry.get('correct_answers', 0)}
+┣ ❌ Wrong: {entry.get('wrong_answers', 0)}
+┗ 🔥 Streak: {entry.get('current_streak', 0)} days
+──────────────────────────────"""
+                    else:
+                        # Global leaderboard format
+                        score_display = f"{entry['score']/1000:.1f}K" if entry['score'] >= 1000 else str(entry['score'])
+                        leaderboard_text += f"""
 {rank_display} 𝗥𝗮𝗻𝗸 #{rank} • {username}
 💯 Total Score: {score_display} points
 ┣ ✅ Quizzes: {entry['total_quizzes']}
@@ -1760,13 +1805,20 @@ Error: {str(e)}
 
             # Create navigation buttons
             keyboard = []
-            nav_buttons = []
             
+            # Add scope toggle button if in group
+            if chat.type in ['group', 'supergroup']:
+                toggle_scope = 'global' if scope == 'group' else 'group'
+                toggle_label = "🌍 View Global" if scope == 'group' else "👥 View Group"
+                keyboard.append([InlineKeyboardButton(toggle_label, callback_data=f"leaderboard_toggle:{toggle_scope}:0")])
+            
+            # Navigation buttons
+            nav_buttons = []
             if page > 0:
-                nav_buttons.append(InlineKeyboardButton("🔙 Back", callback_data=f"leaderboard_page:{page-1}"))
+                nav_buttons.append(InlineKeyboardButton("🔙 Back", callback_data=f"leaderboard_page:{scope}:{page-1}"))
             
             if page < total_pages - 1:
-                nav_buttons.append(InlineKeyboardButton("⏭ Next", callback_data=f"leaderboard_page:{page+1}"))
+                nav_buttons.append(InlineKeyboardButton("⏭ Next", callback_data=f"leaderboard_page:{scope}:{page+1}"))
             
             if nav_buttons:
                 keyboard.append(nav_buttons)
@@ -1802,15 +1854,42 @@ Error: {str(e)}
             query = update.callback_query
             await query.answer()
             
-            # Extract page number from callback data (format: "leaderboard_page:N")
-            page = int(query.data.split(":")[1])
+            # Extract scope and page from callback data (format: "leaderboard_page:scope:N")
+            parts = query.data.split(":")
+            if len(parts) == 3:
+                # New format with scope
+                scope = parts[1]
+                page = int(parts[2])
+            else:
+                # Legacy format (backwards compatibility)
+                page = int(parts[1])
+                scope = 'global'
             
-            # Show the requested page
-            await self._show_leaderboard_page(update, context, page=page, edit=True)
+            # Show the requested page with scope
+            await self._show_leaderboard_page(update, context, page=page, edit=True, scope=scope)
             
         except Exception as e:
             logger.error(f"Error handling leaderboard pagination: {e}\n{traceback.format_exc()}")
             await query.answer("❌ Error loading page", show_alert=True)
+    
+    async def handle_leaderboard_toggle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle leaderboard scope toggle (group <-> global)"""
+        try:
+            query = update.callback_query
+            await query.answer()
+            
+            # Extract scope and page from callback data (format: "leaderboard_toggle:scope:page")
+            parts = query.data.split(":")
+            scope = parts[1]
+            page = int(parts[2]) if len(parts) > 2 else 0
+            
+            # Show leaderboard with new scope
+            await self._show_leaderboard_page(update, context, page=page, edit=True, scope=scope)
+            logger.info(f"Toggled leaderboard to {scope} scope for user {update.effective_user.id}")
+            
+        except Exception as e:
+            logger.error(f"Error handling leaderboard toggle: {e}\n{traceback.format_exc()}")
+            await query.answer("❌ Error switching view", show_alert=True)
 
 
 
