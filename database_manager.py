@@ -1690,16 +1690,17 @@ class DatabaseManager:
             logger.error(f"Error getting leaderboard count: {e}")
             return 0
     
-    def get_leaderboard_realtime(self, limit: int = 10, offset: int = 0) -> Tuple[List[Dict], int]:
+    def get_leaderboard_realtime(self, limit: int = 10, offset: int = 0, skip_count: bool = False) -> Tuple[List[Dict], int]:
         """
         Get leaderboard from database in real-time with pagination support
         
         Args:
             limit: Number of top users to return (default: 10)
             offset: Number of users to skip (default: 0)
+            skip_count: If True, skip COUNT query and return -1 (default: False)
             
         Returns:
-            Tuple of (leaderboard data, total count of eligible users)
+            Tuple of (leaderboard data, total count of eligible users or -1 if skipped)
         """
         try:
             import time
@@ -1708,13 +1709,17 @@ class DatabaseManager:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 
-                # First, get the total count of eligible users
-                cursor.execute('''
-                    SELECT COUNT(*) FROM users WHERE total_quizzes > 0
-                ''')
-                total_count = cursor.fetchone()[0]
+                # Conditionally get total count based on skip_count flag
+                if skip_count:
+                    total_count = -1
+                    logger.debug(f"Skipping COUNT query for leaderboard (offset={offset}, limit={limit})")
+                else:
+                    cursor.execute('''
+                        SELECT COUNT(*) FROM users WHERE total_quizzes > 0
+                    ''')
+                    total_count = cursor.fetchone()[0]
                 
-                # Then get the paginated leaderboard data
+                # Get the paginated leaderboard data
                 cursor.execute('''
                     SELECT 
                         u.user_id,
@@ -1749,7 +1754,7 @@ class DatabaseManager:
                     })
                 
                 query_time = int((time.time() - start_time) * 1000)
-                logger.debug(f"Leaderboard query completed in {query_time}ms (offset={offset}, limit={limit}, total={total_count})")
+                logger.debug(f"Leaderboard query completed in {query_time}ms (offset={offset}, limit={limit}, total={total_count}, skip_count={skip_count})")
                 return leaderboard, total_count
         except Exception as e:
             logger.error(f"Error getting leaderboard: {e}")
