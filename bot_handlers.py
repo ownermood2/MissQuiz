@@ -1604,9 +1604,10 @@ Error: {str(e)}
             # Get top 20 users from database in real-time
             leaderboard = self.db.get_leaderboard_realtime(limit=20)
             
-            # Professional header with bot branding
-            leaderboard_text = """╔════════════════════════════════╗
-║ 🏆 Miss Quiz 𓂀 Bot 🇮🇳 Leaderboard ║
+            # Professional header with clickable bot branding
+            bot_link = f"[Miss Quiz 𓂀 Bot](https://t.me/{context.bot.username})"
+            leaderboard_text = f"""╔════════════════════════════════╗
+║ 🏆 {bot_link} 🇮🇳 Leaderboard ║
 ╚════════════════════════════════╝
 
 ✨ Top Quiz Champions - Live Rankings ✨
@@ -1660,15 +1661,18 @@ Error: {str(e)}
                         user_info = await context.bot.get_chat(user_id)
                         username = f"[{user_info.first_name}](tg://user?id={user_id})"
                     except:
-                        # Fallback: use database username or first_name (without showing ID)
+                        # Fallback: ALWAYS use clickable profile link with user_id
                         first_name = entry.get('first_name', '')
                         db_username = entry.get('username', '')
                         if first_name:
+                            # Use first name from database with clickable link
                             username = f"[{first_name}](tg://user?id={user_id})"
                         elif db_username:
-                            username = f"@{db_username}"
+                            # Use username with clickable link (not just @username text)
+                            username = f"[{db_username}](tg://user?id={user_id})"
                         else:
-                            username = "Anonymous User"
+                            # Even anonymous users get clickable link
+                            username = f"[User](tg://user?id={user_id})"
                     
                     # Rank display
                     if rank <= 3:
