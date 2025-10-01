@@ -5,6 +5,7 @@ import traceback
 import asyncio
 import json
 import psutil
+import time
 from datetime import datetime, timedelta
 from collections import defaultdict, deque
 from typing import List
@@ -33,6 +34,7 @@ class TelegramQuizBot:
         self.COOLDOWN_PERIOD = 3  # seconds between commands
         self.command_history = defaultdict(lambda: deque(maxlen=10))  # Store last 10 commands per chat
         self.cleanup_interval = 3600  # 1 hour in seconds
+        self.bot_start_time = datetime.now()
         
         self.db = DatabaseManager()
         self.dev_commands = DeveloperCommands(self.db, quiz_manager)
@@ -124,7 +126,7 @@ class TelegramQuizBot:
         except Exception as e:
             logger.error(f"Failed to send admin reminder: {e}")
 
-    async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE, auto_sent: bool = False, scheduled: bool = False) -> None:
         """Send a quiz to a specific chat using native Telegram quiz format"""
         try:
             # Delete last quiz message if it exists (using database tracking)
@@ -133,6 +135,17 @@ class TelegramQuizBot:
                 try:
                     await context.bot.delete_message(chat_id, last_quiz_msg_id)
                     logger.info(f"Deleted old quiz message {last_quiz_msg_id} in chat {chat_id}")
+                    
+                    # Log auto-delete activity
+                    self.db.log_activity(
+                        activity_type='quiz_deleted',
+                        chat_id=chat_id,
+                        details={
+                            'auto_delete': True,
+                            'old_message_id': last_quiz_msg_id
+                        },
+                        success=True
+                    )
                 except Exception as e:
                     logger.debug(f"Could not delete old quiz message: {e}")
 
@@ -162,12 +175,16 @@ class TelegramQuizBot:
             )
 
             if message and message.poll:
+                # Get question ID if available
+                question_id = question.get('id')
+                
                 poll_data = {
                     'chat_id': chat_id,
                     'correct_option_id': question['correct_answer'],
                     'user_answers': {},
                     'poll_id': message.poll.id,
                     'question': question_text,
+                    'question_id': question_id,
                     'timestamp': datetime.now().isoformat()
                 }
                 # Store using proper poll ID key
@@ -179,6 +196,34 @@ class TelegramQuizBot:
                 self.db.increment_quiz_count()
                 
                 self.command_history[chat_id].append(f"/quiz_{message.message_id}")
+                
+                # Get chat info for logging
+                try:
+                    chat = await context.bot.get_chat(chat_id)
+                    chat_type = 'private' if chat.type == 'private' else 'group'
+                    chat_title = chat.title if chat.type in ['group', 'supergroup'] else None
+                except Exception:
+                    chat_type = 'private' if chat_id > 0 else 'group'
+                    chat_title = None
+                
+                # Log comprehensive quiz_sent activity
+                self.db.log_activity(
+                    activity_type='quiz_sent',
+                    user_id=None,  # No specific user for quiz sending
+                    chat_id=chat_id,
+                    chat_title=chat_title,
+                    details={
+                        'question_id': question_id,
+                        'question_text': question_text[:100],
+                        'chat_type': chat_type,
+                        'auto_sent': auto_sent,
+                        'scheduled': scheduled,
+                        'poll_id': message.poll.id,
+                        'message_id': message.message_id
+                    },
+                    success=True
+                )
+                logger.info(f"Logged quiz_sent activity for chat {chat_id} (auto_sent={auto_sent}, scheduled={scheduled})")
 
         except Exception as e:
             logger.error(f"Error sending quiz: {str(e)}\n{traceback.format_exc()}")
@@ -196,6 +241,63 @@ class TelegramQuizBot:
 
         except Exception as e:
             logger.error(f"Error in scheduled cleanup: {e}")
+    
+    async def track_memory_usage(self, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Track memory usage every 5 minutes for performance monitoring"""
+        try:
+            process = psutil.Process()
+            memory_mb = process.memory_info().rss / 1024 / 1024
+            
+            self.db.log_performance_metric(
+                metric_type='memory_usage',
+                value=memory_mb,
+                unit='MB',
+                details={'pid': process.pid}
+            )
+            
+            logger.debug(f"Memory usage tracked: {memory_mb:.2f} MB")
+        except Exception as e:
+            logger.debug(f"Error tracking memory usage (non-critical): {e}")
+    
+    async def cleanup_performance_metrics(self, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Clean up performance metrics older than 7 days"""
+        try:
+            deleted_count = self.db.cleanup_old_performance_metrics(days=7)
+            logger.info(f"Cleaned up {deleted_count} old performance metrics")
+        except Exception as e:
+            logger.error(f"Error cleaning up performance metrics: {e}")
+    
+    async def cleanup_old_activities(self, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Clean up old activity logs (keep 30 days)"""
+        try:
+            deleted = self.db.cleanup_old_activities(days=30)
+            logger.info(f"Cleaned up {deleted} old activity logs")
+        except Exception as e:
+            logger.error(f"Error cleaning up old activities: {e}")
+    
+    def track_api_call(self, api_name: str):
+        """Track Telegram API call for performance monitoring"""
+        try:
+            self.db.log_performance_metric(
+                metric_type='api_call',
+                metric_name=api_name,
+                value=1,
+                unit='count'
+            )
+        except Exception as e:
+            logger.debug(f"Error tracking API call (non-critical): {e}")
+    
+    def track_error(self, error_type: str):
+        """Track error for performance monitoring"""
+        try:
+            self.db.log_performance_metric(
+                metric_type='error',
+                metric_name=error_type,
+                value=1,
+                unit='count'
+            )
+        except Exception as e:
+            logger.debug(f"Error tracking error metric (non-critical): {e}")
 
     def _register_callback_handlers(self):
         """Register all callback query handlers"""
@@ -215,6 +317,18 @@ class TelegramQuizBot:
         self.application.add_handler(CallbackQueryHandler(
             self.handle_stats_callback,
             pattern="^(refresh_stats|stats_)"
+        ))
+        
+        # Register callback for devstats dashboard
+        self.application.add_handler(CallbackQueryHandler(
+            self.handle_devstats_callback,
+            pattern="^devstats_"
+        ))
+        
+        # Register callback for activity stream
+        self.application.add_handler(CallbackQueryHandler(
+            self.handle_activity_callback,
+            pattern="^activity_"
         ))
         
         logger.info("Registered all callback handlers")
@@ -249,7 +363,9 @@ class TelegramQuizBot:
             self.application.add_handler(CommandHandler("delquiz", self.dev_commands.delquiz))
             self.application.add_handler(CommandHandler("delquiz_confirm", self.dev_commands.delquiz_confirm))
             self.application.add_handler(CommandHandler("dev", self.dev_commands.dev))
-            self.application.add_handler(CommandHandler("stats", self.dev_commands.stats))
+            self.application.add_handler(CommandHandler("stats", self.stats_command))
+            self.application.add_handler(CommandHandler("devstats", self.dev_commands.devstats))
+            self.application.add_handler(CommandHandler("activity", self.dev_commands.activity))
             self.application.add_handler(CommandHandler("allreload", self.dev_commands.allreload))
             self.application.add_handler(CommandHandler("broadcast", self.dev_commands.broadcast))
             self.application.add_handler(CommandHandler("broadcast_confirm", self.dev_commands.broadcast_confirm))
@@ -257,6 +373,7 @@ class TelegramQuizBot:
             self.application.add_handler(CommandHandler("broadband_confirm", self.dev_commands.broadband_confirm))
             self.application.add_handler(CommandHandler("delbroadcast", self.dev_commands.delbroadcast))
             self.application.add_handler(CommandHandler("delbroadcast_confirm", self.dev_commands.delbroadcast_confirm))
+            self.application.add_handler(CommandHandler("performance", self.dev_commands.performance_stats))
 
             # Handle answers and chat member updates
             self.application.add_handler(PollAnswerHandler(self.handle_answer))
@@ -315,6 +432,27 @@ class TelegramQuizBot:
                 lambda context: self.quiz_manager.cleanup_old_questions(),
                 interval=3600,  # Every hour
                 first=600  # Start after 10 minutes
+            )
+            
+            # Add memory usage tracking job
+            self.application.job_queue.run_repeating(
+                self.track_memory_usage,
+                interval=300,  # Every 5 minutes
+                first=60  # Start after 1 minute
+            )
+            
+            # Add performance metrics cleanup job
+            self.application.job_queue.run_repeating(
+                self.cleanup_performance_metrics,
+                interval=86400,  # Every 24 hours
+                first=3600  # Start after 1 hour
+            )
+            
+            # Add activity logs cleanup job (run at 3 AM daily)
+            self.application.job_queue.run_daily(
+                self.cleanup_old_activities,
+                time=__import__('datetime').time(hour=3, minute=0),
+                name='cleanup_old_activities'
             )
 
             await self.application.initialize()
@@ -460,7 +598,7 @@ class TelegramQuizBot:
             if chat.type in ["group", "supergroup"]:
                 is_admin = await self.check_admin_status(chat_id, context)
                 if is_admin:
-                    await self.send_quiz(chat_id, context)
+                    await self.send_quiz(chat_id, context, auto_sent=True, scheduled=False)
                 else:
                     await self.send_admin_reminder(chat_id, context)
 
@@ -487,6 +625,38 @@ class TelegramQuizBot:
             # Check if this is a correct answer
             is_correct = poll_data['correct_option_id'] in answer.option_ids
             chat_id = poll_data['chat_id']
+            question_id = poll_data.get('question_id')
+            selected_answer = answer.option_ids[0] if answer.option_ids else None
+            
+            # Get user info for logging
+            username = answer.user.username if answer.user.username else None
+            
+            # Calculate response time if timestamp is available
+            response_time_ms = None
+            if 'timestamp' in poll_data:
+                try:
+                    quiz_sent_time = datetime.fromisoformat(poll_data['timestamp'])
+                    response_time_ms = int((datetime.now() - quiz_sent_time).total_seconds() * 1000)
+                except Exception as e:
+                    logger.debug(f"Could not calculate response time: {e}")
+            
+            # Log comprehensive quiz answer activity
+            self.db.log_activity(
+                activity_type='quiz_answer',
+                user_id=answer.user.id,
+                chat_id=chat_id,
+                username=username,
+                details={
+                    'poll_id': answer.poll_id,
+                    'question_id': question_id,
+                    'correct': is_correct,
+                    'selected_answer': selected_answer,
+                    'correct_answer': poll_data['correct_option_id'],
+                    'question_text': poll_data.get('question', '')[:100]
+                },
+                success=True,
+                response_time_ms=response_time_ms
+            )
 
             # Record the answer in poll_data
             poll_data['user_answers'][answer.user.id] = {
@@ -533,7 +703,19 @@ We're here to help! 🌟"""
 
     async def quiz_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle the /quiz command with loading indicator"""
+        start_time = time.time()
         try:
+            # Log command immediately
+            self.db.log_activity(
+                activity_type='command',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                username=update.effective_user.username,
+                chat_title=getattr(update.effective_chat, 'title', None),
+                command='/quiz',
+                success=True
+            )
+            
             await self.ensure_group_registered(update.effective_chat, context)
             
             if not await self.check_cooldown(update.effective_user.id, "quiz"):
@@ -545,19 +727,52 @@ We're here to help! 🌟"""
             try:
                 await self.send_quiz(update.effective_chat.id, context)
                 await loading_message.delete()
+                response_time = int((time.time() - start_time) * 1000)
+                logger.info(f"/quiz completed in {response_time}ms")
+                
+                self.db.log_performance_metric(
+                    metric_type='response_time',
+                    metric_name='/quiz',
+                    value=response_time,
+                    unit='ms'
+                )
             except Exception as e:
                 logger.error(f"Error in quiz command: {e}")
                 await loading_message.edit_text("❌ Oops! Something went wrong. Try /quiz again!")
                 
         except Exception as e:
+            response_time = int((time.time() - start_time) * 1000)
+            self.track_error('/quiz_error')
+            self.db.log_activity(
+                activity_type='error',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                command='/quiz',
+                details={'error': str(e)},
+                success=False,
+                response_time_ms=response_time
+            )
             logger.error(f"Error in quiz command: {e}")
             await self.send_friendly_error_message(update.effective_chat.id, context)
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle the /start command - Track PM and Group live"""
+        start_time = time.time()
         try:
             chat = update.effective_chat
             user = update.effective_user
+            
+            # Log command immediately
+            self.db.log_activity(
+                activity_type='user_join' if chat.type == 'private' else 'group_join',
+                user_id=user.id,
+                chat_id=chat.id,
+                username=user.username,
+                chat_title=getattr(chat, 'title', None),
+                command='/start',
+                details={'chat_type': chat.type},
+                success=True
+            )
             
             # Live tracking: Mark PM access immediately when user starts bot in private chat
             if chat.type == 'private':
@@ -614,7 +829,28 @@ We're here to help! 🌟"""
                         
                         logger.info(f"Auto-sent quiz to DM {chat.id} after /start")
             
+            # Log successful completion with response time
+            response_time = int((time.time() - start_time) * 1000)
+            logger.info(f"/start completed in {response_time}ms for user {user.id}")
+            
+            self.db.log_performance_metric(
+                metric_type='response_time',
+                metric_name='/start',
+                value=response_time,
+                unit='ms'
+            )
+            
         except Exception as e:
+            response_time = int((time.time() - start_time) * 1000)
+            self.db.log_activity(
+                activity_type='error',
+                user_id=update.effective_user.id if update.effective_user else None,
+                chat_id=update.effective_chat.id if update.effective_chat else None,
+                command='/start',
+                details={'error': str(e)},
+                success=False,
+                response_time_ms=response_time
+            )
             logger.error(f"Error in start command: {e}")
             await update.message.reply_text("Error starting the bot. Please try again.")
     
@@ -630,7 +866,19 @@ We're here to help! 🌟"""
 
     async def help(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle the /help command"""
+        start_time = time.time()
         try:
+            # Log command immediately
+            self.db.log_activity(
+                activity_type='command',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                username=update.effective_user.username,
+                chat_title=getattr(update.effective_chat, 'title', None),
+                command='/help',
+                success=True
+            )
+            
             await self.ensure_group_registered(update.effective_chat, context)
             
             # Check if user is developer
@@ -686,15 +934,46 @@ We're here to help! 🌟"""
                 chat_id=update.effective_chat.id,
                 text=help_text
             )
-            logger.info(f"Help message sent to user {update.effective_user.id}")
+            
+            response_time = int((time.time() - start_time) * 1000)
+            logger.info(f"Help message sent to user {update.effective_user.id} in {response_time}ms")
+            
+            self.db.log_performance_metric(
+                metric_type='response_time',
+                metric_name='/help',
+                value=response_time,
+                unit='ms'
+            )
 
         except Exception as e:
+            response_time = int((time.time() - start_time) * 1000)
+            self.db.log_activity(
+                activity_type='error',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                command='/help',
+                details={'error': str(e)},
+                success=False,
+                response_time_ms=response_time
+            )
             logger.error(f"Error in help command: {e}")
             await update.message.reply_text("Error showing help. Please try again later.")
 
     async def category(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle the /category command"""
+        start_time = time.time()
         try:
+            # Log command immediately
+            self.db.log_activity(
+                activity_type='command',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                username=update.effective_user.username,
+                chat_title=getattr(update.effective_chat, 'title', None),
+                command='/category',
+                success=True
+            )
+            
             category_text = """📚 𝗩𝗜𝗘𝗪 𝗖𝗔𝗧𝗘𝗚𝗢𝗥𝗜𝗘𝗦  
 ══════════════════  
 📑 𝗔𝗩𝗔𝗜𝗟𝗔𝗕𝗟𝗘 𝗤𝗨𝗜𝗭 𝗖𝗔𝗧𝗘𝗚𝗢𝗥𝗜𝗘𝗦  
@@ -715,13 +994,33 @@ We're here to help! 🌟"""
 🛠 Need help? Use /help for more commands!"""
 
             await update.message.reply_text(category_text, parse_mode=ParseMode.MARKDOWN)
+            response_time = int((time.time() - start_time) * 1000)
+            logger.info(f"/category completed in {response_time}ms")
+            
+            self.db.log_performance_metric(
+                metric_type='response_time',
+                metric_name='/category',
+                value=response_time,
+                unit='ms'
+            )
         except Exception as e:
+            response_time = int((time.time() - start_time) * 1000)
+            self.db.log_activity(
+                activity_type='error',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                command='/category',
+                details={'error': str(e)},
+                success=False,
+                response_time_ms=response_time
+            )
             logger.error(f"Error showing categories: {e}")
             await update.message.reply_text("Error showing categories.")
 
 
     async def mystats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show personal statistics with proper handling of no data"""
+        start_time = time.time()
         try:
             user = update.effective_user
             if not user:
@@ -729,12 +1028,23 @@ We're here to help! 🌟"""
                 await update.message.reply_text("❌ Could not identify user.")
                 return
 
+            # Log command immediately
+            self.db.log_activity(
+                activity_type='command',
+                user_id=user.id,
+                chat_id=update.effective_chat.id,
+                username=user.username,
+                chat_title=getattr(update.effective_chat, 'title', None),
+                command='/mystats',
+                success=True
+            )
+
             # Send loading message
             loading_msg = await update.message.reply_text("📊 Loading your stats...")
 
             try:
-                # Get user stats
-                stats = self.quiz_manager.get_user_stats(user.id)
+                # Get user stats from database in real-time
+                stats = self.db.get_user_quiz_stats_realtime(user.id)
                 
                 # Handle case where user has no stats
                 if not stats or not stats.get('total_quizzes', 0):
@@ -773,13 +1083,12 @@ Ready to begin? Try /quiz now! 🚀"""
 𝗪𝗲𝗲𝗸𝗹𝘆: {stats.get('week_quizzes', 0)}/50
 {weekly_bar} {weekly_progress:.1f}%
 
-🔥 𝗦𝘁𝗿𝗲𝗮𝗸𝘀
-• Current: {stats.get('current_streak', 0)} days
-• Best: {stats.get('best_streak', 0)} days
+🔥 𝗦𝘁𝗿𝗲𝗮𝗸
+• Current: {stats.get('streak', 0)} correct in a row
 
 ⚡ 𝗥𝗲𝗮𝗹-𝘁𝗶𝗺𝗲 𝗔𝗰𝘁𝗶𝘃𝗶𝘁𝘆
-• Monthly: {stats.get('month_quizzes', 0)} quizzes
-• Last Active: {stats.get('last_active', 'Just now')}
+• Wrong Answers: {stats.get('wrong_answers', 0)}
+• Last Active: Just now
 ══════════════════
 🔄 Auto-updates every quiz"""
 
@@ -787,19 +1096,49 @@ Ready to begin? Try /quiz now! 🚀"""
                     stats_message,
                     parse_mode=ParseMode.MARKDOWN
                 )
-                logger.info(f"Showed stats to user {user.id}")
+                response_time = int((time.time() - start_time) * 1000)
+                logger.info(f"Showed stats to user {user.id} in {response_time}ms")
+                
+                self.db.log_performance_metric(
+                    metric_type='response_time',
+                    metric_name='/mystats',
+                    value=response_time,
+                    unit='ms'
+                )
 
             except Exception as e:
                 logger.error(f"Error displaying stats: {e}")
                 await loading_msg.edit_text("❌ Error displaying stats. Please try again.")
 
         except Exception as e:
+            response_time = int((time.time() - start_time) * 1000)
+            self.db.log_activity(
+                activity_type='error',
+                user_id=update.effective_user.id if update.effective_user else None,
+                chat_id=update.effective_chat.id,
+                command='/mystats',
+                details={'error': str(e)},
+                success=False,
+                response_time_ms=response_time
+            )
             logger.error(f"Error in mystats: {str(e)}\n{traceback.format_exc()}")
             await update.message.reply_text("❌ Error retrieving stats. Please try again.")
 
     async def groupstats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show group statistics with proper handling of no data"""
+        start_time = time.time()
         try:
+            # Log command immediately
+            self.db.log_activity(
+                activity_type='command',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                username=update.effective_user.username,
+                chat_title=getattr(update.effective_chat, 'title', None),
+                command='/groupstats',
+                success=True
+            )
+            
             chat = update.effective_chat
             if not chat or not chat.type.endswith('group'):
                 await update.message.reply_text("""👥 𝗚𝗿𝗼𝘂𝗽 𝗦𝘁𝗮𝘁𝘀 𝗢𝗻𝗹𝘆
@@ -882,22 +1221,52 @@ Ready for a quiz challenge? Try /quiz now! 🎯"""
                     stats_message,
                     parse_mode=ParseMode.MARKDOWN
                 )
-                logger.info(f"Showed group stats in chat {chat.id}")
+                response_time = int((time.time() - start_time) * 1000)
+                logger.info(f"Showed group stats in chat {chat.id} in {response_time}ms")
+                
+                self.db.log_performance_metric(
+                    metric_type='response_time',
+                    metric_name='/groupstats',
+                    value=response_time,
+                    unit='ms'
+                )
 
             except Exception as e:
                 logger.error(f"Error displaying group stats: {e}")
                 await loading_msg.edit_text("❌ Error displaying group stats. Please try again.")
 
         except Exception as e:
+            response_time = int((time.time() - start_time) * 1000)
+            self.db.log_activity(
+                activity_type='error',
+                user_id=update.effective_user.id if update.effective_user else None,
+                chat_id=update.effective_chat.id,
+                command='/groupstats',
+                details={'error': str(e)},
+                success=False,
+                response_time_ms=response_time
+            )
             logger.error(f"Error in groupstats: {e}\n{traceback.format_exc()}")
             await update.message.reply_text("❌ Error retrieving group stats. Please try again.")
 
     async def globalstats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show comprehensive bot statistics - Developer only"""
+        start_time = time.time()
         try:
             if not await self.is_developer(update.message.from_user.id):
                 await self._handle_dev_command_unauthorized(update)
                 return
+
+            # Log command immediately
+            self.db.log_activity(
+                activity_type='command',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                username=update.effective_user.username,
+                chat_title=getattr(update.effective_chat, 'title', None),
+                command='/globalstats',
+                success=True
+            )
 
             loading_msg = await update.message.reply_text("📊 Analyzing statistics...")
 
@@ -1141,9 +1510,21 @@ Error: {str(e)}
 
     async def leaderboard(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show global leaderboard with top 10 performers"""
+        start_time = time.time()
         try:
-            # Get leaderboard data
-            leaderboard = self.quiz_manager.get_leaderboard()
+            # Log command immediately
+            self.db.log_activity(
+                activity_type='command',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                username=update.effective_user.username,
+                chat_title=getattr(update.effective_chat, 'title', None),
+                command='/leaderboard',
+                success=True
+            )
+            
+            # Get leaderboard data from database in real-time
+            leaderboard = self.db.get_leaderboard_realtime(limit=10)
 
             # Premium header with description
             leaderboard_text = """╔═══════════════════════╗
@@ -1171,11 +1552,10 @@ Error: {str(e)}
             }
             medals = ["🥇", "🥈", "🥉"]
             
-            for rank, entry in enumerate(leaderboard[:10], 1):
+            for rank, entry in enumerate(leaderboard, 1):
                 try:
-                    # Get user info from Telegram
-                    user = await context.bot.get_chat(entry['user_id'])
-                    username = user.first_name or user.username or "Anonymous"
+                    # Use username from database entry
+                    username = entry.get('username', 'Anonymous')
                     
                     # Limit username length
                     if len(username) > 20:
@@ -1199,14 +1579,13 @@ Error: {str(e)}
                     leaderboard_text += f"""{rank_display} 𝗥𝗮𝗻𝗸 #{rank} • {username}
 
 ┏ 💯 Score: {score_display} points
-┣ ✅ Quizzes: {entry['total_attempts']}
+┣ ✅ Quizzes: {entry['total_quizzes']}
 ┣ 🎯 Correct: {entry['correct_answers']}
 ┣ 📊 Accuracy: {entry['accuracy']}%
-┣ 🔥 Streak: {entry['current_streak']} 
-┗ 👑 Best: {entry['longest_streak']}"""
+┗ ❌ Wrong: {entry['wrong_answers']}"""
 
                 except Exception as e:
-                    logger.error(f"Error getting user info for ID {entry['user_id']}: {e}")
+                    logger.error(f"Error displaying user {entry.get('user_id')}: {e}")
                     continue
 
             # Footer with real-time info
@@ -1218,13 +1597,31 @@ Error: {str(e)}
                 keyboard = [[InlineKeyboardButton("🎯 Start Quiz", callback_data="start_quiz")]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 await update.message.reply_text(leaderboard_text, reply_markup=reply_markup)
-                logger.info(f"Leaderboard shown successfully")
+                response_time = int((time.time() - start_time) * 1000)
+                logger.info(f"Leaderboard shown successfully in {response_time}ms")
+                
+                self.db.log_performance_metric(
+                    metric_type='response_time',
+                    metric_name='/leaderboard',
+                    value=response_time,
+                    unit='ms'
+                )
             except Exception as e:
                 logger.error(f"Failed to send leaderboard: {e}")
                 # Fallback to plain text
                 await update.message.reply_text("❌ Error displaying leaderboard. Please try again.")
 
         except Exception as e:
+            response_time = int((time.time() - start_time) * 1000)
+            self.db.log_activity(
+                activity_type='error',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                command='/leaderboard',
+                details={'error': str(e)},
+                success=False,
+                response_time_ms=response_time
+            )
             logger.error(f"Error showing leaderboard: {e}\n{traceback.format_exc()}")
             await update.message.reply_text("❌ Error retrieving leaderboard. Please try again.")
 
@@ -1232,10 +1629,22 @@ Error: {str(e)}
 
     async def addquiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Add new quiz(zes) - Developer only"""
+        start_time = time.time()
         try:
             if not await self.is_developer(update.message.from_user.id):
                 await self._handle_dev_command_unauthorized(update)
                 return
+
+            # Log command immediately
+            self.db.log_activity(
+                activity_type='command',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                username=update.effective_user.username,
+                chat_title=getattr(update.effective_chat, 'title', None),
+                command='/addquiz',
+                success=True
+            )
 
             # Extract message content
             content = update.message.text.split(" ", 1)
@@ -1308,18 +1717,43 @@ Error: {str(e)}
 ════════════════"""
 
             await update.message.reply_text(response, parse_mode=ParseMode.MARKDOWN)
+            response_time = int((time.time() - start_time) * 1000)
+            logger.info(f"/addquiz completed in {response_time}ms - added {stats['added']} quizzes")
 
         except Exception as e:
+            response_time = int((time.time() - start_time) * 1000)
+            self.db.log_activity(
+                activity_type='error',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                command='/addquiz',
+                details={'error': str(e)},
+                success=False,
+                response_time_ms=response_time
+            )
             logger.error(f"Error in addquiz: {e}")
             await update.message.reply_text("❌ Error adding quiz.")
 
 
     async def editquiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show and edit quiz questions - Developer only"""
+        start_time = time.time()
         try:
             if not await self.is_developer(update.message.from_user.id):
                 await self._handle_dev_command_unauthorized(update)
                 return
+
+            # Log command immediately
+            self.db.log_activity(
+                activity_type='command',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                username=update.effective_user.username,
+                chat_title=getattr(update.effective_chat, 'title', None),
+                command='/editquiz',
+                details={'args': context.args},
+                success=True
+            )
 
             logger.info(f"Processing /editquiz command from user {update.message.from_user.id}")
 
@@ -1439,9 +1873,20 @@ To delete this quiz:
                 questions_text,
                 parse_mode=ParseMode.MARKDOWN
             )
-            logger.info(f"Sent quiz list page {page}/{total_pages} to user {update.message.from_user.id}")
+            response_time = int((time.time() - start_time) * 1000)
+            logger.info(f"Sent quiz list page {page}/{total_pages} to user {update.message.from_user.id} in {response_time}ms")
 
         except Exception as e:
+            response_time = int((time.time() - start_time) * 1000)
+            self.db.log_activity(
+                activity_type='error',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                command='/editquiz',
+                details={'error': str(e)},
+                success=False,
+                response_time_ms=response_time
+            )
             error_msg = f"Error in editquiz command: {str(e)}\n{traceback.format_exc()}"
             logger.error(error_msg)
             await update.message.reply_text(
@@ -1643,8 +2088,8 @@ Failed to display quizzes. Please try again later.
                         except Exception as e:
                             logger.error(f"Error cleaning old messages in chat {chat_id}: {e}")
 
-                        # Send new quiz
-                        await self.send_quiz(chat_id, context)
+                        # Send new quiz with tracking parameters
+                        await self.send_quiz(chat_id, context, auto_sent=True, scheduled=True)
                         logger.info(f"Sent scheduled quiz to chat {chat_id}")
                     else:
                         # Send admin reminder
@@ -1919,10 +2364,22 @@ Failed to delete quiz. Please try again.
 
     async def totalquiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show total number of quizzes - Developer only"""
+        start_time = time.time()
         try:
             if not await self.is_developer(update.message.from_user.id):
                 await self._handle_dev_command_unauthorized(update)
                 return
+
+            # Log command immediately
+            self.db.log_activity(
+                activity_type='command',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                username=update.effective_user.username,
+                chat_title=getattr(update.effective_chat, 'title', None),
+                command='/totalquiz',
+                success=True
+            )
 
             ## Force reload questions
             total_questions = len(self.quiz_manager.get_all_questions())
@@ -1937,9 +2394,20 @@ Use /addquiz to add more quizzes!
 Use/help to see all commands."""
 
             await update.message.reply_text(response, parse_mode=ParseMode.MARKDOWN)
-            logger.info(f"Sent quiz count to user {update.message.from_user.id}")
+            response_time = int((time.time() - start_time) * 1000)
+            logger.info(f"Sent quiz count to user {update.message.from_user.id} in {response_time}ms")
 
         except Exception as e:
+            response_time = int((time.time() - start_time) * 1000)
+            self.db.log_activity(
+                activity_type='error',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                command='/totalquiz',
+                details={'error': str(e)},
+                success=False,
+                response_time_ms=response_time
+            )
             logger.error(f"Error in totalquiz command: {e}\n{traceback.format_exc()}")
             await update.message.reply_text("❌ Error getting total quiz count.")
 
@@ -1965,8 +2433,8 @@ Use/help to see all commands."""
                         await self.send_admin_reminder(chat_id, context)
                         continue
 
-                    # Send quiz directly without announcement
-                    await self.send_quiz(chat_id, context)
+                    # Send automated quiz with tracking parameters
+                    await self.send_quiz(chat_id, context, auto_sent=True, scheduled=True)
                     logger.info(f"Successfully sent automated quiz to chat {chat_id}")
 
                 except Exception as e:
@@ -1978,7 +2446,7 @@ Use/help to see all commands."""
         except Exception as e:
             logger.error(f"Error in automated quiz broadcast: {str(e)}\n{traceback.format_exc()}")
 
-    async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE, auto_sent: bool = False, scheduled: bool = False) -> None:
         """Send a quiz to a specific chat using native Telegram quiz format"""
         try:
             # Delete last quiz message if it exists (using database tracking)
@@ -1987,6 +2455,17 @@ Use/help to see all commands."""
                 try:
                     await context.bot.delete_message(chat_id, last_quiz_msg_id)
                     logger.info(f"Deleted old quiz message {last_quiz_msg_id} in chat {chat_id}")
+                    
+                    # Log auto-delete activity
+                    self.db.log_activity(
+                        activity_type='quiz_deleted',
+                        chat_id=chat_id,
+                        details={
+                            'auto_delete': True,
+                            'old_message_id': last_quiz_msg_id
+                        },
+                        success=True
+                    )
                 except Exception as e:
                     logger.debug(f"Could not delete old quiz message: {e}")
 
@@ -2016,12 +2495,16 @@ Use/help to see all commands."""
             )
 
             if message and message.poll:
+                # Get question ID if available
+                question_id = question.get('id')
+                
                 poll_data = {
                     'chat_id': chat_id,
                     'correct_option_id': question['correct_answer'],
                     'user_answers': {},
                     'poll_id': message.poll.id,
                     'question': question_text,
+                    'question_id': question_id,
                     'timestamp': datetime.now().isoformat()
                 }
                 # Store using proper poll ID key
@@ -2033,6 +2516,34 @@ Use/help to see all commands."""
                 self.db.increment_quiz_count()
                 
                 self.command_history[chat_id].append(f"/quiz_{message.message_id}")
+                
+                # Get chat info for logging
+                try:
+                    chat = await context.bot.get_chat(chat_id)
+                    chat_type = 'private' if chat.type == 'private' else 'group'
+                    chat_title = chat.title if chat.type in ['group', 'supergroup'] else None
+                except Exception:
+                    chat_type = 'private' if chat_id > 0 else 'group'
+                    chat_title = None
+                
+                # Log comprehensive quiz_sent activity
+                self.db.log_activity(
+                    activity_type='quiz_sent',
+                    user_id=None,  # No specific user for quiz sending
+                    chat_id=chat_id,
+                    chat_title=chat_title,
+                    details={
+                        'question_id': question_id,
+                        'question_text': question_text[:100],
+                        'chat_type': chat_type,
+                        'auto_sent': auto_sent,
+                        'scheduled': scheduled,
+                        'poll_id': message.poll.id,
+                        'message_id': message.message_id
+                    },
+                    success=True
+                )
+                logger.info(f"Logged quiz_sent activity for chat {chat_id} (auto_sent={auto_sent}, scheduled={scheduled})")
 
         except Exception as e:
             logger.error(f"Error sending quiz: {str(e)}\n{traceback.format_exc()}")
@@ -2348,238 +2859,112 @@ To list all developers, use:
             
     async def stats_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show comprehensive real-time bot statistics and monitoring dashboard"""
+        start_time = time.time()
+        
         try:
-            # Check if user is developer
-            if not await self.is_developer(update.message.from_user.id):
-                await self._handle_dev_command_unauthorized(update)
-                return
-
-            loading_msg = await update.message.reply_text("📊 Analyzing real-time statistics...")
+            loading_msg = await update.message.reply_text("📊 Loading real-time dashboard...")
             
-            # Start timing the stats generation
-            start_time = datetime.now()
-
-            try:
-                # Get active chats with validation
-                active_chats = self.quiz_manager.get_active_chats() if hasattr(self.quiz_manager, 'get_active_chats') else []
-                valid_active_chats = []
-                if active_chats:
-                    for chat_id in active_chats:
-                        try:
-                            if isinstance(chat_id, (int, str)) and str(chat_id).lstrip('-').isdigit():
-                                valid_active_chats.append(int(chat_id))
-                        except Exception:
-                            continue
+            total_users = len(self.db.get_all_users_stats())
+            total_groups = len(self.db.get_all_groups())
+            active_today = self.db.get_active_users_count('today')
+            active_week = self.db.get_active_users_count('week')
+            
+            quiz_today = self.db.get_quiz_stats_by_period('today')
+            quiz_week = self.db.get_quiz_stats_by_period('week')
+            quiz_month = self.db.get_quiz_stats_by_period('month')
+            quiz_all = self.db.get_quiz_stats_by_period('all')
+            
+            perf_metrics = self.db.get_performance_summary(24)
+            trending = self.db.get_trending_commands(7, 5)
+            recent_activities = self.db.get_recent_activities(10)
+            
+            process = psutil.Process()
+            memory_mb = process.memory_info().rss / 1024 / 1024
+            uptime_seconds = (datetime.now() - self.bot_start_time).total_seconds()
+            if uptime_seconds >= 86400:
+                uptime_str = f"{uptime_seconds/86400:.1f}d"
+            elif uptime_seconds >= 3600:
+                uptime_str = f"{uptime_seconds/3600:.1f}h"
+            else:
+                uptime_str = f"{uptime_seconds/60:.1f}m"
+            
+            activity_feed = ""
+            for activity in recent_activities[:10]:
+                time_ago = self.db.format_relative_time(activity['timestamp'])
+                activity_type = activity['activity_type']
+                username = activity.get('username', 'Unknown')
                 
-                total_groups = len(valid_active_chats)
-                
-                # Check valid statistics
-                if hasattr(self.quiz_manager, 'stats') and self.quiz_manager.stats:
-                    valid_stats = {k: v for k, v in self.quiz_manager.stats.items() 
-                                 if isinstance(v, dict) and 'total_quizzes' in v}
-                    total_users = len(valid_stats)
+                if activity_type == 'command':
+                    details = activity.get('details', {})
+                    cmd = details.get('command', 'unknown') if isinstance(details, dict) else 'unknown'
+                    activity_feed += f"• {time_ago}: @{username} used /{cmd}\n"
+                elif activity_type == 'quiz_sent':
+                    activity_feed += f"• {time_ago}: Quiz sent to group\n"
+                elif activity_type == 'quiz_answered':
+                    activity_feed += f"• {time_ago}: @{username} answered quiz\n"
                 else:
-                    valid_stats = {}
-                    total_users = 0
+                    activity_feed += f"• {time_ago}: {activity_type}\n"
+            
+            if not activity_feed:
+                activity_feed = "• No recent activity\n"
+            
+            trending_text = ""
+            for i, cmd in enumerate(trending[:5], 1):
+                trending_text += f"{i}. /{cmd['command']}: {cmd['count']}x\n"
+            if not trending_text:
+                trending_text = "No commands used yet\n"
+            
+            stats_message = f"""📊 **Real-Time Dashboard**
+━━━━━━━━━━━━━━━━━━━
 
-                # Calculate metrics
-                total_attempts = 0
-                correct_answers = 0
-                today_quizzes = 0
-                week_quizzes = 0
-                month_quizzes = 0
+👥 **User Engagement**
+• Total Users: {total_users:,}
+• Active Today: {active_today}
+• Active This Week: {active_week}
 
-                current_date = datetime.now().strftime('%Y-%m-%d')
-                week_start = (datetime.now() - timedelta(days=datetime.now().weekday())).strftime('%Y-%m-%d')
-                month_start = (datetime.now().replace(day=1)).strftime('%Y-%m-%d')
+📝 **Quiz Activity** (Today/Week/Month/All)
+• Quizzes Sent: {quiz_today['quizzes_sent']}/{quiz_week['quizzes_sent']}/{quiz_month['quizzes_sent']}/{quiz_all['quizzes_sent']}
+• Success Rate: {quiz_all['success_rate']}%
 
-                # Process valid stats only
-                for user_stats in valid_stats.values():
-                    total_attempts += user_stats.get('total_quizzes', 0)
-                    correct_answers += user_stats.get('correct_answers', 0)
-                    
-                    # Check daily activity if valid
-                    daily_activity = user_stats.get('daily_activity', {})
-                    if isinstance(daily_activity, dict):
-                        if current_date in daily_activity and isinstance(daily_activity[current_date], dict):
-                            today_quizzes += daily_activity[current_date].get('attempts', 0)
-                        
-                        # Calculate weekly and monthly attempts
-                        for date, stats in daily_activity.items():
-                            if isinstance(date, str) and isinstance(stats, dict):
-                                if date >= week_start:
-                                    week_quizzes += stats.get('attempts', 0)
-                                if date >= month_start:
-                                    month_quizzes += stats.get('attempts', 0)
+📊 **Groups**
+• Total Groups: {total_groups:,}
 
-                # Calculate success rate (avoid division by zero)
-                success_rate = round((correct_answers / max(total_attempts, 1) * 100), 1)
+⚡ **Performance** (24h)
+• Avg Response Time: {perf_metrics['avg_response_time']:.0f}ms
+• Commands Executed: {perf_metrics['total_api_calls']:,}
+• Error Rate: {perf_metrics['error_rate']:.1f}%
+• Memory Usage: {memory_mb:.1f}MB
 
-                # Get active groups count 
-                active_groups_now = 0
-                active_groups_today = 0
-                active_groups_week = 0
-                
-                if valid_active_chats and hasattr(self.quiz_manager, 'get_group_last_activity'):
-                    for chat_id in valid_active_chats:
-                        try:
-                            last_activity = self.quiz_manager.get_group_last_activity(chat_id)
-                            if last_activity:
-                                if last_activity == current_date:
-                                    active_groups_today += 1
-                                    # For real-time active, we'd need actual timestamp data
-                                    # For now, we'll count today's active groups as "real-time"
-                                    active_groups_now += 1
-                                if last_activity >= week_start:
-                                    active_groups_week += 1
-                        except Exception:
-                            continue
-
-                # Calculate active users with more detail
-                today_active_users = 0
-                week_active_users = 0
-                month_active_users = 0
-                
-                # Users with highest scores
-                top_users = []
-                
-                if valid_stats:
-                    # Process user activity dates
-                    for uid, stats in valid_stats.items():
-                        last_activity = stats.get('last_activity_date')
-                        if last_activity == current_date:
-                            today_active_users += 1
-                        if last_activity and last_activity >= week_start:
-                            week_active_users += 1
-                        if last_activity and last_activity >= month_start:
-                            month_active_users += 1
-                        
-                        # Track top users by score
-                        if 'current_score' in stats:
-                            top_users.append((uid, stats.get('current_score', 0)))
-                    
-                    # Sort top users by score (descending)
-                    top_users.sort(key=lambda x: x[1], reverse=True)
-                    # Limit to top 3
-                    top_users = top_users[:3]
-
-                # System metrics - enhanced
-                process = psutil.Process()
-                
-                # Memory usage
-                memory_info = process.memory_info()
-                memory_usage_mb = memory_info.rss / 1024 / 1024  # MB
-                
-                # CPU usage
-                cpu_percent = process.cpu_percent(interval=0.1)
-                
-                # Uptime
-                uptime_seconds = (datetime.now() - datetime.fromtimestamp(process.create_time())).total_seconds()
-                uptime_hours = uptime_seconds / 3600
-                uptime_days = uptime_hours / 24
-                
-                # Format uptime string
-                if uptime_days >= 1:
-                    uptime_str = f"{uptime_days:.1f}d"
-                elif uptime_hours >= 1:
-                    uptime_str = f"{uptime_hours:.1f}h"
-                else:
-                    uptime_str = f"{uptime_seconds:.0f}s"
-                
-                # System time in UTC
-                system_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')
-                
-                # Get total questions count
-                total_questions = 0
-                if hasattr(self.quiz_manager, 'questions'):
-                    if isinstance(self.quiz_manager.questions, list):
-                        total_questions = len(self.quiz_manager.questions)
-
-                # Calculate response time for stats generation
-                response_time = (datetime.now() - start_time).total_seconds() * 1000  # ms
-                
-                # Create message with modern formatting
-                header = "✨ QuizImpact | Real-time Dashboard"
-                divider = "━━━━━━━━━━━━━━━━━━━━━━━"
-                
-                # Build message piece by piece to avoid emoji issues in f-string
-                stats_message = f"{header}\n\n"
-                stats_message += f"📊 Bot Performance Metrics\n{divider}\n\n"
-                
-                # Users & Groups section
-                stats_message += "👥 Active Users & Groups\n"
-                stats_message += f"• Users Today: {today_active_users}/{total_users}\n"
-                stats_message += f"• Users This Week: {week_active_users}\n"
-                stats_message += f"• Groups Active: {active_groups_today}/{total_groups}\n"
-                stats_message += f"• Active Groups (7d): {active_groups_week}\n\n"
-                
-                # Engagement section
-                stats_message += "📈 Engagement Analytics\n"
-                stats_message += f"• Today: {today_quizzes} quizzes\n"
-                stats_message += f"• This Week: {week_quizzes} quizzes\n"
-                stats_message += f"• This Month: {month_quizzes} quizzes\n"
-                stats_message += f"• All Time: {total_attempts} quizzes\n"
-                stats_message += f"• Success Rate: {success_rate}%\n\n"
-                
-                # Top users section
-                stats_message += "🏆 Highest Scores\n"
-                if not top_users:
-                    stats_message += "• No users yet\n"
-                else:
-                    for uid, score in top_users:
-                        stats_message += f"• User {uid}: {score} pts\n"
-                stats_message += "\n"
-                
-                # System section
-                stats_message += "⚙️ System Status\n"
-                stats_message += f"• Questions DB: {total_questions} entries\n"
-                stats_message += f"• Memory: {memory_usage_mb:.1f}MB\n"
-                stats_message += f"• CPU: {cpu_percent:.1f}%\n"
-                stats_message += f"• Uptime: {uptime_str}\n"
-                stats_message += f"• Response: {response_time:.0f}ms\n\n"
-                
-                # Footer
-                stats_message += f"{divider}\n"
-                stats_message += f"📆 Generated: {system_time}\n"
-                stats_message += "🤖 Status: Operational"
-
-                # Use an inline keyboard to provide refresh functionality
-                refresh_keyboard = [
-                    [InlineKeyboardButton("🔄 Refresh Stats", callback_data="refresh_stats")],
-                    [
-                        InlineKeyboardButton("📊 Users", callback_data="stats_users"),
-                        InlineKeyboardButton("📈 Groups", callback_data="stats_groups"),
-                        InlineKeyboardButton("⚙️ System", callback_data="stats_system")
-                    ]
+🔥 **Trending Commands** (7d)
+{trending_text}
+📜 **Recent Activity**
+{activity_feed}
+━━━━━━━━━━━━━━━━━━━
+⚙️ Uptime: {uptime_str} | 🕐 Load: {(time.time() - start_time)*1000:.0f}ms"""
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("🔄 Refresh", callback_data="stats_refresh"),
+                    InlineKeyboardButton("📊 Activity", callback_data="stats_activity")
+                ],
+                [
+                    InlineKeyboardButton("⚡ Performance", callback_data="stats_performance"),
+                    InlineKeyboardButton("📈 Trends", callback_data="stats_trends")
                 ]
-                reply_markup = InlineKeyboardMarkup(refresh_keyboard)
-
-                await loading_msg.edit_text(
-                    stats_message,
-                    parse_mode=ParseMode.MARKDOWN,
-                    reply_markup=reply_markup
-                )
-                logger.info(f"Displayed stats to developer {update.effective_user.id}")
-
-            except Exception as e:
-                logger.error(f"Error processing stats: {e}", exc_info=True)
-                await loading_msg.edit_text(
-                    """📊 𝐒𝐲𝐬𝐭𝐞𝐦 𝐒𝐭𝐚𝐭𝐮𝐬
-
-✅ Bot is operational 
-✅ System is running
-✅ Ready for users
-
-🔄 No activity recorded yet
-Start by adding the bot to groups!
-
-⚠️ Some stats are not available - see logs for details.""",
-                    parse_mode=ParseMode.MARKDOWN
-                )
-
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await loading_msg.edit_text(
+                stats_message,
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=reply_markup
+            )
+            
+            logger.info(f"Showed stats to user {update.effective_user.id} in {(time.time() - start_time)*1000:.0f}ms")
+            
         except Exception as e:
-            logger.error(f"Error in stats_command: {e}")
-            await update.message.reply_text("❌ Error retrieving statistics. Please try again.")
+            logger.error(f"Error in stats_command: {e}", exc_info=True)
+            await update.message.reply_text("❌ Error loading dashboard. Please try again.")
             
     async def handle_start_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle callbacks from start command buttons"""
@@ -2695,144 +3080,495 @@ Start playing quizzes to track your progress.
             await query.answer("❌ Error processing request", show_alert=True)
     
     async def handle_stats_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle callbacks from the stats command"""
+        """Handle callbacks from the stats dashboard"""
+        query = update.callback_query
+        await query.answer()
+        
         try:
-            query = update.callback_query
-            await query.answer()
+            start_time = time.time()
             
-            if not await self.is_developer(query.from_user.id):
-                await query.edit_message_text("⛔ Unauthorized access.")
-                return
+            if query.data == "stats_refresh":
+                await query.edit_message_text("🔄 Refreshing dashboard...")
                 
-            # Handle stats refresh
-            if query.data == "refresh_stats":
-                # Send temporary processing message
+                total_users = len(self.db.get_all_users_stats())
+                total_groups = len(self.db.get_all_groups())
+                active_today = self.db.get_active_users_count('today')
+                active_week = self.db.get_active_users_count('week')
+                
+                quiz_today = self.db.get_quiz_stats_by_period('today')
+                quiz_week = self.db.get_quiz_stats_by_period('week')
+                quiz_month = self.db.get_quiz_stats_by_period('month')
+                quiz_all = self.db.get_quiz_stats_by_period('all')
+                
+                perf_metrics = self.db.get_performance_summary(24)
+                trending = self.db.get_trending_commands(7, 5)
+                recent_activities = self.db.get_recent_activities(10)
+                
+                process = psutil.Process()
+                memory_mb = process.memory_info().rss / 1024 / 1024
+                uptime_seconds = (datetime.now() - self.bot_start_time).total_seconds()
+                if uptime_seconds >= 86400:
+                    uptime_str = f"{uptime_seconds/86400:.1f}d"
+                elif uptime_seconds >= 3600:
+                    uptime_str = f"{uptime_seconds/3600:.1f}h"
+                else:
+                    uptime_str = f"{uptime_seconds/60:.1f}m"
+                
+                activity_feed = ""
+                for activity in recent_activities[:10]:
+                    time_ago = self.db.format_relative_time(activity['timestamp'])
+                    activity_type = activity['activity_type']
+                    username = activity.get('username', 'Unknown')
+                    
+                    if activity_type == 'command':
+                        details = activity.get('details', {})
+                        cmd = details.get('command', 'unknown') if isinstance(details, dict) else 'unknown'
+                        activity_feed += f"• {time_ago}: @{username} used /{cmd}\n"
+                    elif activity_type == 'quiz_sent':
+                        activity_feed += f"• {time_ago}: Quiz sent to group\n"
+                    elif activity_type == 'quiz_answered':
+                        activity_feed += f"• {time_ago}: @{username} answered quiz\n"
+                    else:
+                        activity_feed += f"• {time_ago}: {activity_type}\n"
+                
+                if not activity_feed:
+                    activity_feed = "• No recent activity\n"
+                
+                trending_text = ""
+                for i, cmd in enumerate(trending[:5], 1):
+                    trending_text += f"{i}. /{cmd['command']}: {cmd['count']}x\n"
+                if not trending_text:
+                    trending_text = "No commands used yet\n"
+                
+                stats_message = f"""📊 **Real-Time Dashboard**
+━━━━━━━━━━━━━━━━━━━
+
+👥 **User Engagement**
+• Total Users: {total_users:,}
+• Active Today: {active_today}
+• Active This Week: {active_week}
+
+📝 **Quiz Activity** (Today/Week/Month/All)
+• Quizzes Sent: {quiz_today['quizzes_sent']}/{quiz_week['quizzes_sent']}/{quiz_month['quizzes_sent']}/{quiz_all['quizzes_sent']}
+• Success Rate: {quiz_all['success_rate']}%
+
+📊 **Groups**
+• Total Groups: {total_groups:,}
+
+⚡ **Performance** (24h)
+• Avg Response Time: {perf_metrics['avg_response_time']:.0f}ms
+• Commands Executed: {perf_metrics['total_api_calls']:,}
+• Error Rate: {perf_metrics['error_rate']:.1f}%
+• Memory Usage: {memory_mb:.1f}MB
+
+🔥 **Trending Commands** (7d)
+{trending_text}
+📜 **Recent Activity**
+{activity_feed}
+━━━━━━━━━━━━━━━━━━━
+⚙️ Uptime: {uptime_str} | 🕐 Load: {(time.time() - start_time)*1000:.0f}ms"""
+                
+                keyboard = [
+                    [
+                        InlineKeyboardButton("🔄 Refresh", callback_data="stats_refresh"),
+                        InlineKeyboardButton("📊 Activity", callback_data="stats_activity")
+                    ],
+                    [
+                        InlineKeyboardButton("⚡ Performance", callback_data="stats_performance"),
+                        InlineKeyboardButton("📈 Trends", callback_data="stats_trends")
+                    ]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
                 await query.edit_message_text(
-                    "🔄 Refreshing statistics...",
-                    parse_mode=ParseMode.MARKDOWN
+                    stats_message,
+                    parse_mode=ParseMode.MARKDOWN,
+                    reply_markup=reply_markup
                 )
                 
-                # Generate fresh stats directly
-                try:
-                    # Get active chats with validation
-                    active_chats = self.quiz_manager.get_active_chats() if hasattr(self.quiz_manager, 'get_active_chats') else []
-                    valid_active_chats = []
-                    if active_chats:
-                        for chat_id in active_chats:
-                            try:
-                                if isinstance(chat_id, (int, str)) and str(chat_id).lstrip('-').isdigit():
-                                    valid_active_chats.append(int(chat_id))
-                            except Exception:
-                                continue
+            elif query.data == "stats_activity":
+                recent_activities = self.db.get_recent_activities(25)
+                activity_text = "📊 **Recent Activity Feed**\n━━━━━━━━━━━━━━━━━━━\n\n"
+                
+                for activity in recent_activities:
+                    time_ago = self.db.format_relative_time(activity['timestamp'])
+                    activity_type = activity['activity_type']
+                    username = activity.get('username', 'Unknown')
                     
-                    # Get actual group count from database (not mixed with users)
-                    total_groups = len(self.db.get_all_groups())
-                    
-                    # Check valid statistics
-                    if hasattr(self.quiz_manager, 'stats') and self.quiz_manager.stats:
-                        valid_stats = {k: v for k, v in self.quiz_manager.stats.items() 
-                                     if isinstance(v, dict) and 'total_quizzes' in v}
-                        total_users = len(valid_stats)
+                    if activity_type == 'command':
+                        details = activity.get('details', {})
+                        cmd = details.get('command', 'unknown') if isinstance(details, dict) else 'unknown'
+                        activity_text += f"[{time_ago}] @{username}: /{cmd}\n"
+                    elif activity_type == 'quiz_sent':
+                        activity_text += f"[{time_ago}] Quiz sent\n"
+                    elif activity_type == 'quiz_answered':
+                        details = activity.get('details', {})
+                        correct = details.get('is_correct', False) if isinstance(details, dict) else False
+                        emoji = "✅" if correct else "❌"
+                        activity_text += f"[{time_ago}] {emoji} @{username} answered\n"
                     else:
-                        valid_stats = {}
-                        total_users = 0
-
-                    # Calculate metrics
-                    total_attempts = 0
-                    correct_answers = 0
-                    today_quizzes = 0
-                    week_quizzes = 0
-
-                    current_date = datetime.now().strftime('%Y-%m-%d')
-                    week_start = (datetime.now() - timedelta(days=datetime.now().weekday())).strftime('%Y-%m-%d')
-
-                    # Process valid stats only
-                    for user_stats in valid_stats.values():
-                        total_attempts += user_stats.get('total_quizzes', 0)
-                        correct_answers += user_stats.get('correct_answers', 0)
-                        
-                        # Check daily activity if valid
-                        daily_activity = user_stats.get('daily_activity', {})
-                        if isinstance(daily_activity, dict):
-                            if current_date in daily_activity and isinstance(daily_activity[current_date], dict):
-                                today_quizzes += daily_activity[current_date].get('attempts', 0)
-                            
-                            # Calculate weekly attempts
-                            for date, stats in daily_activity.items():
-                                if isinstance(date, str) and isinstance(stats, dict):
-                                    if date >= week_start:
-                                        week_quizzes += stats.get('attempts', 0)
-
-                    # Calculate success rate
-                    success_rate = round((correct_answers / max(total_attempts, 1) * 100), 1)
-
-                    # Active users count
-                    active_users_today = sum(1 for stats in valid_stats.values() 
-                                           if stats.get('last_activity_date') == current_date)
-                    active_users_week = sum(1 for stats in valid_stats.values() 
-                                          if stats.get('last_activity_date', '') >= week_start)
-
-                    # Format the stats message
-                    stats_message = f"""📊 Bot Statistics Dashboard
+                        activity_text += f"[{time_ago}] {activity_type}\n"
+                
+                activity_text += "\n━━━━━━━━━━━━━━━━━━━"
+                
+                keyboard = [[InlineKeyboardButton("🔙 Back to Dashboard", callback_data="stats_refresh")]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                await query.edit_message_text(
+                    activity_text,
+                    parse_mode=ParseMode.MARKDOWN,
+                    reply_markup=reply_markup
+                )
+                
+            elif query.data == "stats_performance":
+                perf_metrics = self.db.get_performance_summary(24)
+                
+                process = psutil.Process()
+                memory_mb = process.memory_info().rss / 1024 / 1024
+                
+                perf_text = f"""⚡ **Performance Metrics** (24h)
 ━━━━━━━━━━━━━━━━━━━
 
-👥 User Statistics
-• Total Users: {total_users}
-• Active Today: {active_users_today}
-• Active This Week: {active_users_week}
+📈 **Response Times**
+• Average: {perf_metrics['avg_response_time']:.2f}ms
+• Total API Calls: {perf_metrics['total_api_calls']:,}
 
-👥 Group Statistics
-• Total Groups: {total_groups}
+💾 **Memory Usage**
+• Current: {memory_mb:.2f} MB
+• Average: {perf_metrics['avg_memory_mb']:.2f} MB
 
-📝 Quiz Activity
-• Total Attempts: {total_attempts}
-• Correct Answers: {correct_answers}
-• Success Rate: {success_rate}%
-• Today's Quizzes: {today_quizzes}
-• This Week: {week_quizzes}
+❌ **Error Rate**
+• Rate: {perf_metrics['error_rate']:.2f}%
 
-📚 Content
-• Questions Available: {len(self.quiz_manager.get_all_questions())}
+🟢 **Uptime**
+• Status: {perf_metrics['uptime_percent']:.1f}%
 
-━━━━━━━━━━━━━━━━━━━
-📅 {datetime.now().strftime('%Y-%m-%d %H:%M')}"""
-
-                    # Create buttons
-                    keyboard = [
-                        [InlineKeyboardButton("👥 User Details", callback_data="stats_users"),
-                         InlineKeyboardButton("📊 Group Details", callback_data="stats_groups")],
-                        [InlineKeyboardButton("🖥 System Status", callback_data="stats_system"),
-                         InlineKeyboardButton("🔄 Refresh", callback_data="refresh_stats")]
-                    ]
-                    reply_markup = InlineKeyboardMarkup(keyboard)
-
-                    await query.edit_message_text(
-                        stats_message,
-                        parse_mode=ParseMode.MARKDOWN,
-                        reply_markup=reply_markup
-                    )
-                except Exception as e:
-                    logger.error(f"Error refreshing stats: {e}", exc_info=True)
-                    await query.edit_message_text("❌ Error refreshing statistics. Please try again.")
-                return
+━━━━━━━━━━━━━━━━━━━"""
                 
-            # Handle specific stats views
-            elif query.data == "stats_users":
-                # User-specific detailed stats
-                await self._show_detailed_user_stats(query, context)
+                keyboard = [[InlineKeyboardButton("🔙 Back to Dashboard", callback_data="stats_refresh")]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
                 
-            elif query.data == "stats_groups":
-                # Group-specific detailed stats
-                await self._show_detailed_group_stats(query, context)
+                await query.edit_message_text(
+                    perf_text,
+                    parse_mode=ParseMode.MARKDOWN,
+                    reply_markup=reply_markup
+                )
                 
-            elif query.data == "stats_system":
-                # System-specific detailed stats
-                await self._show_detailed_system_stats(query, context)
+            elif query.data == "stats_trends":
+                trending = self.db.get_trending_commands(7, 10)
+                activity_stats = self.db.get_activity_stats(7)
+                
+                trends_text = "📈 **Trends & Analytics** (7d)\n━━━━━━━━━━━━━━━━━━━\n\n"
+                trends_text += "🔥 **Trending Commands**\n"
+                for i, cmd in enumerate(trending, 1):
+                    trends_text += f"{i}. /{cmd['command']}: {cmd['count']}x\n"
+                
+                trends_text += f"\n📊 **Activity Breakdown**\n"
+                for activity_type, count in activity_stats['activities_by_type'].items():
+                    trends_text += f"• {activity_type}: {count:,}\n"
+                
+                trends_text += f"\n✅ **Success Rate**: {activity_stats['success_rate']:.1f}%\n"
+                trends_text += f"⚡ **Avg Response**: {activity_stats['avg_response_time_ms']:.0f}ms\n"
+                trends_text += "\n━━━━━━━━━━━━━━━━━━━"
+                
+                keyboard = [[InlineKeyboardButton("🔙 Back to Dashboard", callback_data="stats_refresh")]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                await query.edit_message_text(
+                    trends_text,
+                    parse_mode=ParseMode.MARKDOWN,
+                    reply_markup=reply_markup
+                )
                 
         except Exception as e:
-            logger.error(f"Error in handle_stats_callback: {e}")
-            if query:
-                await query.edit_message_text("❌ Error processing statistics. Please try again.")
+            logger.error(f"Error in handle_stats_callback: {e}", exc_info=True)
+            await query.edit_message_text("❌ Error processing stats. Please try again.")
+    
+    async def handle_devstats_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle callbacks from devstats dashboard"""
+        query = update.callback_query
+        await query.answer()
+        
+        try:
+            if query.data == "devstats_refresh":
+                await query.edit_message_text("🔄 Refreshing dev stats...")
+                
+                import psutil
+                process = psutil.Process()
+                memory_mb = process.memory_info().rss / 1024 / 1024
+                
+                if hasattr(self, 'bot_start_time'):
+                    uptime_seconds = (datetime.now() - self.bot_start_time).total_seconds()
+                else:
+                    uptime_seconds = (datetime.now() - datetime.fromtimestamp(process.create_time())).total_seconds()
+                
+                if uptime_seconds >= 86400:
+                    uptime_str = f"{uptime_seconds/86400:.1f} days"
+                elif uptime_seconds >= 3600:
+                    uptime_str = f"{uptime_seconds/3600:.1f} hours"
+                else:
+                    uptime_str = f"{uptime_seconds/60:.1f} minutes"
+                
+                perf_24h = self.db.get_performance_summary(24)
+                activity_stats = self.db.get_activity_stats(1)
+                
+                total_users = len(self.db.get_all_users_stats())
+                active_today = self.db.get_active_users_count('today')
+                active_week = self.db.get_active_users_count('week')
+                active_month = self.db.get_active_users_count('month')
+                
+                new_users = len(self.db.get_new_users(7))
+                most_active = self.db.get_most_active_users(5, 30)
+                
+                quiz_today = self.db.get_quiz_stats_by_period('today')
+                quiz_week = self.db.get_quiz_stats_by_period('week')
+                
+                commands_24h = activity_stats['activities_by_type'].get('command', 0)
+                quizzes_sent_24h = activity_stats['activities_by_type'].get('quiz_sent', 0)
+                quizzes_answered_24h = activity_stats['activities_by_type'].get('quiz_answered', 0)
+                broadcasts_24h = activity_stats['activities_by_type'].get('broadcast', 0)
+                errors_24h = activity_stats['activities_by_type'].get('error', 0)
+                
+                recent_activities = self.db.get_recent_activities(10)
+                activity_feed = ""
+                for activity in recent_activities:
+                    time_ago = self.db.format_relative_time(activity['timestamp'])
+                    activity_type = activity['activity_type']
+                    username = activity.get('username', 'Unknown')
+                    
+                    if activity_type == 'command':
+                        details = activity.get('details', {})
+                        cmd = details.get('command', 'unknown') if isinstance(details, dict) else 'unknown'
+                        activity_feed += f"• {time_ago}: @{username} /{cmd}\n"
+                    elif activity_type == 'quiz_sent':
+                        activity_feed += f"• {time_ago}: Quiz sent\n"
+                    elif activity_type == 'quiz_answered':
+                        activity_feed += f"• {time_ago}: @{username} answered\n"
+                    else:
+                        activity_feed += f"• {time_ago}: {activity_type}\n"
+                
+                if not activity_feed:
+                    activity_feed = "No recent activity"
+                
+                most_active_text = ""
+                for i, user in enumerate(most_active[:5], 1):
+                    name = user.get('first_name') or user.get('username') or f"User{user['user_id']}"
+                    most_active_text += f"{i}. {name}: {user['activity_count']} actions\n"
+                if not most_active_text:
+                    most_active_text = "No active users yet"
+                
+                devstats_message = f"""📊 **Developer Statistics Dashboard**
+━━━━━━━━━━━━━━━━━━━
+
+⚙️ **System Health**
+• Uptime: {uptime_str}
+• Memory: {memory_mb:.1f} MB (avg: {perf_24h['avg_memory_mb']:.1f} MB)
+• Error Rate: {perf_24h['error_rate']:.1f}%
+• Avg Response: {perf_24h['avg_response_time']:.0f}ms
+
+📊 **Activity Breakdown** (Last 24h)
+• Commands Executed: {commands_24h:,}
+• Quizzes Sent: {quizzes_sent_24h:,}
+• Quizzes Answered: {quizzes_answered_24h:,}
+• Broadcasts Sent: {broadcasts_24h:,}
+• Errors Logged: {errors_24h:,}
+
+👥 **User Engagement**
+• Total Users: {total_users:,}
+• Active Today: {active_today}
+• Active This Week: {active_week}
+• Active This Month: {active_month}
+• New Users (7d): {new_users}
+
+📝 **Quiz Performance**
+• Sent Today: {quiz_today['quizzes_sent']}
+• Sent This Week: {quiz_week['quizzes_sent']}
+• Success Rate: {quiz_week['success_rate']}%
+
+🏆 **Most Active Users** (30d)
+{most_active_text}
+
+📜 **Recent Activity Feed**
+{activity_feed}
+
+━━━━━━━━━━━━━━━━━━━"""
+                
+                keyboard = [
+                    [InlineKeyboardButton("🔄 Refresh", callback_data="devstats_refresh")],
+                    [
+                        InlineKeyboardButton("📊 Full Activity", callback_data="devstats_activity"),
+                        InlineKeyboardButton("⚡ Performance", callback_data="devstats_performance")
+                    ]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                await query.edit_message_text(
+                    devstats_message,
+                    parse_mode=ParseMode.MARKDOWN,
+                    reply_markup=reply_markup
+                )
+                
+            elif query.data == "devstats_activity":
+                recent_activities = self.db.get_recent_activities(50)
+                activity_text = "📜 **Full Activity Stream**\n━━━━━━━━━━━━━━━━━━━\n\n"
+                
+                for activity in recent_activities:
+                    time_ago = self.db.format_relative_time(activity['timestamp'])
+                    activity_type = activity['activity_type']
+                    username = activity.get('username', 'Unknown')
+                    
+                    if activity_type == 'command':
+                        details = activity.get('details', {})
+                        cmd = details.get('command', 'unknown') if isinstance(details, dict) else 'unknown'
+                        activity_text += f"[{time_ago}] @{username}: /{cmd}\n"
+                    elif activity_type == 'quiz_sent':
+                        activity_text += f"[{time_ago}] Quiz sent\n"
+                    elif activity_type == 'quiz_answered':
+                        details = activity.get('details', {})
+                        correct = details.get('is_correct', False) if isinstance(details, dict) else False
+                        emoji = "✅" if correct else "❌"
+                        activity_text += f"[{time_ago}] {emoji} @{username} answered\n"
+                    else:
+                        activity_text += f"[{time_ago}] {activity_type}\n"
+                
+                activity_text += "\n━━━━━━━━━━━━━━━━━━━"
+                
+                keyboard = [[InlineKeyboardButton("🔙 Back", callback_data="devstats_refresh")]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                await query.edit_message_text(
+                    activity_text,
+                    parse_mode=ParseMode.MARKDOWN,
+                    reply_markup=reply_markup
+                )
+                
+            elif query.data == "devstats_performance":
+                perf_metrics = self.db.get_performance_summary(24)
+                
+                import psutil
+                process = psutil.Process()
+                memory_mb = process.memory_info().rss / 1024 / 1024
+                
+                perf_text = f"""⚡ **Performance Details** (24h)
+━━━━━━━━━━━━━━━━━━━
+
+📈 **Response Times**
+• Average: {perf_metrics['avg_response_time']:.2f}ms
+• Total API Calls: {perf_metrics['total_api_calls']:,}
+
+💾 **Memory Usage**
+• Current: {memory_mb:.2f} MB
+• Average: {perf_metrics['avg_memory_mb']:.2f} MB
+
+❌ **Error Rate**
+• Rate: {perf_metrics['error_rate']:.2f}%
+
+🟢 **Uptime**
+• Status: {perf_metrics['uptime_percent']:.1f}%
+
+━━━━━━━━━━━━━━━━━━━"""
+                
+                keyboard = [[InlineKeyboardButton("🔙 Back", callback_data="devstats_refresh")]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                await query.edit_message_text(
+                    perf_text,
+                    parse_mode=ParseMode.MARKDOWN,
+                    reply_markup=reply_markup
+                )
+                
+        except Exception as e:
+            logger.error(f"Error in handle_devstats_callback: {e}", exc_info=True)
+            await query.edit_message_text("❌ Error processing devstats. Please try again.")
+    
+    async def handle_activity_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle callbacks from activity stream"""
+        query = update.callback_query
+        await query.answer()
+        
+        try:
+            activity_type = 'all'
+            
+            if query.data.startswith("activity_refresh_"):
+                activity_type = query.data.replace("activity_refresh_", "")
+            elif query.data == "activity_all":
+                activity_type = 'all'
+            elif query.data.startswith("activity_"):
+                activity_type = query.data.replace("activity_", "")
+            
+            await query.edit_message_text(f"📜 Loading activity stream ({activity_type})...")
+            
+            if activity_type == 'all':
+                activities = self.db.get_recent_activities(50)
+            else:
+                activities = self.db.get_recent_activities(50, activity_type)
+            
+            activity_text = f"""📜 **Live Activity Stream**
+Type: {activity_type.upper()}
+━━━━━━━━━━━━━━━━━━━
+
+"""
+            
+            for activity in activities[:50]:
+                time_ago = self.db.format_relative_time(activity['timestamp'])
+                activity_type_str = activity['activity_type']
+                username = activity.get('username', 'Unknown')
+                chat_title = activity.get('chat_title', '')
+                
+                details = activity.get('details', {})
+                if isinstance(details, dict):
+                    if activity_type_str == 'command':
+                        cmd = details.get('command', 'unknown')
+                        activity_text += f"[{time_ago}] @{username}: /{cmd}\n"
+                    elif activity_type_str == 'quiz_sent':
+                        if chat_title:
+                            activity_text += f"[{time_ago}] Quiz sent to {chat_title}\n"
+                        else:
+                            activity_text += f"[{time_ago}] Quiz sent\n"
+                    elif activity_type_str == 'quiz_answered':
+                        correct = details.get('is_correct', False)
+                        emoji = "✅" if correct else "❌"
+                        activity_text += f"[{time_ago}] {emoji} @{username} answered\n"
+                    elif activity_type_str == 'broadcast':
+                        recipients = details.get('total_recipients', 0)
+                        activity_text += f"[{time_ago}] Broadcast to {recipients} recipients\n"
+                    elif activity_type_str == 'error':
+                        error_msg = details.get('error', 'Unknown error')[:50]
+                        activity_text += f"[{time_ago}] ❌ Error: {error_msg}\n"
+                    else:
+                        activity_text += f"[{time_ago}] {activity_type_str}\n"
+                else:
+                    activity_text += f"[{time_ago}] {activity_type_str}\n"
+            
+            activity_text += f"""
+━━━━━━━━━━━━━━━━━━━
+📊 Showing {len(activities[:50])} activities"""
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("🔄 Refresh", callback_data=f"activity_refresh_{activity_type}"),
+                    InlineKeyboardButton("🔙 All Types", callback_data="activity_all")
+                ],
+                [
+                    InlineKeyboardButton("💬 Commands", callback_data="activity_command"),
+                    InlineKeyboardButton("📝 Quizzes", callback_data="activity_quiz_sent")
+                ],
+                [
+                    InlineKeyboardButton("✅ Answers", callback_data="activity_quiz_answered"),
+                    InlineKeyboardButton("❌ Errors", callback_data="activity_error")
+                ]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(
+                activity_text,
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=reply_markup
+            )
+            
+        except Exception as e:
+            logger.error(f"Error in handle_activity_callback: {e}", exc_info=True)
+            await query.edit_message_text("❌ Error processing activity. Please try again.")
                 
     async def _show_detailed_user_stats(self, query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show detailed user statistics"""
@@ -3182,8 +3918,8 @@ Start playing quizzes to track your progress.
                         except Exception as e:
                             logger.warning(f"Failed to delete previous quiz: {e}")
 
-                        # Send new quiz
-                        await self.send_quiz(chat_id, context)
+                        # Send new quiz with tracking parameters
+                        await self.send_quiz(chat_id, context, auto_sent=True, scheduled=True)
                         logger.info(f"Sent automated quiz to chat {chat_id}")
                     else:
                         # Send admin reminder if not admin
@@ -3217,9 +3953,9 @@ Start playing quizzes to track your progress.
                     await self.ensure_group_registered(chat, context)
                     await self.send_welcome_message(chat.id, context)
 
-                    # Schedule first quiz delivery
+                    # Schedule first quiz delivery (auto-sent when bot joins)
                     if await self.check_admin_status(chat.id, context):
-                        await self.send_quiz(chat.id, context)
+                        await self.send_quiz(chat.id, context, auto_sent=True, scheduled=False)
                     else:
                         await self.send_admin_reminder(chat.id, context)
 

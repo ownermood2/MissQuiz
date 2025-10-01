@@ -9,6 +9,7 @@ import sys
 import os
 import re
 import json
+import time
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
@@ -83,6 +84,31 @@ class DeveloperCommands:
             return f"{num / 1_000:.2f}K"
         else:
             return f"{num:,}"
+    
+    def format_relative_time(self, timestamp_str):
+        """Convert ISO timestamp to relative time (e.g., '5m ago', '2h ago')"""
+        try:
+            dt = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+            now = datetime.now()
+            
+            if dt.tzinfo is not None:
+                from datetime import timezone
+                now = datetime.now(timezone.utc)
+            
+            diff = now - dt
+            seconds = int(diff.total_seconds())
+            
+            if seconds < 60:
+                return f"{seconds}s ago"
+            elif seconds < 3600:
+                return f"{seconds // 60}m ago"
+            elif seconds < 86400:
+                return f"{seconds // 3600}h ago"
+            else:
+                return f"{diff.days}d ago"
+        except Exception as e:
+            logger.error(f"Error formatting relative time: {e}")
+            return "recently"
     
     def parse_inline_buttons(self, text: str) -> tuple:
         """
@@ -256,10 +282,24 @@ class DeveloperCommands:
     
     async def delquiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Delete quiz questions - Fixed version without Markdown parsing errors"""
+        start_time = time.time()
         try:
             if not await self.check_access(update):
                 await self.send_unauthorized_message(update)
                 return
+            
+            # Log command execution immediately
+            quiz_id_arg = context.args[0] if context.args else None
+            self.db.log_activity(
+                activity_type='command',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                username=update.effective_user.username,
+                chat_title=getattr(update.effective_chat, 'title', None),
+                command='/delquiz',
+                details={'quiz_id': quiz_id_arg, 'reply_mode': bool(update.message.reply_to_message)},
+                success=True
+            )
             
             questions = self.db.get_all_questions()
             if not questions:
@@ -359,14 +399,29 @@ class DeveloperCommands:
                     "Usage: /delquiz [quiz_id]"
                 )
                 await self.auto_clean_message(update.message, reply)
+            
+            # Calculate response time at end
+            response_time = int((time.time() - start_time) * 1000)
+            logger.debug(f"Command /delquiz completed in {response_time}ms")
         
         except Exception as e:
+            response_time = int((time.time() - start_time) * 1000)
+            self.db.log_activity(
+                activity_type='error',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                command='/delquiz',
+                details={'error': str(e)},
+                success=False,
+                response_time_ms=response_time
+            )
             logger.error(f"Error in delquiz: {e}", exc_info=True)
             reply = await update.message.reply_text("❌ Error processing delete request")
             await self.auto_clean_message(update.message, reply)
     
     async def delquiz_confirm(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Confirm and execute quiz deletion"""
+        start_time = time.time()
         try:
             if not await self.check_access(update):
                 await self.send_unauthorized_message(update)
@@ -374,6 +429,18 @@ class DeveloperCommands:
             
             # Get quiz ID from context
             quiz_id = context.user_data.get('pending_delete_quiz')
+            
+            # Log command execution immediately
+            self.db.log_activity(
+                activity_type='command',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                username=update.effective_user.username,
+                chat_title=getattr(update.effective_chat, 'title', None),
+                command='/delquiz_confirm',
+                details={'quiz_id': quiz_id, 'action': 'confirm_deletion'},
+                success=True
+            )
             
             if not quiz_id:
                 reply = await update.message.reply_text(
@@ -383,10 +450,29 @@ class DeveloperCommands:
                 await self.auto_clean_message(update.message, reply)
                 return
             
+            # Get quiz details before deletion for logging
+            questions = self.db.get_all_questions()
+            quiz_to_delete = next((q for q in questions if q['id'] == quiz_id), None)
+            
             # Delete from database
             if self.db.delete_question(quiz_id):
                 # Clear the pending delete
                 context.user_data.pop('pending_delete_quiz', None)
+                
+                # Log comprehensive quiz deletion activity
+                self.db.log_activity(
+                    activity_type='quiz_deleted',
+                    user_id=update.effective_user.id,
+                    chat_id=update.effective_chat.id,
+                    username=update.effective_user.username,
+                    chat_title=getattr(update.effective_chat, 'title', None),
+                    details={
+                        'deleted_quiz_id': quiz_id,
+                        'question_text': quiz_to_delete['question'][:100] if quiz_to_delete else None,
+                        'remaining_quizzes': len(self.db.get_all_questions())
+                    },
+                    success=True
+                )
                 
                 reply = await update.message.reply_text(
                     f"✅ Quiz #{quiz_id} deleted successfully! 🗑️\n\n"
@@ -397,18 +483,49 @@ class DeveloperCommands:
             else:
                 reply = await update.message.reply_text(f"❌ Quiz #{quiz_id} not found")
                 await self.auto_clean_message(update.message, reply)
+            
+            # Calculate response time at end
+            response_time = int((time.time() - start_time) * 1000)
+            logger.debug(f"Command /delquiz_confirm completed in {response_time}ms")
         
         except Exception as e:
+            response_time = int((time.time() - start_time) * 1000)
+            self.db.log_activity(
+                activity_type='error',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                command='/delquiz_confirm',
+                details={'error': str(e)},
+                success=False,
+                response_time_ms=response_time
+            )
             logger.error(f"Error in delquiz_confirm: {e}", exc_info=True)
             reply = await update.message.reply_text("❌ Error deleting quiz")
             await self.auto_clean_message(update.message, reply)
     
     async def dev(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Enhanced developer management command"""
+        start_time = time.time()
         try:
             if not await self.check_access(update):
                 await self.send_unauthorized_message(update)
                 return
+            
+            # Determine action for logging
+            action = 'help' if not context.args else (context.args[0] if not context.args[0].isdigit() else 'quick_add')
+            target_user = context.args[1] if len(context.args) > 1 else (context.args[0] if context.args and context.args[0].isdigit() else None)
+            
+            # Log command execution immediately
+            self.db.log_activity(
+                activity_type='command',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                username=update.effective_user.username,
+                chat_title=getattr(update.effective_chat, 'title', None),
+                command='/dev',
+                details={'action': action, 'target_user': target_user},
+                success=True
+            )
             
             if not context.args:
                 reply = await update.message.reply_text(
@@ -588,68 +705,186 @@ class DeveloperCommands:
             else:
                 reply = await update.message.reply_text("❌ Unknown action. Use: add, remove, or list")
                 await self.auto_clean_message(update.message, reply)
+            
+            # Calculate response time at end
+            response_time = int((time.time() - start_time) * 1000)
+            logger.debug(f"Command /dev completed in {response_time}ms")
         
         except Exception as e:
+            response_time = int((time.time() - start_time) * 1000)
+            self.db.log_activity(
+                activity_type='error',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                command='/dev',
+                details={'error': str(e)},
+                success=False,
+                response_time_ms=response_time
+            )
             logger.error(f"Error in dev command: {e}", exc_info=True)
             reply = await update.message.reply_text("❌ Error executing command")
             await self.auto_clean_message(update.message, reply)
     
     async def stats(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Enhanced statistics command with today, week, month, and all-time data"""
+        """Enhanced real-time statistics dashboard with live activity feed"""
+        start_time = time.time()
         try:
             if not await self.check_access(update):
                 await self.send_unauthorized_message(update)
                 return
             
-            loading = await update.message.reply_text("📊 Loading statistics...")
+            # Log command execution immediately
+            self.db.log_activity(
+                activity_type='command',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                username=update.effective_user.username,
+                chat_title=getattr(update.effective_chat, 'title', None),
+                command='/stats',
+                details={'stats_type': 'real_time_dashboard'},
+                success=True
+            )
+            
+            loading = await update.message.reply_text("📊 Loading real-time statistics...")
             
             try:
-                total_groups = len(self.db.get_all_groups())
-                total_users = len(self.db.get_all_users_stats())
+                # Get user & group metrics
+                all_users = self.db.get_all_users_stats()
+                total_users = len(all_users)
                 
-                quizzes_today = self.db.get_quiz_stats_today()
-                quizzes_week = self.db.get_quiz_stats_week()
-                quizzes_month = self.db.get_quiz_stats_month()
-                quizzes_alltime = self.db.get_quiz_stats_alltime()
+                all_groups = self.db.get_all_groups()
+                total_groups = len(all_groups)
+                
+                user_engagement = self.db.get_user_engagement_stats()
+                active_today = user_engagement.get('active_today', 0)
+                
+                # Get quiz activity (real-time from activity_logs)
+                quiz_stats_today = self.db.get_quiz_stats_by_period('today')
+                quiz_stats_week = self.db.get_quiz_stats_by_period('week')
+                
+                quizzes_today = quiz_stats_today.get('quizzes_sent', 0)
+                answered_today = quiz_stats_today.get('quizzes_answered', 0)
+                quizzes_week = quiz_stats_week.get('quizzes_sent', 0)
+                success_rate = quiz_stats_week.get('success_rate', 0)
+                
+                # Get performance metrics (24h)
+                perf_summary = self.db.get_performance_summary(24)
+                avg_time = int(perf_summary.get('avg_response_time', 0))
+                
+                # Get total commands executed in last 24h
+                activity_stats_24h = self.db.get_activity_stats(1)
+                commands_24h = activity_stats_24h.get('activities_by_type', {}).get('command', 0)
+                
+                # Get error rate
+                error_stats = self.db.get_error_rate_stats(1)
+                error_rate = error_stats.get('error_rate', 0)
+                
+                # Get top commands (last 7 days)
+                command_usage = self.db.get_command_usage_stats(7)
+                top_commands = sorted(command_usage.items(), key=lambda x: x[1], reverse=True)[:5]
+                
+                if top_commands:
+                    command_list = "\n".join([f"• {cmd}: {count:,}x" for cmd, count in top_commands])
+                else:
+                    command_list = "• No commands yet"
+                
+                # Get recent activity feed (last 10 activities)
+                recent_activities = self.db.get_recent_activities(limit=10)
+                activity_feed = ""
+                
+                if recent_activities:
+                    for activity in recent_activities:
+                        time_ago = self.format_relative_time(activity.get('timestamp', ''))
+                        activity_type = activity.get('activity_type', 'unknown')
+                        username = activity.get('username', 'Unknown')
+                        command = activity.get('command', '')
+                        
+                        if activity_type == 'command' and command:
+                            activity_feed += f"• {time_ago}: @{username} used {command}\n"
+                        elif activity_type == 'quiz_sent':
+                            activity_feed += f"• {time_ago}: Quiz sent\n"
+                        elif activity_type == 'quiz_answered':
+                            activity_feed += f"• {time_ago}: @{username} answered quiz\n"
+                        elif activity_type == 'broadcast':
+                            activity_feed += f"• {time_ago}: Broadcast sent\n"
+                        elif activity_type == 'error':
+                            activity_feed += f"• {time_ago}: Error logged\n"
+                        else:
+                            activity_feed += f"• {time_ago}: {activity_type}\n"
+                else:
+                    activity_feed = "• No recent activity"
+                
+                # Format the complete stats message
+                current_time = datetime.now().strftime('%H:%M:%S')
                 
                 stats_text = (
-                    "📊 Bot Statistics\n\n"
+                    f"📊 **Live Bot Statistics**\n"
+                    f"━━━━━━━━━━━━━━━━━━━\n\n"
+                    f"👥 **Users & Groups**\n"
+                    f"• Total Users: {total_users:,}\n"
                     f"• Total Groups: {total_groups:,}\n"
-                    f"• Total Users: {total_users:,}\n\n"
-                    f"📝 Total Quizzes Sent\n"
-                    f"• Today: {quizzes_today:,}\n"
-                    f"• This Week: {quizzes_week:,}\n"
-                    f"• This Month: {quizzes_month:,}\n"
-                    f"• All Time: {quizzes_alltime:,}"
+                    f"• Active Today: {active_today}\n\n"
+                    f"📝 **Quiz Activity**\n"
+                    f"• Today: {quizzes_today} sent, {answered_today} answered\n"
+                    f"• This Week: {quizzes_week} sent\n"
+                    f"• Success Rate: {success_rate}%\n\n"
+                    f"⚡ **Performance (24h)**\n"
+                    f"• Avg Response: {avg_time}ms\n"
+                    f"• Commands: {commands_24h:,}\n"
+                    f"• Error Rate: {error_rate}%\n\n"
+                    f"🔥 **Top Commands (7 days)**\n"
+                    f"{command_list}\n\n"
+                    f"📜 **Recent Activity**\n"
+                    f"{activity_feed}\n"
+                    f"━━━━━━━━━━━━━━━━━━━\n"
+                    f"🕐 Updated: {current_time}"
                 )
                 
-                # Create interactive buttons
-                keyboard = [
-                    [
-                        InlineKeyboardButton("🔄 Refresh", callback_data="refresh_stats"),
-                        InlineKeyboardButton("👥 Top Users", callback_data="stats_top_users")
-                    ]
-                ]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                
-                await loading.edit_text(stats_text, reply_markup=reply_markup)
-                logger.info(f"Stats displayed to {update.effective_user.id}")
+                await loading.edit_text(stats_text, parse_mode=ParseMode.MARKDOWN)
+                logger.info(f"Real-time stats displayed to {update.effective_user.id}")
             
             except Exception as e:
-                logger.error(f"Error generating stats: {e}", exc_info=True)
-                await loading.edit_text("❌ Error generating statistics")
+                logger.error(f"Error generating real-time stats: {e}", exc_info=True)
+                await loading.edit_text("❌ Error generating statistics. Please try again.")
+            
+            # Calculate response time at end
+            response_time = int((time.time() - start_time) * 1000)
+            logger.debug(f"Command /stats completed in {response_time}ms")
         
         except Exception as e:
+            response_time = int((time.time() - start_time) * 1000)
+            self.db.log_activity(
+                activity_type='error',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                command='/stats',
+                details={'error': str(e)},
+                success=False,
+                response_time_ms=response_time
+            )
             logger.error(f"Error in stats command: {e}", exc_info=True)
             reply = await update.message.reply_text("❌ Error retrieving statistics")
             await self.auto_clean_message(update.message, reply)
     
     async def allreload(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Restart bot globally without downtime"""
+        start_time = time.time()
         try:
             if not await self.check_access(update):
                 await self.send_unauthorized_message(update)
                 return
+            
+            # Log command execution immediately
+            self.db.log_activity(
+                activity_type='command',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                username=update.effective_user.username,
+                chat_title=getattr(update.effective_chat, 'title', None),
+                command='/allreload',
+                details={'restart_trigger': 'manual'},
+                success=True
+            )
             
             await update.message.reply_text(
                 "🔄 Restarting bot now...\n\n"
@@ -666,19 +901,51 @@ class DeveloperCommands:
             # Give time for message to send
             await asyncio.sleep(0.5)
             
+            # Calculate response time at end
+            response_time = int((time.time() - start_time) * 1000)
+            logger.debug(f"Command /allreload completed in {response_time}ms")
+            
             # Restart the process properly
             os.execv(sys.executable, [sys.executable] + sys.argv)
         
         except Exception as e:
+            response_time = int((time.time() - start_time) * 1000)
+            self.db.log_activity(
+                activity_type='error',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                command='/allreload',
+                details={'error': str(e)},
+                success=False,
+                response_time_ms=response_time
+            )
             logger.error(f"Error in allreload: {e}", exc_info=True)
             await update.message.reply_text("❌ Error restarting bot")
     
     async def broadband(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Send simple broadcast message without forward tags"""
+        start_time = time.time()
         try:
             if not await self.check_access(update):
                 await self.send_unauthorized_message(update)
                 return
+            
+            # Get recipient counts for logging
+            users = self.db.get_all_users_stats()
+            groups = self.db.get_all_groups()
+            total_targets = len(users) + len(groups)
+            
+            # Log command execution immediately
+            self.db.log_activity(
+                activity_type='command',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                username=update.effective_user.username,
+                chat_title=getattr(update.effective_chat, 'title', None),
+                command='/broadband',
+                details={'recipient_count': total_targets, 'users': len(users), 'groups': len(groups)},
+                success=True
+            )
             
             if not context.args:
                 reply = await update.message.reply_text(
@@ -711,18 +978,45 @@ class DeveloperCommands:
             
             reply = await update.message.reply_text(confirm_text)
             logger.info(f"Broadcast prepared by {update.effective_user.id}")
+            
+            # Calculate response time at end
+            response_time = int((time.time() - start_time) * 1000)
+            logger.debug(f"Command /broadband completed in {response_time}ms")
         
         except Exception as e:
+            response_time = int((time.time() - start_time) * 1000)
+            self.db.log_activity(
+                activity_type='error',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                command='/broadband',
+                details={'error': str(e)},
+                success=False,
+                response_time_ms=response_time
+            )
             logger.error(f"Error in broadband: {e}", exc_info=True)
             reply = await update.message.reply_text("❌ Error preparing broadcast")
             await self.auto_clean_message(update.message, reply)
     
     async def broadband_confirm(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Confirm and send broadband broadcast"""
+        start_time = time.time()
         try:
             if not await self.check_access(update):
                 await self.send_unauthorized_message(update)
                 return
+            
+            # Log command execution immediately  
+            self.db.log_activity(
+                activity_type='command',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                username=update.effective_user.username,
+                chat_title=getattr(update.effective_chat, 'title', None),
+                command='/broadband_confirm',
+                details={'action': 'confirm_broadcast'},
+                success=True
+            )
             
             message_text = context.user_data.get('broadcast_message')
             if not message_text:
@@ -773,18 +1067,68 @@ class DeveloperCommands:
             # Clear broadcast data
             context.user_data.pop('broadcast_message', None)
             context.user_data.pop('broadcast_type', None)
+            
+            # Calculate response time at end
+            response_time = int((time.time() - start_time) * 1000)
+            logger.debug(f"Command /broadband_confirm completed in {response_time}ms - sent: {success_count}, failed: {fail_count}")
         
         except Exception as e:
+            response_time = int((time.time() - start_time) * 1000)
+            self.db.log_activity(
+                activity_type='error',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                command='/broadband_confirm',
+                details={'error': str(e)},
+                success=False,
+                response_time_ms=response_time
+            )
             logger.error(f"Error in broadband_confirm: {e}", exc_info=True)
             reply = await update.message.reply_text("❌ Error sending broadcast")
             await self.auto_clean_message(update.message, reply)
     
     async def broadcast(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Enhanced broadcast supporting media, buttons, placeholders, and auto-cleanup"""
+        start_time = time.time()
         try:
             if not await self.check_access(update):
                 await self.send_unauthorized_message(update)
                 return
+            
+            # Determine media type and recipient counts for logging
+            users = self.db.get_all_users_stats()
+            groups = self.db.get_all_groups()
+            total_targets = len(users) + len(groups)
+            
+            # Determine initial media type for logging
+            if update.message.reply_to_message:
+                replied_msg = update.message.reply_to_message
+                if replied_msg.photo:
+                    media_type = 'photo'
+                elif replied_msg.video:
+                    media_type = 'video'
+                elif replied_msg.document:
+                    media_type = 'document'
+                elif replied_msg.animation:
+                    media_type = 'animation'
+                else:
+                    media_type = 'forward'
+            elif context.args:
+                media_type = 'text'
+            else:
+                media_type = 'help'
+            
+            # Log command execution immediately
+            self.db.log_activity(
+                activity_type='command',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                username=update.effective_user.username,
+                chat_title=getattr(update.effective_chat, 'title', None),
+                command='/broadcast',
+                details={'recipient_count': total_targets, 'media_type': media_type, 'users': len(users), 'groups': len(groups)},
+                success=True
+            )
             
             # Check if replying to a message
             if update.message.reply_to_message:
@@ -895,18 +1239,46 @@ class DeveloperCommands:
                     "Placeholders: {first_name}, {username}, {chat_title}, {bot_name}"
                 )
                 await self.auto_clean_message(update.message, reply)
+            
+            # Calculate response time at end
+            response_time = int((time.time() - start_time) * 1000)
+            logger.debug(f"Command /broadcast completed in {response_time}ms")
         
         except Exception as e:
+            response_time = int((time.time() - start_time) * 1000)
+            self.db.log_activity(
+                activity_type='error',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                command='/broadcast',
+                details={'error': str(e)},
+                success=False,
+                response_time_ms=response_time
+            )
             logger.error(f"Error in broadcast: {e}", exc_info=True)
             reply = await update.message.reply_text("❌ Error preparing broadcast")
             await self.auto_clean_message(update.message, reply)
     
     async def broadcast_confirm(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Confirm and send broadcast with media, buttons, placeholders, and auto-cleanup"""
+        start_time = time.time()
         try:
             if not await self.check_access(update):
                 await self.send_unauthorized_message(update)
                 return
+            
+            # Log command execution immediately
+            broadcast_type = context.user_data.get('broadcast_type', 'unknown')
+            self.db.log_activity(
+                activity_type='command',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                username=update.effective_user.username,
+                chat_title=getattr(update.effective_chat, 'title', None),
+                command='/broadcast_confirm',
+                details={'broadcast_type': broadcast_type, 'action': 'confirm_broadcast'},
+                success=True
+            )
             
             broadcast_type = context.user_data.get('broadcast_type')
             
@@ -1249,14 +1621,29 @@ class DeveloperCommands:
             context.user_data.pop('broadcast_media_id', None)
             context.user_data.pop('broadcast_caption', None)
             context.user_data.pop('broadcast_buttons', None)
+            
+            # Calculate response time at end
+            response_time = int((time.time() - start_time) * 1000)
+            logger.debug(f"Command /broadcast_confirm completed in {response_time}ms - sent: {success_count}, failed: {fail_count}")
         
         except Exception as e:
+            response_time = int((time.time() - start_time) * 1000)
+            self.db.log_activity(
+                activity_type='error',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                command='/broadcast_confirm',
+                details={'error': str(e)},
+                success=False,
+                response_time_ms=response_time
+            )
             logger.error(f"Error in broadcast_confirm: {e}", exc_info=True)
             reply = await update.message.reply_text("❌ Error sending broadcast")
             await self.auto_clean_message(update.message, reply)
     
     async def delbroadcast(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Delete latest broadcast from all groups/users - Works from anywhere!"""
+        start_time = time.time()
         try:
             if not await self.check_access(update):
                 await self.send_unauthorized_message(update)
@@ -1264,6 +1651,19 @@ class DeveloperCommands:
             
             # Get latest broadcast from database
             broadcast_data = self.db.get_latest_broadcast()
+            target_count = len(broadcast_data['message_data']) if broadcast_data and 'message_data' in broadcast_data else 0
+            
+            # Log command execution immediately
+            self.db.log_activity(
+                activity_type='command',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                username=update.effective_user.username,
+                chat_title=getattr(update.effective_chat, 'title', None),
+                command='/delbroadcast',
+                details={'target_count': target_count},
+                success=True
+            )
             
             if not broadcast_data:
                 reply = await update.message.reply_text(
@@ -1292,18 +1692,45 @@ class DeveloperCommands:
             
             reply = await update.message.reply_text(confirm_text)
             logger.info(f"Broadcast deletion prepared by {update.effective_user.id} for {len(broadcast_messages)} chats")
+            
+            # Calculate response time at end
+            response_time = int((time.time() - start_time) * 1000)
+            logger.debug(f"Command /delbroadcast completed in {response_time}ms")
         
         except Exception as e:
+            response_time = int((time.time() - start_time) * 1000)
+            self.db.log_activity(
+                activity_type='error',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                command='/delbroadcast',
+                details={'error': str(e)},
+                success=False,
+                response_time_ms=response_time
+            )
             logger.error(f"Error in delbroadcast: {e}", exc_info=True)
             reply = await update.message.reply_text("❌ Error preparing broadcast deletion")
             await self.auto_clean_message(update.message, reply)
     
     async def delbroadcast_confirm(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Confirm and execute broadcast deletion - Optimized for instant deletion"""
+        start_time = time.time()
         try:
             if not await self.check_access(update):
                 await self.send_unauthorized_message(update)
                 return
+            
+            # Log command execution immediately
+            self.db.log_activity(
+                activity_type='command',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                username=update.effective_user.username,
+                chat_title=getattr(update.effective_chat, 'title', None),
+                command='/delbroadcast_confirm',
+                details={'action': 'confirm_deletion'},
+                success=True
+            )
             
             # Get latest broadcast data from database
             broadcast_data = self.db.get_latest_broadcast()
@@ -1346,8 +1773,396 @@ class DeveloperCommands:
             
             # Clear broadcast data from database
             self.db.delete_broadcast(broadcast_id)
+            
+            # Calculate response time at end
+            response_time = int((time.time() - start_time) * 1000)
+            logger.debug(f"Command /delbroadcast_confirm completed in {response_time}ms - deleted: {success_count}, failed: {fail_count}")
         
         except Exception as e:
+            response_time = int((time.time() - start_time) * 1000)
+            self.db.log_activity(
+                activity_type='error',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                command='/delbroadcast_confirm',
+                details={'error': str(e)},
+                success=False,
+                response_time_ms=response_time
+            )
             logger.error(f"Error in delbroadcast_confirm: {e}", exc_info=True)
             reply = await update.message.reply_text("❌ Error deleting broadcast")
+            await self.auto_clean_message(update.message, reply)
+    
+    async def performance_stats(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show live performance metrics dashboard"""
+        start_time = time.time()
+        try:
+            if not await self.check_access(update):
+                await self.send_unauthorized_message(update)
+                return
+            
+            self.db.log_activity(
+                activity_type='command',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                username=update.effective_user.username,
+                chat_title=getattr(update.effective_chat, 'title', None),
+                command='/performance',
+                success=True
+            )
+            
+            loading_msg = await update.message.reply_text("📊 Loading performance metrics...")
+            
+            hours = 24
+            if context.args and context.args[0].isdigit():
+                hours = int(context.args[0])
+                hours = min(hours, 168)
+            
+            perf_summary = self.db.get_performance_summary(hours=hours)
+            response_trends = self.db.get_response_time_trends(hours=hours)
+            api_calls = self.db.get_api_call_counts(hours=hours)
+            memory_history = self.db.get_memory_usage_history(hours=hours)
+            
+            import psutil
+            import os
+            process = psutil.Process(os.getpid())
+            current_memory_mb = process.memory_info().rss / 1024 / 1024
+            
+            perf_message = f"📊 *Performance Metrics Dashboard*\n"
+            perf_message += f"🕒 *Period:* Last {hours} hours\n\n"
+            
+            perf_message += f"⚡ *Response Times:*\n"
+            perf_message += f"• Average: {perf_summary['avg_response_time']:.2f}ms\n"
+            if response_trends:
+                recent_avg = sum(t['avg_response_time'] for t in response_trends[:3]) / min(3, len(response_trends))
+                perf_message += f"• Recent (3h): {recent_avg:.2f}ms\n"
+            perf_message += f"\n"
+            
+            perf_message += f"📞 *API Calls:*\n"
+            perf_message += f"• Total: {perf_summary['total_api_calls']:,}\n"
+            if api_calls:
+                top_api = sorted(api_calls.items(), key=lambda x: x[1], reverse=True)[:3]
+                for api_name, count in top_api:
+                    if api_name:
+                        perf_message += f"• {api_name}: {count:,}\n"
+            perf_message += f"\n"
+            
+            perf_message += f"💾 *Memory Usage:*\n"
+            perf_message += f"• Current: {current_memory_mb:.2f} MB\n"
+            if perf_summary['avg_memory_mb'] > 0:
+                perf_message += f"• Average: {perf_summary['avg_memory_mb']:.2f} MB\n"
+            if memory_history:
+                max_mem = max(m['memory_usage_mb'] for m in memory_history)
+                min_mem = min(m['memory_usage_mb'] for m in memory_history)
+                perf_message += f"• Peak: {max_mem:.2f} MB\n"
+                perf_message += f"• Min: {min_mem:.2f} MB\n"
+            perf_message += f"\n"
+            
+            perf_message += f"❌ *Error Rate:*\n"
+            perf_message += f"• Rate: {perf_summary['error_rate']:.2f}%\n"
+            perf_message += f"\n"
+            
+            perf_message += f"🟢 *Uptime:*\n"
+            perf_message += f"• Status: {perf_summary['uptime_percent']:.1f}%\n"
+            perf_message += f"\n"
+            
+            if response_trends:
+                perf_message += f"📈 *Response Time Trends:*\n"
+                for trend in response_trends[:5]:
+                    hour = trend['hour'].split(' ')[1][:5]
+                    perf_message += f"• {hour}: {trend['avg_response_time']:.1f}ms ({trend['count']} ops)\n"
+                perf_message += f"\n"
+            
+            perf_message += f"💡 *Commands:*\n"
+            perf_message += f"• /performance [hours] - Custom time period\n"
+            perf_message += f"• Max 168 hours (7 days)\n"
+            
+            await loading_msg.edit_text(perf_message, parse_mode=ParseMode.MARKDOWN)
+            
+            response_time = int((time.time() - start_time) * 1000)
+            logger.info(f"/performance dashboard shown in {response_time}ms")
+            
+            self.db.log_performance_metric(
+                metric_type='response_time',
+                metric_name='/performance',
+                value=response_time,
+                unit='ms'
+            )
+            
+        except Exception as e:
+            response_time = int((time.time() - start_time) * 1000)
+            self.db.log_activity(
+                activity_type='error',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                command='/performance',
+                details={'error': str(e)},
+                success=False,
+                response_time_ms=response_time
+            )
+            logger.error(f"Error in performance_stats: {e}", exc_info=True)
+            reply = await update.message.reply_text("❌ Error loading performance metrics")
+            await self.auto_clean_message(update.message, reply)
+    
+    async def devstats(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Comprehensive developer statistics dashboard"""
+        start_time = time.time()
+        try:
+            if not await self.check_access(update):
+                await self.send_unauthorized_message(update)
+                return
+            
+            loading_msg = await update.message.reply_text("📊 Loading comprehensive dev stats...")
+            
+            import psutil
+            from datetime import datetime, timedelta
+            
+            process = psutil.Process()
+            memory_mb = process.memory_info().rss / 1024 / 1024
+            
+            if hasattr(self.quiz_manager, 'bot_start_time'):
+                uptime_seconds = (datetime.now() - self.quiz_manager.bot_start_time).total_seconds()
+            else:
+                uptime_seconds = (datetime.now() - datetime.fromtimestamp(process.create_time())).total_seconds()
+            
+            if uptime_seconds >= 86400:
+                uptime_str = f"{uptime_seconds/86400:.1f} days"
+            elif uptime_seconds >= 3600:
+                uptime_str = f"{uptime_seconds/3600:.1f} hours"
+            else:
+                uptime_str = f"{uptime_seconds/60:.1f} minutes"
+            
+            perf_24h = self.db.get_performance_summary(24)
+            activity_stats = self.db.get_activity_stats(1)
+            
+            total_users = len(self.db.get_all_users())
+            total_groups = len(self.db.get_all_groups())
+            active_today = self.db.get_active_users_count('today')
+            active_week = self.db.get_active_users_count('week')
+            active_month = self.db.get_active_users_count('month')
+            
+            new_users = len(self.db.get_new_users(7))
+            most_active = self.db.get_most_active_users(5, 30)
+            
+            quiz_today = self.db.get_quiz_stats_by_period('today')
+            quiz_week = self.db.get_quiz_stats_by_period('week')
+            
+            commands_24h = activity_stats['activities_by_type'].get('command', 0)
+            quizzes_sent_24h = activity_stats['activities_by_type'].get('quiz_sent', 0)
+            quizzes_answered_24h = activity_stats['activities_by_type'].get('quiz_answered', 0)
+            broadcasts_24h = activity_stats['activities_by_type'].get('broadcast', 0)
+            errors_24h = activity_stats['activities_by_type'].get('error', 0)
+            
+            recent_activities = self.db.get_recent_activities(10)
+            activity_feed = ""
+            for activity in recent_activities:
+                time_ago = self.db.format_relative_time(activity['timestamp'])
+                activity_type = activity['activity_type']
+                username = activity.get('username', 'Unknown')
+                
+                if activity_type == 'command':
+                    details = activity.get('details', {})
+                    cmd = details.get('command', 'unknown') if isinstance(details, dict) else 'unknown'
+                    activity_feed += f"• {time_ago}: @{username} /{cmd}\n"
+                elif activity_type == 'quiz_sent':
+                    activity_feed += f"• {time_ago}: Quiz sent\n"
+                elif activity_type == 'quiz_answered':
+                    activity_feed += f"• {time_ago}: @{username} answered\n"
+                elif activity_type == 'broadcast':
+                    activity_feed += f"• {time_ago}: Broadcast sent\n"
+                elif activity_type == 'error':
+                    activity_feed += f"• {time_ago}: Error logged\n"
+                else:
+                    activity_feed += f"• {time_ago}: {activity_type}\n"
+            
+            if not activity_feed:
+                activity_feed = "No recent activity"
+            
+            most_active_text = ""
+            for i, user in enumerate(most_active[:5], 1):
+                name = user.get('first_name') or user.get('username') or f"User{user['user_id']}"
+                most_active_text += f"{i}. {name}: {user['activity_count']} actions\n"
+            if not most_active_text:
+                most_active_text = "No active users yet"
+            
+            devstats_message = f"""📊 **Developer Statistics Dashboard**
+━━━━━━━━━━━━━━━━━━━
+
+⚙️ **System Health**
+• Uptime: {uptime_str}
+• Memory: {memory_mb:.1f} MB (avg: {perf_24h['avg_memory_mb']:.1f} MB)
+• Error Rate: {perf_24h['error_rate']:.1f}%
+• Avg Response: {perf_24h['avg_response_time']:.0f}ms
+
+📊 **Activity Breakdown** (Last 24h)
+• Commands Executed: {commands_24h:,}
+• Quizzes Sent: {quizzes_sent_24h:,}
+• Quizzes Answered: {quizzes_answered_24h:,}
+• Broadcasts Sent: {broadcasts_24h:,}
+• Errors Logged: {errors_24h:,}
+
+👥 **User Engagement**
+• Total Users: {total_users:,}
+• Active Today: {active_today}
+• Active This Week: {active_week}
+• Active This Month: {active_month}
+• New Users (7d): {new_users}
+
+📝 **Quiz Performance**
+• Sent Today: {quiz_today['quizzes_sent']}
+• Sent This Week: {quiz_week['quizzes_sent']}
+• Success Rate: {quiz_week['success_rate']}%
+
+🏆 **Most Active Users** (30d)
+{most_active_text}
+
+📜 **Recent Activity Feed**
+{activity_feed}
+
+━━━━━━━━━━━━━━━━━━━
+🕐 Generated in {(time.time() - start_time)*1000:.0f}ms"""
+            
+            keyboard = [
+                [InlineKeyboardButton("🔄 Refresh", callback_data="devstats_refresh")],
+                [
+                    InlineKeyboardButton("📊 Full Activity", callback_data="devstats_activity"),
+                    InlineKeyboardButton("⚡ Performance", callback_data="devstats_performance")
+                ]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await loading_msg.edit_text(
+                devstats_message,
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=reply_markup
+            )
+            
+            response_time = int((time.time() - start_time) * 1000)
+            logger.info(f"/devstats shown in {response_time}ms")
+            
+            self.db.log_activity(
+                activity_type='command',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                username=update.effective_user.username,
+                details={'command': 'devstats'},
+                success=True,
+                response_time_ms=response_time
+            )
+            
+        except Exception as e:
+            logger.error(f"Error in devstats: {e}", exc_info=True)
+            reply = await update.message.reply_text("❌ Error loading dev statistics")
+            await self.auto_clean_message(update.message, reply)
+    
+    async def activity(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Live activity stream with filtering and pagination"""
+        start_time = time.time()
+        try:
+            if not await self.check_access(update):
+                await self.send_unauthorized_message(update)
+                return
+            
+            activity_type = context.args[0] if context.args else 'all'
+            page = int(context.args[1]) if len(context.args) > 1 else 1
+            
+            valid_types = ['all', 'command', 'quiz_sent', 'quiz_answered', 'broadcast', 'error']
+            if activity_type not in valid_types:
+                activity_type = 'all'
+            
+            limit = 50
+            offset = (page - 1) * limit
+            
+            loading_msg = await update.message.reply_text(f"📜 Loading activity stream ({activity_type})...")
+            
+            if activity_type == 'all':
+                activities = self.db.get_recent_activities(limit)
+            else:
+                activities = self.db.get_recent_activities(limit, activity_type)
+            
+            if not activities:
+                await loading_msg.edit_text(f"📜 No activities found for type: {activity_type}")
+                return
+            
+            activity_text = f"""📜 **Live Activity Stream**
+Type: {activity_type.upper()}
+━━━━━━━━━━━━━━━━━━━
+
+"""
+            
+            for activity in activities[:50]:
+                time_ago = self.db.format_relative_time(activity['timestamp'])
+                activity_type_str = activity['activity_type']
+                user_id = activity.get('user_id')
+                username = activity.get('username', 'Unknown')
+                chat_title = activity.get('chat_title', '')
+                
+                details = activity.get('details', {})
+                if isinstance(details, dict):
+                    if activity_type_str == 'command':
+                        cmd = details.get('command', 'unknown')
+                        activity_text += f"[{time_ago}] @{username}: /{cmd}\n"
+                    elif activity_type_str == 'quiz_sent':
+                        if chat_title:
+                            activity_text += f"[{time_ago}] Quiz sent to {chat_title}\n"
+                        else:
+                            activity_text += f"[{time_ago}] Quiz sent\n"
+                    elif activity_type_str == 'quiz_answered':
+                        correct = details.get('is_correct', False)
+                        emoji = "✅" if correct else "❌"
+                        activity_text += f"[{time_ago}] {emoji} @{username} answered\n"
+                    elif activity_type_str == 'broadcast':
+                        recipients = details.get('total_recipients', 0)
+                        activity_text += f"[{time_ago}] Broadcast to {recipients} recipients\n"
+                    elif activity_type_str == 'error':
+                        error_msg = details.get('error', 'Unknown error')[:50]
+                        activity_text += f"[{time_ago}] ❌ Error: {error_msg}\n"
+                    else:
+                        activity_text += f"[{time_ago}] {activity_type_str}\n"
+                else:
+                    activity_text += f"[{time_ago}] {activity_type_str}\n"
+            
+            activity_text += f"""
+━━━━━━━━━━━━━━━━━━━
+📊 Showing {len(activities[:50])} activities
+🕐 Loaded in {(time.time() - start_time)*1000:.0f}ms"""
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("🔄 Refresh", callback_data=f"activity_refresh_{activity_type}"),
+                    InlineKeyboardButton("🔙 All Types", callback_data="activity_all")
+                ],
+                [
+                    InlineKeyboardButton("💬 Commands", callback_data="activity_command"),
+                    InlineKeyboardButton("📝 Quizzes", callback_data="activity_quiz_sent")
+                ],
+                [
+                    InlineKeyboardButton("✅ Answers", callback_data="activity_quiz_answered"),
+                    InlineKeyboardButton("❌ Errors", callback_data="activity_error")
+                ]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await loading_msg.edit_text(
+                activity_text,
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=reply_markup
+            )
+            
+            response_time = int((time.time() - start_time) * 1000)
+            logger.info(f"/activity shown in {response_time}ms")
+            
+            self.db.log_activity(
+                activity_type='command',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                username=update.effective_user.username,
+                details={'command': 'activity', 'filter': activity_type},
+                success=True,
+                response_time_ms=response_time
+            )
+            
+        except Exception as e:
+            logger.error(f"Error in activity: {e}", exc_info=True)
+            reply = await update.message.reply_text("❌ Error loading activity stream")
             await self.auto_clean_message(update.message, reply)

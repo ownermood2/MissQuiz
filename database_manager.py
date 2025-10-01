@@ -187,6 +187,74 @@ class DatabaseManager:
                 ON quiz_history(user_id, answered_at)
             ''')
             
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS activity_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp TEXT NOT NULL,
+                    activity_type TEXT NOT NULL,
+                    user_id INTEGER,
+                    chat_id INTEGER,
+                    username TEXT,
+                    chat_title TEXT,
+                    command TEXT,
+                    details TEXT,
+                    success INTEGER DEFAULT 1,
+                    response_time_ms INTEGER
+                )
+            ''')
+            
+            cursor.execute('''
+                CREATE INDEX IF NOT EXISTS idx_activity_logs_timestamp 
+                ON activity_logs(timestamp DESC)
+            ''')
+            
+            cursor.execute('''
+                CREATE INDEX IF NOT EXISTS idx_activity_logs_type 
+                ON activity_logs(activity_type, timestamp DESC)
+            ''')
+            
+            cursor.execute('''
+                CREATE INDEX IF NOT EXISTS idx_activity_logs_user 
+                ON activity_logs(user_id, timestamp DESC)
+            ''')
+            
+            cursor.execute('''
+                CREATE INDEX IF NOT EXISTS idx_activity_logs_chat 
+                ON activity_logs(chat_id, timestamp DESC)
+            ''')
+            
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS performance_metrics (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp TEXT NOT NULL,
+                    metric_type TEXT NOT NULL,
+                    metric_name TEXT,
+                    value REAL NOT NULL,
+                    unit TEXT,
+                    details TEXT
+                )
+            ''')
+            
+            cursor.execute('''
+                CREATE INDEX IF NOT EXISTS idx_performance_metrics_timestamp 
+                ON performance_metrics(timestamp DESC)
+            ''')
+            
+            cursor.execute('''
+                CREATE INDEX IF NOT EXISTS idx_performance_metrics_type 
+                ON performance_metrics(metric_type, timestamp DESC)
+            ''')
+            
+            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_activity_logs_type_time 
+                ON activity_logs(activity_type, timestamp)''')
+            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_activity_logs_command 
+                ON activity_logs(command)''')
+            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_activity_logs_user_time 
+                ON activity_logs(user_id, timestamp)''')
+            
+            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_performance_metrics_type_time 
+                ON performance_metrics(metric_type, timestamp)''')
+            
             logger.info("Database schema initialized successfully")
     
     def add_question(self, question: str, options: List[str], correct_answer: int) -> int:
@@ -775,3 +843,1382 @@ class DatabaseManager:
                 logger.info(f"Logged broadcast by admin {admin_id}: {sent_count}/{total_targets} sent")
         except Exception as e:
             logger.error(f"Error logging broadcast: {e}")
+    
+    def log_activity(self, activity_type: str, user_id: int = None, chat_id: int = None, 
+                    username: str = None, chat_title: str = None, command: str = None, 
+                    details: dict = None, success: bool = True, response_time_ms: int = None):
+        """
+        Log activity to the activity_logs table immediately
+        
+        Args:
+            activity_type: Type of activity ('command', 'quiz_sent', 'quiz_answer', 'broadcast', 
+                          'user_join', 'group_join', 'error', 'api_call')
+            user_id: User ID (optional)
+            chat_id: Chat ID (optional)
+            username: Username (optional)
+            chat_title: Chat title (optional)
+            command: Command name for command activities (optional)
+            details: Dictionary with extra data, will be converted to JSON (optional)
+            success: Whether the activity was successful (default: True)
+            response_time_ms: Response time in milliseconds (optional)
+        """
+        try:
+            timestamp = datetime.now().isoformat()
+            details_json = json.dumps(details) if details else None
+            success_int = 1 if success else 0
+            
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT INTO activity_logs 
+                    (timestamp, activity_type, user_id, chat_id, username, chat_title, 
+                     command, details, success, response_time_ms)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (timestamp, activity_type, user_id, chat_id, username, chat_title, 
+                      command, details_json, success_int, response_time_ms))
+                
+                logger.debug(f"Logged activity: {activity_type} - User: {user_id}, Chat: {chat_id}, Success: {success}")
+        except Exception as e:
+            logger.error(f"Error logging activity: {e}")
+    
+    def get_recent_activities(self, limit: int = 100, activity_type: str = None) -> List[Dict]:
+        """
+        Get recent activities with optional filtering by type
+        
+        Args:
+            limit: Maximum number of activities to return (default: 100)
+            activity_type: Filter by specific activity type (optional)
+            
+        Returns:
+            List of activity dictionaries
+        """
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                if activity_type:
+                    cursor.execute('''
+                        SELECT * FROM activity_logs 
+                        WHERE activity_type = ?
+                        ORDER BY timestamp DESC 
+                        LIMIT ?
+                    ''', (activity_type, limit))
+                else:
+                    cursor.execute('''
+                        SELECT * FROM activity_logs 
+                        ORDER BY timestamp DESC 
+                        LIMIT ?
+                    ''', (limit,))
+                
+                rows = cursor.fetchall()
+                activities = []
+                for row in rows:
+                    activity = dict(row)
+                    if activity.get('details'):
+                        try:
+                            activity['details'] = json.loads(activity['details'])
+                        except json.JSONDecodeError:
+                            pass
+                    activities.append(activity)
+                
+                logger.debug(f"Retrieved {len(activities)} recent activities")
+                return activities
+        except Exception as e:
+            logger.error(f"Error getting recent activities: {e}")
+            return []
+    
+    def get_activities_by_user(self, user_id: int, limit: int = 50) -> List[Dict]:
+        """
+        Get activity history for a specific user
+        
+        Args:
+            user_id: User ID to filter by
+            limit: Maximum number of activities to return (default: 50)
+            
+        Returns:
+            List of activity dictionaries
+        """
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT * FROM activity_logs 
+                    WHERE user_id = ?
+                    ORDER BY timestamp DESC 
+                    LIMIT ?
+                ''', (user_id, limit))
+                
+                rows = cursor.fetchall()
+                activities = []
+                for row in rows:
+                    activity = dict(row)
+                    if activity.get('details'):
+                        try:
+                            activity['details'] = json.loads(activity['details'])
+                        except json.JSONDecodeError:
+                            pass
+                    activities.append(activity)
+                
+                logger.debug(f"Retrieved {len(activities)} activities for user {user_id}")
+                return activities
+        except Exception as e:
+            logger.error(f"Error getting activities for user {user_id}: {e}")
+            return []
+    
+    def get_activities_by_chat(self, chat_id: int, limit: int = 50) -> List[Dict]:
+        """
+        Get activity history for a specific chat
+        
+        Args:
+            chat_id: Chat ID to filter by
+            limit: Maximum number of activities to return (default: 50)
+            
+        Returns:
+            List of activity dictionaries
+        """
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT * FROM activity_logs 
+                    WHERE chat_id = ?
+                    ORDER BY timestamp DESC 
+                    LIMIT ?
+                ''', (chat_id, limit))
+                
+                rows = cursor.fetchall()
+                activities = []
+                for row in rows:
+                    activity = dict(row)
+                    if activity.get('details'):
+                        try:
+                            activity['details'] = json.loads(activity['details'])
+                        except json.JSONDecodeError:
+                            pass
+                    activities.append(activity)
+                
+                logger.debug(f"Retrieved {len(activities)} activities for chat {chat_id}")
+                return activities
+        except Exception as e:
+            logger.error(f"Error getting activities for chat {chat_id}: {e}")
+            return []
+    
+    def get_activities_today(self) -> int:
+        """
+        Get count of today's activities
+        
+        Returns:
+            Count of activities for today
+        """
+        try:
+            today = datetime.now().strftime('%Y-%m-%d')
+            
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT COUNT(*) as count 
+                    FROM activity_logs 
+                    WHERE DATE(timestamp) = ?
+                ''', (today,))
+                
+                row = cursor.fetchone()
+                count = row['count'] if row else 0
+                logger.debug(f"Activities today: {count}")
+                return count
+        except Exception as e:
+            logger.error(f"Error getting today's activities count: {e}")
+            return 0
+    
+    def get_activity_stats(self, days: int = 7) -> Dict:
+        """
+        Get aggregated activity statistics for the last N days
+        
+        Args:
+            days: Number of days to look back (default: 7)
+            
+        Returns:
+            Dictionary with activity statistics including:
+            - total_activities: Total count
+            - activities_by_type: Count by activity type
+            - activities_by_day: Count by date
+            - success_rate: Percentage of successful activities
+            - avg_response_time_ms: Average response time
+        """
+        try:
+            from datetime import timedelta
+            start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+            
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute('''
+                    SELECT COUNT(*) as total 
+                    FROM activity_logs 
+                    WHERE DATE(timestamp) >= ?
+                ''', (start_date,))
+                total_activities = cursor.fetchone()['total']
+                
+                cursor.execute('''
+                    SELECT activity_type, COUNT(*) as count 
+                    FROM activity_logs 
+                    WHERE DATE(timestamp) >= ?
+                    GROUP BY activity_type
+                    ORDER BY count DESC
+                ''', (start_date,))
+                activities_by_type = {row['activity_type']: row['count'] for row in cursor.fetchall()}
+                
+                cursor.execute('''
+                    SELECT DATE(timestamp) as date, COUNT(*) as count 
+                    FROM activity_logs 
+                    WHERE DATE(timestamp) >= ?
+                    GROUP BY DATE(timestamp)
+                    ORDER BY date DESC
+                ''', (start_date,))
+                activities_by_day = {row['date']: row['count'] for row in cursor.fetchall()}
+                
+                cursor.execute('''
+                    SELECT 
+                        COUNT(*) as total,
+                        SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successful
+                    FROM activity_logs 
+                    WHERE DATE(timestamp) >= ?
+                ''', (start_date,))
+                row = cursor.fetchone()
+                total = row['total']
+                successful = row['successful']
+                success_rate = round((successful / max(total, 1)) * 100, 2)
+                
+                cursor.execute('''
+                    SELECT AVG(response_time_ms) as avg_time 
+                    FROM activity_logs 
+                    WHERE DATE(timestamp) >= ? AND response_time_ms IS NOT NULL
+                ''', (start_date,))
+                row = cursor.fetchone()
+                avg_response_time = round(row['avg_time'], 2) if row['avg_time'] else 0
+                
+                stats = {
+                    'total_activities': total_activities,
+                    'activities_by_type': activities_by_type,
+                    'activities_by_day': activities_by_day,
+                    'success_rate': success_rate,
+                    'avg_response_time_ms': avg_response_time,
+                    'period_days': days,
+                    'start_date': start_date
+                }
+                
+                logger.debug(f"Retrieved activity stats for last {days} days: {total_activities} activities")
+                return stats
+        except Exception as e:
+            logger.error(f"Error getting activity statistics: {e}")
+            return {
+                'total_activities': 0,
+                'activities_by_type': {},
+                'activities_by_day': {},
+                'success_rate': 0,
+                'avg_response_time_ms': 0,
+                'period_days': days,
+                'start_date': None
+            }
+    
+    def cleanup_old_activities(self, days: int = 30) -> int:
+        """
+        Clean up activities older than specified number of days
+        
+        Args:
+            days: Delete activities older than this many days (default: 30)
+            
+        Returns:
+            Number of activities deleted
+        """
+        try:
+            from datetime import timedelta
+            cutoff_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+            
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    DELETE FROM activity_logs 
+                    WHERE DATE(timestamp) < ?
+                ''', (cutoff_date,))
+                
+                deleted_count = cursor.rowcount
+                logger.info(f"Cleaned up {deleted_count} activities older than {days} days (before {cutoff_date})")
+                return deleted_count
+        except Exception as e:
+            logger.error(f"Error cleaning up old activities: {e}")
+            return 0
+    
+    def get_command_usage_stats(self, days: int = 7) -> Dict[str, int]:
+        """
+        Get command usage statistics for last N days
+        
+        Args:
+            days: Number of days to look back (default: 7)
+            
+        Returns:
+            Dictionary with command names and their usage counts
+        """
+        try:
+            import time
+            start_time = time.time()
+            from datetime import timedelta
+            start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+            
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT command, COUNT(*) as count 
+                    FROM activity_logs 
+                    WHERE command IS NOT NULL 
+                      AND DATE(timestamp) >= ?
+                    GROUP BY command
+                    ORDER BY count DESC
+                ''', (start_date,))
+                
+                stats = {row['command']: row['count'] for row in cursor.fetchall()}
+                
+                query_time = int((time.time() - start_time) * 1000)
+                logger.debug(f"Command usage stats query completed in {query_time}ms")
+                return stats
+        except Exception as e:
+            logger.error(f"Error getting command usage stats: {e}")
+            return {}
+    
+    def get_quiz_performance_stats(self, days: int = 7) -> Dict:
+        """
+        Get quiz performance metrics for last N days
+        
+        Args:
+            days: Number of days to look back (default: 7)
+            
+        Returns:
+            Dictionary with quiz performance metrics including:
+            - total_sent: Total quizzes sent
+            - total_answered: Total answers received
+            - success_rate: Percentage of correct answers
+            - avg_response_time_ms: Average response time
+        """
+        try:
+            import time
+            start_time = time.time()
+            from datetime import timedelta
+            start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+            
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute('''
+                    SELECT COUNT(*) as count 
+                    FROM activity_logs 
+                    WHERE activity_type = 'quiz_sent' 
+                      AND DATE(timestamp) >= ?
+                      AND (details NOT LIKE '%auto_delete%' OR details IS NULL)
+                ''', (start_date,))
+                total_sent = cursor.fetchone()['count'] or 0
+                
+                cursor.execute('''
+                    SELECT COUNT(*) as total,
+                           SUM(CASE WHEN is_correct = 1 THEN 1 ELSE 0 END) as correct
+                    FROM quiz_history
+                    WHERE DATE(answered_at) >= ?
+                ''', (start_date,))
+                row = cursor.fetchone()
+                total_answered = row['total'] or 0
+                correct_answers = row['correct'] or 0
+                success_rate = round((correct_answers / max(total_answered, 1)) * 100, 1)
+                
+                cursor.execute('''
+                    SELECT AVG(response_time_ms) as avg_time 
+                    FROM activity_logs 
+                    WHERE activity_type = 'quiz_answer'
+                      AND response_time_ms IS NOT NULL
+                      AND DATE(timestamp) >= ?
+                ''', (start_date,))
+                row = cursor.fetchone()
+                avg_response_time = round(row['avg_time'], 2) if row['avg_time'] else 0
+                
+                query_time = int((time.time() - start_time) * 1000)
+                logger.debug(f"Quiz performance stats query completed in {query_time}ms")
+                
+                return {
+                    'total_sent': total_sent,
+                    'total_answered': total_answered,
+                    'success_rate': success_rate,
+                    'avg_response_time_ms': avg_response_time,
+                    'correct_answers': correct_answers,
+                    'wrong_answers': total_answered - correct_answers,
+                    'period_days': days
+                }
+        except Exception as e:
+            logger.error(f"Error getting quiz performance stats: {e}")
+            return {
+                'total_sent': 0,
+                'total_answered': 0,
+                'success_rate': 0,
+                'avg_response_time_ms': 0,
+                'correct_answers': 0,
+                'wrong_answers': 0,
+                'period_days': days
+            }
+    
+    def get_user_engagement_stats(self) -> Dict:
+        """
+        Get user engagement metrics
+        
+        Returns:
+            Dictionary with user engagement metrics including:
+            - active_today: Users active today
+            - active_week: Users active this week
+            - active_month: Users active this month
+            - total_users: Total registered users
+        """
+        try:
+            import time
+            start_time = time.time()
+            from datetime import timedelta
+            
+            today = datetime.now().strftime('%Y-%m-%d')
+            week_start = (datetime.now() - timedelta(days=datetime.now().weekday())).strftime('%Y-%m-%d')
+            month_start = datetime.now().replace(day=1).strftime('%Y-%m-%d')
+            
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute('SELECT COUNT(*) as count FROM users')
+                total_users = cursor.fetchone()['count']
+                
+                cursor.execute('''
+                    SELECT COUNT(DISTINCT user_id) as count 
+                    FROM activity_logs 
+                    WHERE user_id IS NOT NULL 
+                      AND DATE(timestamp) = ?
+                ''', (today,))
+                active_today = cursor.fetchone()['count']
+                
+                cursor.execute('''
+                    SELECT COUNT(DISTINCT user_id) as count 
+                    FROM activity_logs 
+                    WHERE user_id IS NOT NULL 
+                      AND DATE(timestamp) >= ?
+                ''', (week_start,))
+                active_week = cursor.fetchone()['count']
+                
+                cursor.execute('''
+                    SELECT COUNT(DISTINCT user_id) as count 
+                    FROM activity_logs 
+                    WHERE user_id IS NOT NULL 
+                      AND DATE(timestamp) >= ?
+                ''', (month_start,))
+                active_month = cursor.fetchone()['count']
+                
+                query_time = int((time.time() - start_time) * 1000)
+                logger.debug(f"User engagement stats query completed in {query_time}ms")
+                
+                return {
+                    'active_today': active_today,
+                    'active_week': active_week,
+                    'active_month': active_month,
+                    'total_users': total_users
+                }
+        except Exception as e:
+            logger.error(f"Error getting user engagement stats: {e}")
+            return {
+                'active_today': 0,
+                'active_week': 0,
+                'active_month': 0,
+                'total_users': 0
+            }
+    
+    def get_hourly_activity_stats(self, hours: int = 24) -> List[Dict]:
+        """
+        Get activity breakdown by hour for visualization
+        
+        Args:
+            hours: Number of hours to look back (default: 24)
+            
+        Returns:
+            List of dictionaries with hour and activity_count
+        """
+        try:
+            import time
+            start_time = time.time()
+            from datetime import timedelta
+            
+            start_datetime = datetime.now() - timedelta(hours=hours)
+            start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
+            
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT 
+                        strftime('%Y-%m-%d %H:00:00', timestamp) as hour,
+                        COUNT(*) as activity_count
+                    FROM activity_logs 
+                    WHERE timestamp >= ?
+                    GROUP BY hour
+                    ORDER BY hour DESC
+                ''', (start_timestamp,))
+                
+                results = [{'hour': row['hour'], 'activity_count': row['activity_count']} 
+                          for row in cursor.fetchall()]
+                
+                query_time = int((time.time() - start_time) * 1000)
+                logger.debug(f"Hourly activity stats query completed in {query_time}ms")
+                return results
+        except Exception as e:
+            logger.error(f"Error getting hourly activity stats: {e}")
+            return []
+    
+    def get_error_rate_stats(self, days: int = 7) -> Dict:
+        """
+        Get error statistics for last N days
+        
+        Args:
+            days: Number of days to look back (default: 7)
+            
+        Returns:
+            Dictionary with error statistics including:
+            - total_errors: Total error count
+            - error_rate: Percentage of failed activities
+            - common_errors: Most common error types
+        """
+        try:
+            import time
+            start_time = time.time()
+            from datetime import timedelta
+            start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+            
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute('''
+                    SELECT 
+                        COUNT(*) as total,
+                        SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as errors
+                    FROM activity_logs 
+                    WHERE DATE(timestamp) >= ?
+                ''', (start_date,))
+                row = cursor.fetchone()
+                total_activities = row['total'] or 0
+                total_errors = row['errors'] or 0
+                error_rate = round((total_errors / max(total_activities, 1)) * 100, 2)
+                
+                cursor.execute('''
+                    SELECT activity_type, COUNT(*) as count
+                    FROM activity_logs 
+                    WHERE success = 0 
+                      AND DATE(timestamp) >= ?
+                    GROUP BY activity_type
+                    ORDER BY count DESC
+                    LIMIT 5
+                ''', (start_date,))
+                common_errors = {row['activity_type']: row['count'] for row in cursor.fetchall()}
+                
+                query_time = int((time.time() - start_time) * 1000)
+                logger.debug(f"Error rate stats query completed in {query_time}ms")
+                
+                return {
+                    'total_errors': total_errors,
+                    'error_rate': error_rate,
+                    'common_errors': common_errors,
+                    'total_activities': total_activities,
+                    'period_days': days
+                }
+        except Exception as e:
+            logger.error(f"Error getting error rate stats: {e}")
+            return {
+                'total_errors': 0,
+                'error_rate': 0,
+                'common_errors': {},
+                'total_activities': 0,
+                'period_days': days
+            }
+    
+    def get_broadcast_stats(self) -> Dict:
+        """
+        Get broadcast performance from broadcast_logs
+        
+        Returns:
+            Dictionary with broadcast statistics including:
+            - total_broadcasts: Total broadcasts sent
+            - total_sent: Total messages delivered
+            - avg_success_rate: Average delivery success rate
+            - total_failed: Total failed deliveries
+        """
+        try:
+            import time
+            start_time = time.time()
+            
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute('''
+                    SELECT 
+                        COUNT(*) as total_broadcasts,
+                        SUM(sent_count) as total_sent,
+                        SUM(failed_count) as total_failed,
+                        SUM(total_targets) as total_targets
+                    FROM broadcast_logs
+                ''')
+                row = cursor.fetchone()
+                
+                total_broadcasts = row['total_broadcasts'] or 0
+                total_sent = row['total_sent'] or 0
+                total_failed = row['total_failed'] or 0
+                total_targets = row['total_targets'] or 0
+                
+                avg_success_rate = round((total_sent / max(total_targets, 1)) * 100, 1)
+                
+                cursor.execute('''
+                    SELECT admin_id, COUNT(*) as count
+                    FROM broadcast_logs
+                    GROUP BY admin_id
+                    ORDER BY count DESC
+                    LIMIT 5
+                ''')
+                top_broadcasters = {row['admin_id']: row['count'] for row in cursor.fetchall()}
+                
+                query_time = int((time.time() - start_time) * 1000)
+                logger.debug(f"Broadcast stats query completed in {query_time}ms")
+                
+                return {
+                    'total_broadcasts': total_broadcasts,
+                    'total_sent': total_sent,
+                    'total_failed': total_failed,
+                    'avg_success_rate': avg_success_rate,
+                    'total_targets': total_targets,
+                    'top_broadcasters': top_broadcasters
+                }
+        except Exception as e:
+            logger.error(f"Error getting broadcast stats: {e}")
+            return {
+                'total_broadcasts': 0,
+                'total_sent': 0,
+                'total_failed': 0,
+                'avg_success_rate': 0,
+                'total_targets': 0,
+                'top_broadcasters': {}
+            }
+    
+    def get_response_time_stats(self, days: int = 7) -> Dict[str, float]:
+        """
+        Get average response times by command for last N days
+        
+        Args:
+            days: Number of days to look back (default: 7)
+            
+        Returns:
+            Dictionary with command names and their average response times in milliseconds
+        """
+        try:
+            import time
+            start_time = time.time()
+            from datetime import timedelta
+            start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+            
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT 
+                        command, 
+                        AVG(response_time_ms) as avg_time,
+                        COUNT(*) as count
+                    FROM activity_logs 
+                    WHERE command IS NOT NULL 
+                      AND response_time_ms IS NOT NULL
+                      AND DATE(timestamp) >= ?
+                    GROUP BY command
+                    ORDER BY avg_time DESC
+                ''', (start_date,))
+                
+                stats = {row['command']: round(row['avg_time'], 2) for row in cursor.fetchall()}
+                
+                query_time = int((time.time() - start_time) * 1000)
+                logger.debug(f"Response time stats query completed in {query_time}ms")
+                return stats
+        except Exception as e:
+            logger.error(f"Error getting response time stats: {e}")
+            return {}
+    
+    def get_user_quiz_stats_realtime(self, user_id: int) -> Optional[Dict]:
+        """
+        Get user's quiz statistics from database in real-time
+        
+        Args:
+            user_id: User ID to get stats for
+            
+        Returns:
+            Dictionary with user quiz statistics including:
+            - total_quizzes: Total quizzes attempted
+            - correct_answers: Number of correct answers
+            - success_rate: Percentage of correct answers
+            - streak: Current streak (calculated from recent activity)
+            - today_quizzes: Quizzes attempted today
+            - week_quizzes: Quizzes attempted this week
+        """
+        try:
+            import time
+            start_time = time.time()
+            from datetime import timedelta
+            
+            today = datetime.now().strftime('%Y-%m-%d')
+            week_start = (datetime.now() - timedelta(days=datetime.now().weekday())).strftime('%Y-%m-%d')
+            
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute('''
+                    SELECT 
+                        current_score,
+                        total_quizzes,
+                        correct_answers,
+                        wrong_answers,
+                        success_rate
+                    FROM users 
+                    WHERE user_id = ?
+                ''', (user_id,))
+                user_row = cursor.fetchone()
+                
+                if not user_row:
+                    return None
+                
+                cursor.execute('''
+                    SELECT COUNT(*) as count
+                    FROM quiz_history
+                    WHERE user_id = ? 
+                      AND DATE(answered_at) = ?
+                ''', (user_id, today))
+                today_quizzes = cursor.fetchone()['count']
+                
+                cursor.execute('''
+                    SELECT COUNT(*) as count
+                    FROM quiz_history
+                    WHERE user_id = ? 
+                      AND DATE(answered_at) >= ?
+                ''', (user_id, week_start))
+                week_quizzes = cursor.fetchone()['count']
+                
+                cursor.execute('''
+                    SELECT is_correct, answered_at
+                    FROM quiz_history
+                    WHERE user_id = ?
+                    ORDER BY answered_at DESC
+                    LIMIT 50
+                ''', (user_id,))
+                recent_answers = cursor.fetchall()
+                
+                streak = 0
+                for answer in recent_answers:
+                    if answer['is_correct']:
+                        streak += 1
+                    else:
+                        break
+                
+                query_time = int((time.time() - start_time) * 1000)
+                logger.debug(f"User quiz stats query completed in {query_time}ms for user {user_id}")
+                
+                return {
+                    'user_id': user_id,
+                    'current_score': user_row['current_score'],
+                    'total_quizzes': user_row['total_quizzes'],
+                    'correct_answers': user_row['correct_answers'],
+                    'wrong_answers': user_row['wrong_answers'],
+                    'success_rate': round(user_row['success_rate'], 1),
+                    'streak': streak,
+                    'today_quizzes': today_quizzes,
+                    'week_quizzes': week_quizzes
+                }
+        except Exception as e:
+            logger.error(f"Error getting user quiz stats for {user_id}: {e}")
+            return None
+    
+    def get_leaderboard_realtime(self, limit: int = 10) -> List[Dict]:
+        """
+        Get leaderboard from database in real-time
+        
+        Args:
+            limit: Number of top users to return (default: 10)
+            
+        Returns:
+            List of dictionaries with user leaderboard data
+        """
+        try:
+            import time
+            start_time = time.time()
+            
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT 
+                        u.user_id,
+                        u.username,
+                        u.first_name,
+                        u.last_name,
+                        u.current_score,
+                        u.total_quizzes,
+                        u.correct_answers,
+                        u.wrong_answers,
+                        u.success_rate,
+                        u.last_activity_date
+                    FROM users u
+                    WHERE u.total_quizzes > 0
+                    ORDER BY u.current_score DESC, u.success_rate DESC, u.total_quizzes DESC
+                    LIMIT ?
+                ''', (limit,))
+                
+                leaderboard = []
+                for row in cursor.fetchall():
+                    username = row['username'] or row['first_name'] or f"User {row['user_id']}"
+                    leaderboard.append({
+                        'user_id': row['user_id'],
+                        'username': username,
+                        'score': row['current_score'],
+                        'total_quizzes': row['total_quizzes'],
+                        'correct_answers': row['correct_answers'],
+                        'wrong_answers': row['wrong_answers'],
+                        'accuracy': round(row['success_rate'], 1),
+                        'last_active': row['last_activity_date']
+                    })
+                
+                query_time = int((time.time() - start_time) * 1000)
+                logger.debug(f"Leaderboard query completed in {query_time}ms")
+                return leaderboard
+        except Exception as e:
+            logger.error(f"Error getting leaderboard: {e}")
+            return []
+    
+    def log_performance_metric(self, metric_type: str, value: float, metric_name: str = None, 
+                              unit: str = None, details: dict = None):
+        """
+        Log performance metric in real-time
+        
+        Args:
+            metric_type: Type of metric ('response_time', 'api_call', 'error_rate', 'memory_usage', 'uptime')
+            value: Numeric value of the metric
+            metric_name: Optional name/identifier (e.g., '/start', 'telegram_send_message')
+            unit: Optional unit ('ms', 'bytes', 'MB', 'percent', 'count')
+            details: Optional JSON details for extra context
+        """
+        try:
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            details_json = json.dumps(details) if details else None
+            
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT INTO performance_metrics (timestamp, metric_type, metric_name, value, unit, details)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (timestamp, metric_type, metric_name, value, unit, details_json))
+            
+        except Exception as e:
+            logger.debug(f"Error logging performance metric (non-critical): {e}")
+    
+    def get_performance_summary(self, hours: int = 24) -> Dict:
+        """
+        Get performance summary for dashboard
+        
+        Args:
+            hours: Number of hours to look back (default: 24)
+            
+        Returns:
+            Dictionary with performance metrics including:
+            - avg_response_time: Average response time in ms
+            - total_api_calls: Total API calls made
+            - error_rate: Error rate percentage
+            - uptime_percent: Uptime percentage
+            - memory_usage_mb: Current/average memory usage
+        """
+        try:
+            from datetime import timedelta
+            start_datetime = datetime.now() - timedelta(hours=hours)
+            start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
+            
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute('''
+                    SELECT AVG(value) as avg_time
+                    FROM performance_metrics
+                    WHERE metric_type = 'response_time'
+                      AND timestamp >= ?
+                ''', (start_timestamp,))
+                row = cursor.fetchone()
+                avg_response_time = round(row['avg_time'], 2) if row and row['avg_time'] else 0
+                
+                cursor.execute('''
+                    SELECT SUM(value) as total_calls
+                    FROM performance_metrics
+                    WHERE metric_type = 'api_call'
+                      AND timestamp >= ?
+                ''', (start_timestamp,))
+                row = cursor.fetchone()
+                total_api_calls = int(row['total_calls']) if row and row['total_calls'] else 0
+                
+                cursor.execute('''
+                    SELECT 
+                        SUM(CASE WHEN metric_type = 'error' THEN value ELSE 0 END) as errors,
+                        COUNT(*) as total_operations
+                    FROM performance_metrics
+                    WHERE metric_type IN ('error', 'success')
+                      AND timestamp >= ?
+                ''', (start_timestamp,))
+                row = cursor.fetchone()
+                errors = row['errors'] if row and row['errors'] else 0
+                total_ops = row['total_operations'] if row and row['total_operations'] else 0
+                error_rate = round((errors / max(total_ops, 1)) * 100, 2)
+                
+                cursor.execute('''
+                    SELECT value, timestamp
+                    FROM performance_metrics
+                    WHERE metric_type = 'memory_usage'
+                      AND timestamp >= ?
+                    ORDER BY timestamp DESC
+                    LIMIT 1
+                ''', (start_timestamp,))
+                row = cursor.fetchone()
+                memory_usage_mb = round(row['value'], 2) if row and row['value'] else 0
+                
+                cursor.execute('''
+                    SELECT AVG(value) as avg_mem
+                    FROM performance_metrics
+                    WHERE metric_type = 'memory_usage'
+                      AND timestamp >= ?
+                ''', (start_timestamp,))
+                row = cursor.fetchone()
+                avg_memory_mb = round(row['avg_mem'], 2) if row and row['avg_mem'] else 0
+                
+                uptime_percent = 100.0
+                
+                return {
+                    'avg_response_time': avg_response_time,
+                    'total_api_calls': total_api_calls,
+                    'error_rate': error_rate,
+                    'uptime_percent': uptime_percent,
+                    'memory_usage_mb': memory_usage_mb,
+                    'avg_memory_mb': avg_memory_mb,
+                    'period_hours': hours
+                }
+        except Exception as e:
+            logger.error(f"Error getting performance summary: {e}")
+            return {
+                'avg_response_time': 0,
+                'total_api_calls': 0,
+                'error_rate': 0,
+                'uptime_percent': 0,
+                'memory_usage_mb': 0,
+                'avg_memory_mb': 0,
+                'period_hours': hours
+            }
+    
+    def get_response_time_trends(self, hours: int = 24) -> List[Dict]:
+        """
+        Get response time trends by hour
+        
+        Args:
+            hours: Number of hours to look back (default: 24)
+            
+        Returns:
+            List of dictionaries with hour and avg_response_time
+        """
+        try:
+            from datetime import timedelta
+            start_datetime = datetime.now() - timedelta(hours=hours)
+            start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
+            
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT 
+                        strftime('%Y-%m-%d %H:00:00', timestamp) as hour,
+                        AVG(value) as avg_response_time,
+                        COUNT(*) as count
+                    FROM performance_metrics
+                    WHERE metric_type = 'response_time'
+                      AND timestamp >= ?
+                    GROUP BY hour
+                    ORDER BY hour DESC
+                ''', (start_timestamp,))
+                
+                return [{'hour': row['hour'], 
+                        'avg_response_time': round(row['avg_response_time'], 2),
+                        'count': row['count']} 
+                       for row in cursor.fetchall()]
+        except Exception as e:
+            logger.error(f"Error getting response time trends: {e}")
+            return []
+    
+    def get_api_call_counts(self, hours: int = 24) -> Dict:
+        """
+        Get API call statistics
+        
+        Args:
+            hours: Number of hours to look back (default: 24)
+            
+        Returns:
+            Dictionary with API call counts by metric_name
+        """
+        try:
+            from datetime import timedelta
+            start_datetime = datetime.now() - timedelta(hours=hours)
+            start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
+            
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT 
+                        metric_name,
+                        SUM(value) as total_calls
+                    FROM performance_metrics
+                    WHERE metric_type = 'api_call'
+                      AND timestamp >= ?
+                    GROUP BY metric_name
+                    ORDER BY total_calls DESC
+                ''', (start_timestamp,))
+                
+                return {row['metric_name']: int(row['total_calls']) for row in cursor.fetchall()}
+        except Exception as e:
+            logger.error(f"Error getting API call counts: {e}")
+            return {}
+    
+    def get_memory_usage_history(self, hours: int = 24) -> List[Dict]:
+        """
+        Get memory usage over time
+        
+        Args:
+            hours: Number of hours to look back (default: 24)
+            
+        Returns:
+            List of dictionaries with timestamp and memory_usage_mb
+        """
+        try:
+            from datetime import timedelta
+            start_datetime = datetime.now() - timedelta(hours=hours)
+            start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
+            
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT 
+                        timestamp,
+                        value as memory_usage_mb
+                    FROM performance_metrics
+                    WHERE metric_type = 'memory_usage'
+                      AND timestamp >= ?
+                    ORDER BY timestamp ASC
+                ''', (start_timestamp,))
+                
+                return [{'timestamp': row['timestamp'], 
+                        'memory_usage_mb': round(row['memory_usage_mb'], 2)} 
+                       for row in cursor.fetchall()]
+        except Exception as e:
+            logger.error(f"Error getting memory usage history: {e}")
+            return []
+    
+    def cleanup_old_performance_metrics(self, days: int = 7) -> int:
+        """
+        Clean up performance metrics older than specified days
+        
+        Args:
+            days: Delete metrics older than this many days (default: 7)
+            
+        Returns:
+            Number of metrics deleted
+        """
+        try:
+            from datetime import timedelta
+            cutoff_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+            
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    DELETE FROM performance_metrics 
+                    WHERE DATE(timestamp) < ?
+                ''', (cutoff_date,))
+                
+                deleted_count = cursor.rowcount
+                logger.info(f"Cleaned up {deleted_count} performance metrics older than {days} days")
+                return deleted_count
+        except Exception as e:
+            logger.error(f"Error cleaning up old performance metrics: {e}")
+            return 0
+    
+    def get_trending_commands(self, days: int = 7, limit: int = 10) -> List[Dict]:
+        """
+        Get most used commands in the last N days
+        
+        Args:
+            days: Number of days to look back (default: 7)
+            limit: Maximum number of commands to return (default: 10)
+            
+        Returns:
+            List of dictionaries with command_name and count
+        """
+        try:
+            from datetime import timedelta
+            start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+            
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT 
+                        details,
+                        COUNT(*) as count
+                    FROM activity_logs
+                    WHERE activity_type = 'command'
+                      AND DATE(timestamp) >= ?
+                    GROUP BY details
+                    ORDER BY count DESC
+                    LIMIT ?
+                ''', (start_date, limit))
+                
+                trending = []
+                for row in cursor.fetchall():
+                    try:
+                        details = json.loads(row['details']) if row['details'] else {}
+                        command_name = details.get('command', 'unknown')
+                        trending.append({
+                            'command': command_name,
+                            'count': row['count']
+                        })
+                    except:
+                        continue
+                
+                logger.debug(f"Retrieved {len(trending)} trending commands for last {days} days")
+                return trending
+        except Exception as e:
+            logger.error(f"Error getting trending commands: {e}")
+            return []
+    
+    def get_active_users_count(self, period: str = 'today') -> int:
+        """
+        Get count of active users for a specific time period
+        
+        Args:
+            period: Time period - 'today', 'week', 'month' (default: 'today')
+            
+        Returns:
+            Count of active users
+        """
+        try:
+            from datetime import timedelta
+            
+            if period == 'today':
+                start_date = datetime.now().strftime('%Y-%m-%d')
+            elif period == 'week':
+                start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+            elif period == 'month':
+                start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+            else:
+                start_date = datetime.now().strftime('%Y-%m-%d')
+            
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT COUNT(DISTINCT user_id) as count
+                    FROM activity_logs
+                    WHERE user_id IS NOT NULL
+                      AND DATE(timestamp) >= ?
+                ''', (start_date,))
+                
+                row = cursor.fetchone()
+                count = row['count'] if row else 0
+                logger.debug(f"Active users {period}: {count}")
+                return count
+        except Exception as e:
+            logger.error(f"Error getting active users count for {period}: {e}")
+            return 0
+    
+    def get_new_users(self, days: int = 7) -> List[Dict]:
+        """
+        Get users who joined in the last N days
+        
+        Args:
+            days: Number of days to look back (default: 7)
+            
+        Returns:
+            List of user dictionaries
+        """
+        try:
+            from datetime import timedelta
+            start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+            
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT * FROM users
+                    WHERE DATE(joined_at) >= ?
+                    ORDER BY joined_at DESC
+                ''', (start_date,))
+                
+                users = [dict(row) for row in cursor.fetchall()]
+                logger.debug(f"Found {len(users)} new users in last {days} days")
+                return users
+        except Exception as e:
+            logger.error(f"Error getting new users: {e}")
+            return []
+    
+    def get_most_active_users(self, limit: int = 10, days: int = 30) -> List[Dict]:
+        """
+        Get most active users based on recent activity
+        
+        Args:
+            limit: Maximum number of users to return (default: 10)
+            days: Number of days to look back (default: 30)
+            
+        Returns:
+            List of user dictionaries with activity counts
+        """
+        try:
+            from datetime import timedelta
+            start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+            
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT 
+                        u.user_id,
+                        u.username,
+                        u.first_name,
+                        u.current_score,
+                        u.total_quizzes,
+                        u.correct_answers,
+                        COUNT(a.id) as activity_count
+                    FROM users u
+                    LEFT JOIN activity_logs a ON u.user_id = a.user_id
+                      AND DATE(a.timestamp) >= ?
+                    WHERE u.total_quizzes > 0
+                    GROUP BY u.user_id
+                    ORDER BY activity_count DESC, u.total_quizzes DESC
+                    LIMIT ?
+                ''', (start_date, limit))
+                
+                users = []
+                for row in cursor.fetchall():
+                    users.append({
+                        'user_id': row['user_id'],
+                        'username': row['username'],
+                        'first_name': row['first_name'],
+                        'current_score': row['current_score'],
+                        'total_quizzes': row['total_quizzes'],
+                        'correct_answers': row['correct_answers'],
+                        'activity_count': row['activity_count']
+                    })
+                
+                logger.debug(f"Retrieved {len(users)} most active users")
+                return users
+        except Exception as e:
+            logger.error(f"Error getting most active users: {e}")
+            return []
+    
+    def get_quiz_stats_by_period(self, period: str = 'today') -> Dict:
+        """
+        Get quiz statistics for a specific time period
+        
+        Args:
+            period: Time period - 'today', 'week', 'month', 'all' (default: 'today')
+            
+        Returns:
+            Dictionary with quiz statistics
+        """
+        try:
+            from datetime import timedelta
+            
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                if period == 'all':
+                    cursor.execute('''
+                        SELECT 
+                            COUNT(*) as total_sent,
+                            SUM(CASE WHEN activity_type = 'quiz_answered' THEN 1 ELSE 0 END) as total_answered
+                        FROM activity_logs
+                        WHERE activity_type IN ('quiz_sent', 'quiz_answered')
+                    ''')
+                else:
+                    if period == 'today':
+                        start_date = datetime.now().strftime('%Y-%m-%d')
+                    elif period == 'week':
+                        start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+                    elif period == 'month':
+                        start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+                    else:
+                        start_date = datetime.now().strftime('%Y-%m-%d')
+                    
+                    cursor.execute('''
+                        SELECT 
+                            COUNT(*) as total_sent,
+                            SUM(CASE WHEN activity_type = 'quiz_answered' THEN 1 ELSE 0 END) as total_answered
+                        FROM activity_logs
+                        WHERE activity_type IN ('quiz_sent', 'quiz_answered')
+                          AND DATE(timestamp) >= ?
+                    ''', (start_date,))
+                
+                row = cursor.fetchone()
+                total_sent = row['total_sent'] if row and row['total_sent'] else 0
+                total_answered = row['total_answered'] if row and row['total_answered'] else 0
+                
+                cursor.execute('''
+                    SELECT 
+                        SUM(correct_answers) as total_correct,
+                        SUM(total_quizzes) as total_attempts
+                    FROM users
+                ''')
+                
+                row = cursor.fetchone()
+                total_correct = row['total_correct'] if row and row['total_correct'] else 0
+                total_attempts = row['total_attempts'] if row and row['total_attempts'] else 1
+                success_rate = round((total_correct / max(total_attempts, 1)) * 100, 2)
+                
+                stats = {
+                    'quizzes_sent': total_sent,
+                    'quizzes_answered': total_answered,
+                    'success_rate': success_rate,
+                    'period': period
+                }
+                
+                logger.debug(f"Quiz stats for {period}: {stats}")
+                return stats
+        except Exception as e:
+            logger.error(f"Error getting quiz stats for {period}: {e}")
+            return {
+                'quizzes_sent': 0,
+                'quizzes_answered': 0,
+                'success_rate': 0,
+                'period': period
+            }
+    
+    @staticmethod
+    def format_relative_time(timestamp_str: str) -> str:
+        """
+        Format timestamp as relative time (e.g., "5 min ago", "2 hours ago")
+        
+        Args:
+            timestamp_str: Timestamp string in ISO format
+            
+        Returns:
+            Formatted relative time string
+        """
+        try:
+            timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+            now = datetime.now()
+            
+            if timestamp.tzinfo is not None:
+                from datetime import timezone
+                now = datetime.now(timezone.utc)
+            
+            diff = now - timestamp
+            seconds = diff.total_seconds()
+            
+            if seconds < 60:
+                return f"{int(seconds)}s ago"
+            elif seconds < 3600:
+                return f"{int(seconds / 60)}m ago"
+            elif seconds < 86400:
+                return f"{int(seconds / 3600)}h ago"
+            elif seconds < 604800:
+                return f"{int(seconds / 86400)}d ago"
+            else:
+                return timestamp.strftime('%Y-%m-%d')
+        except Exception as e:
+            logger.error(f"Error formatting relative time: {e}")
+            return "recently"

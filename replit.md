@@ -55,6 +55,105 @@ The system utilizes a **SQLite database** (`data/quiz_bot.db`) for robust data m
 
 # Recent Changes
 
+## Version 2.4 - October 1, 2025 (LATEST)
+
+### 🎯 Professional Real-Time Tracking System (NEW)
+**Complete activity monitoring and analytics platform:**
+
+**1. Activity Logs Database**
+- New `activity_logs` table tracks ALL bot activities in real-time
+- Activity types: command, quiz_sent, quiz_answer, quiz_deleted, group_join, user_join, error, api_call
+- Full context: user_id, chat_id, username, chat_title, command, details (JSON), timestamp
+- Response time tracking for performance monitoring
+- Comprehensive indexes for efficient queries
+
+**2. Real-Time User Interaction Tracking**
+- Every command (24+) logged immediately with full context
+- All bot_handlers.py commands: /start, /quiz, /help, /mystats, /leaderboard, /stats, etc.
+- All dev_commands.py commands: /broadcast, /delquiz, /dev, /stats, /allreload, /performance
+- Response time measurement for each command
+- Error tracking with detailed error messages
+
+**3. Comprehensive Quiz Tracking**
+- Every quiz sent logged with: question_id, chat_type, auto_sent flag, scheduled flag
+- Every quiz answer logged with: correctness, selected_answer, user context
+- Quiz deletion events tracked separately (activity_type='quiz_deleted')
+- Full lifecycle tracking from send → answer → delete
+
+**4. Real-Time Analytics System**
+- 9 new analytics methods using live database queries:
+  * get_command_usage_stats() - Command usage tracking
+  * get_quiz_performance_stats() - Quiz metrics with success rates
+  * get_user_engagement_stats() - Active users today/week/month
+  * get_hourly_activity_stats() - Activity breakdown by hour
+  * get_error_rate_stats() - Error tracking and common errors
+  * get_broadcast_stats() - Broadcast performance metrics
+  * get_response_time_stats() - Average response times by command
+  * get_user_quiz_stats_realtime() - Live user statistics
+  * get_leaderboard_realtime() - Real-time rankings
+- Eliminated JSON file dependencies - 100% database-driven analytics
+
+**5. Performance Metrics Tracking**
+- New `performance_metrics` table for system monitoring
+- Memory usage tracking (every 5 minutes)
+- Response time logging for all commands
+- API call tracking (Telegram API)
+- Error rate monitoring
+- Uptime tracking with bot start time
+- 7-day data retention with automated cleanup
+
+**6. Enhanced Live Dashboard**
+- **/stats Command**: Comprehensive real-time dashboard showing:
+  * User & Group metrics (total users, total groups, active today/week)
+  * Quiz activity (today/week/month with counts)
+  * Performance metrics (avg response time, commands executed, error rate)
+  * Top 5 commands (last 7 days)
+  * Live activity feed (last 10 activities with relative timestamps)
+- **/performance Command**: System performance metrics:
+  * Average response time
+  * Total API calls
+  * Error rate percentage
+  * System uptime
+  * Memory usage (current and average)
+- Real-time updates - all data from live database queries
+- Relative time formatting ("5m ago", "2h ago", "3d ago")
+
+**7. Data Retention & Maintenance**
+- Activity logs: 30-day retention (cleanup at 3 AM daily)
+- Performance metrics: 7-day retention (cleanup at 2 AM daily)
+- Automated database maintenance with scheduled jobs
+- Efficient queries with comprehensive indexing
+
+### 🛠️ Database Schema Updates
+**New Tables:**
+- `activity_logs` - Comprehensive activity tracking (11 columns)
+- `performance_metrics` - System performance monitoring (7 columns)
+
+**New Indexes (9 total):**
+- idx_activity_logs_timestamp
+- idx_activity_logs_type
+- idx_activity_logs_user
+- idx_activity_logs_chat
+- idx_activity_logs_type_time
+- idx_activity_logs_command
+- idx_activity_logs_user_time
+- idx_performance_metrics_timestamp
+- idx_performance_metrics_type_time
+
+**New Scheduled Jobs:**
+- track_memory_usage (every 5 minutes)
+- cleanup_performance_metrics (daily at 2 AM)
+- cleanup_old_activities (daily at 3 AM)
+
+### ✅ Production-Ready Features
+- All logging happens in real-time (immediate on action)
+- Efficient database queries with proper indexes
+- Comprehensive error handling with fallbacks
+- Memory-efficient with automated cleanup
+- Fail-silent performance tracking (doesn't affect bot performance)
+- 100% database-driven (no JSON dependencies)
+- Production-tested and architect-approved
+
 ## Version 2.3 - October 1, 2025
 
 ### 🎯 Auto Quiz System (NEW)
