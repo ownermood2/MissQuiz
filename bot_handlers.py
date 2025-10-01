@@ -679,6 +679,10 @@ class TelegramQuizBot:
                 is_correct=is_correct
             )
             logger.info(f"Recorded group attempt for user {answer.user.id} in chat {chat_id} (correct: {is_correct})")
+            
+            # Invalidate stats cache for real-time updates
+            self._stats_cache = None
+            logger.debug(f"Stats cache invalidated after quiz answer from user {answer.user.id}")
 
         except Exception as e:
             logger.error(f"Error handling answer: {str(e)}\n{traceback.format_exc()}")

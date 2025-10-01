@@ -1551,8 +1551,13 @@ class DatabaseManager:
             start_time = time.time()
             from datetime import timedelta
             
-            today = datetime.now().strftime('%Y-%m-%d')
-            week_start = (datetime.now() - timedelta(days=datetime.now().weekday())).strftime('%Y-%m-%d')
+            # Use UTC datetime ranges for proper index usage
+            now = datetime.utcnow()
+            today_start = datetime(now.year, now.month, now.day, 0, 0, 0).strftime('%Y-%m-%d %H:%M:%S')
+            today_end = datetime(now.year, now.month, now.day, 23, 59, 59).strftime('%Y-%m-%d %H:%M:%S')
+            
+            # Get start of week (Monday)
+            week_start = (datetime(now.year, now.month, now.day, 0, 0, 0) - timedelta(days=now.weekday())).strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
                 cursor = conn.cursor()
@@ -1572,19 +1577,22 @@ class DatabaseManager:
                 if not user_row:
                     return None
                 
+                # Use timestamp range query for better index usage
                 cursor.execute('''
                     SELECT COUNT(*) as count
                     FROM quiz_history
                     WHERE user_id = ? 
-                      AND DATE(answered_at) = ?
-                ''', (user_id, today))
+                      AND answered_at >= ? 
+                      AND answered_at <= ?
+                ''', (user_id, today_start, today_end))
                 today_quizzes = cursor.fetchone()['count']
                 
+                # Use timestamp range query for week
                 cursor.execute('''
                     SELECT COUNT(*) as count
                     FROM quiz_history
                     WHERE user_id = ? 
-                      AND DATE(answered_at) >= ?
+                      AND answered_at >= ?
                 ''', (user_id, week_start))
                 week_quizzes = cursor.fetchone()['count']
                 
