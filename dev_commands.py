@@ -681,26 +681,26 @@ class DeveloperCommands:
                 
                 dev_text = "👥 Developer List\n\n"
                 
-                # Get OWNER and WIFU info
+                # Get OWNER and WIFU info with clickable profile links
                 owner_info = []
                 wifu_info = []
                 
                 try:
                     # Fetch OWNER info
                     owner_user = await context.bot.get_chat(config.OWNER_ID)
-                    owner_username = f"@{owner_user.username}" if hasattr(owner_user, 'username') and owner_user.username else "OWNER"
-                    owner_info.append(owner_username)
+                    owner_name = f"[{owner_user.first_name}](tg://user?id={config.OWNER_ID})"
+                    owner_info.append(f"{owner_name} (ID: {config.OWNER_ID})")
                 except:
-                    owner_info.append("@CV_OWNER")
+                    owner_info.append(f"@CV_OWNER (ID: {config.OWNER_ID})")
                 
                 # Fetch WIFU info if exists
                 if config.WIFU_ID:
                     try:
                         wifu_user = await context.bot.get_chat(config.WIFU_ID)
-                        wifu_username = f"@{wifu_user.username}" if hasattr(wifu_user, 'username') and wifu_user.username else "WIFU"
-                        wifu_info.append(wifu_username)
+                        wifu_name = f"[{wifu_user.first_name}](tg://user?id={config.WIFU_ID})"
+                        wifu_info.append(f"{wifu_name} (ID: {config.WIFU_ID})")
                     except:
-                        wifu_info.append("WIFU")
+                        wifu_info.append(f"WIFU (ID: {config.WIFU_ID})")
                 
                 # Build owner/wifu line
                 if wifu_info:
@@ -711,15 +711,21 @@ class DeveloperCommands:
                 dev_text += "---\n"
                 dev_text += "🛡 Admin List\n\n"
                 
-                # Show other developers
+                # Show other developers with clickable profile links
                 if not developers:
                     dev_text += "No additional admins configured"
                 else:
                     for dev in developers:
-                        username = f"@{dev.get('username')}" if dev.get('username') else dev.get('first_name') or f"User{dev['user_id']}"
-                        dev_text += f"▫️ {username} (ID: {dev['user_id']})\n"
+                        try:
+                            dev_user = await context.bot.get_chat(dev['user_id'])
+                            dev_name = f"[{dev_user.first_name}](tg://user?id={dev['user_id']})"
+                            dev_text += f"▫️ {dev_name} (ID: {dev['user_id']})\n"
+                        except:
+                            # Fallback if can't fetch user info
+                            username = f"@{dev.get('username')}" if dev.get('username') else dev.get('first_name') or f"User{dev['user_id']}"
+                            dev_text += f"▫️ {username} (ID: {dev['user_id']})\n"
                 
-                reply = await update.message.reply_text(dev_text)
+                reply = await update.message.reply_text(dev_text, parse_mode=ParseMode.MARKDOWN)
                 await self.auto_clean_message(update.message, reply)
             
             else:
