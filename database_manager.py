@@ -79,6 +79,11 @@ class DatabaseManager:
                 cursor.execute('ALTER TABLE users ADD COLUMN has_pm_access INTEGER DEFAULT 0')
                 logger.info("Added has_pm_access column to users table")
             
+            # Migration: Add last_quiz_message_id column if it doesn't exist
+            if 'last_quiz_message_id' not in columns:
+                cursor.execute('ALTER TABLE users ADD COLUMN last_quiz_message_id INTEGER')
+                logger.info("Added last_quiz_message_id column to users table")
+            
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS developers (
                     user_id INTEGER PRIMARY KEY,
@@ -98,10 +103,17 @@ class DatabaseManager:
                     is_active INTEGER DEFAULT 1,
                     last_activity_date TEXT,
                     total_quizzes_sent INTEGER DEFAULT 0,
+                    last_quiz_message_id INTEGER,
                     joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
+            
+            cursor.execute("PRAGMA table_info(groups)")
+            group_columns = [column[1] for column in cursor.fetchall()]
+            if 'last_quiz_message_id' not in group_columns:
+                cursor.execute('ALTER TABLE groups ADD COLUMN last_quiz_message_id INTEGER')
+                logger.info("Added last_quiz_message_id column to groups table")
             
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS user_daily_activity (
@@ -139,6 +151,29 @@ class DatabaseManager:
                     sender_id INTEGER NOT NULL,
                     message_data TEXT NOT NULL,
                     sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS quiz_stats (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    date TEXT NOT NULL,
+                    quizzes_sent_count INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(date)
+                )
+            ''')
+            
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS broadcast_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    admin_id INTEGER NOT NULL,
+                    message_text TEXT,
+                    total_targets INTEGER DEFAULT 0,
+                    sent_count INTEGER DEFAULT 0,
+                    failed_count INTEGER DEFAULT 0,
+                    skipped_count INTEGER DEFAULT 0,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
             
@@ -598,3 +633,145 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error removing inactive group {chat_id}: {e}")
             return False
+    
+    def update_last_quiz_message(self, chat_id: int, message_id: int):
+        """Store last quiz message ID for a chat (user or group)"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                if chat_id > 0:
+                    cursor.execute('''
+                        UPDATE users 
+                        SET last_quiz_message_id = ?
+                        WHERE user_id = ?
+                    ''', (message_id, chat_id))
+                else:
+                    cursor.execute('''
+                        UPDATE groups 
+                        SET last_quiz_message_id = ?
+                        WHERE chat_id = ?
+                    ''', (message_id, chat_id))
+                
+                logger.debug(f"Updated last quiz message ID for chat {chat_id}: {message_id}")
+        except Exception as e:
+            logger.error(f"Error updating last quiz message for chat {chat_id}: {e}")
+    
+    def get_last_quiz_message(self, chat_id: int) -> Optional[int]:
+        """Get last quiz message ID for a chat (user or group)"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                if chat_id > 0:
+                    cursor.execute('SELECT last_quiz_message_id FROM users WHERE user_id = ?', (chat_id,))
+                else:
+                    cursor.execute('SELECT last_quiz_message_id FROM groups WHERE chat_id = ?', (chat_id,))
+                
+                row = cursor.fetchone()
+                if row and row[0]:
+                    return row[0]
+                return None
+        except Exception as e:
+            logger.error(f"Error getting last quiz message for chat {chat_id}: {e}")
+            return None
+    
+    def increment_quiz_count(self, date: str = None):
+        """Increment quiz count for specific date"""
+        if not date:
+            date = datetime.now().strftime('%Y-%m-%d')
+        
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT INTO quiz_stats (date, quizzes_sent_count)
+                    VALUES (?, 1)
+                    ON CONFLICT(date) DO UPDATE SET
+                        quizzes_sent_count = quizzes_sent_count + 1
+                ''', (date,))
+                logger.debug(f"Incremented quiz count for date {date}")
+        except Exception as e:
+            logger.error(f"Error incrementing quiz count for date {date}: {e}")
+    
+    def get_quiz_stats_today(self) -> int:
+        """Get today's quiz count"""
+        today = datetime.now().strftime('%Y-%m-%d')
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('SELECT quizzes_sent_count FROM quiz_stats WHERE date = ?', (today,))
+                row = cursor.fetchone()
+                return row[0] if row else 0
+        except Exception as e:
+            logger.error(f"Error getting today's quiz stats: {e}")
+            return 0
+    
+    def get_quiz_stats_week(self) -> int:
+        """Get this week's quiz count"""
+        from datetime import timedelta
+        today = datetime.now()
+        week_start = (today - timedelta(days=today.weekday())).strftime('%Y-%m-%d')
+        
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT SUM(quizzes_sent_count) 
+                    FROM quiz_stats 
+                    WHERE date >= ?
+                ''', (week_start,))
+                row = cursor.fetchone()
+                return row[0] if row and row[0] else 0
+        except Exception as e:
+            logger.error(f"Error getting week's quiz stats: {e}")
+            return 0
+    
+    def get_quiz_stats_month(self) -> int:
+        """Get this month's quiz count"""
+        month_start = datetime.now().replace(day=1).strftime('%Y-%m-%d')
+        
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT SUM(quizzes_sent_count) 
+                    FROM quiz_stats 
+                    WHERE date >= ?
+                ''', (month_start,))
+                row = cursor.fetchone()
+                return row[0] if row and row[0] else 0
+        except Exception as e:
+            logger.error(f"Error getting month's quiz stats: {e}")
+            return 0
+    
+    def get_quiz_stats_alltime(self) -> int:
+        """Get all-time quiz count"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('SELECT SUM(quizzes_sent_count) FROM quiz_stats')
+                row = cursor.fetchone()
+                return row[0] if row and row[0] else 0
+        except Exception as e:
+            logger.error(f"Error getting all-time quiz stats: {e}")
+            return 0
+    
+    def get_total_quizzes_sent(self) -> int:
+        """Sum all quiz counts (alias for get_quiz_stats_alltime)"""
+        return self.get_quiz_stats_alltime()
+    
+    def log_broadcast(self, admin_id: int, message_text: str, total_targets: int, 
+                     sent_count: int, failed_count: int, skipped_count: int):
+        """Log broadcast to database for historical tracking"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT INTO broadcast_logs 
+                    (admin_id, message_text, total_targets, sent_count, failed_count, skipped_count)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (admin_id, message_text, total_targets, sent_count, failed_count, skipped_count))
+                logger.info(f"Logged broadcast by admin {admin_id}: {sent_count}/{total_targets} sent")
+        except Exception as e:
+            logger.error(f"Error logging broadcast: {e}")

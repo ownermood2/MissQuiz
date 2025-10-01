@@ -127,17 +127,14 @@ class TelegramQuizBot:
     async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send a quiz to a specific chat using native Telegram quiz format"""
         try:
-            # First, try to delete the last quiz if it exists
-            try:
-                chat_history = self.command_history.get(chat_id, [])
-                if chat_history:
-                    last_quiz = next((cmd for cmd in reversed(chat_history) if cmd.startswith("/quiz_")), None)
-                    if last_quiz:
-                        msg_id = int(last_quiz.split("_")[1])
-                        await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
-                        logger.info(f"Deleted previous quiz message {msg_id} in chat {chat_id}")
-            except Exception as e:
-                logger.warning(f"Failed to delete previous quiz: {e}")
+            # Delete last quiz message if it exists (using database tracking)
+            last_quiz_msg_id = self.db.get_last_quiz_message(chat_id)
+            if last_quiz_msg_id:
+                try:
+                    await context.bot.delete_message(chat_id, last_quiz_msg_id)
+                    logger.info(f"Deleted old quiz message {last_quiz_msg_id} in chat {chat_id}")
+                except Exception as e:
+                    logger.debug(f"Could not delete old quiz message: {e}")
 
             # Get a random question for this specific chat
             question = self.quiz_manager.get_random_question(chat_id)
@@ -157,7 +154,7 @@ class TelegramQuizBot:
             # Send the poll
             message = await context.bot.send_poll(
                 chat_id=chat_id,
-                question=question_text,  # Use cleaned question text
+                question=question_text,
                 options=question['options'],
                 type=Poll.QUIZ,
                 correct_option_id=question['correct_answer'],
@@ -170,12 +167,17 @@ class TelegramQuizBot:
                     'correct_option_id': question['correct_answer'],
                     'user_answers': {},
                     'poll_id': message.poll.id,
-                    'question': question_text,  # Store cleaned question text
+                    'question': question_text,
                     'timestamp': datetime.now().isoformat()
                 }
                 # Store using proper poll ID key
                 context.bot_data[f"poll_{message.poll.id}"] = poll_data
                 logger.info(f"Stored quiz data: poll_id={message.poll.id}, chat_id={chat_id}")
+                
+                # Store new quiz message ID and increment quiz count
+                self.db.update_last_quiz_message(chat_id, message.message_id)
+                self.db.increment_quiz_count()
+                
                 self.command_history[chat_id].append(f"/quiz_{message.message_id}")
 
         except Exception as e:
@@ -350,11 +352,47 @@ class TelegramQuizBot:
                     await self.ensure_group_registered(chat, context)
                     await self.send_welcome_message(chat.id, context)
 
-                    # Schedule first quiz delivery
-                    if await self.check_admin_status(chat.id, context):
-                        await self.send_quiz(chat.id, context)
-                    else:
-                        await self.send_admin_reminder(chat.id, context)
+                    # Auto-send quiz after 5 seconds when added to group
+                    await asyncio.sleep(5)
+                    
+                    last_quiz_msg_id = self.db.get_last_quiz_message(chat.id)
+                    if last_quiz_msg_id:
+                        try:
+                            await context.bot.delete_message(chat.id, last_quiz_msg_id)
+                            logger.info(f"Deleted old quiz message {last_quiz_msg_id} in group {chat.id}")
+                        except Exception as e:
+                            logger.debug(f"Could not delete old quiz message: {e}")
+                    
+                    question = self.quiz_manager.get_random_question(chat.id)
+                    if question:
+                        question_text = question['question'].strip()
+                        if question_text.startswith('/addquiz'):
+                            question_text = question_text[len('/addquiz'):].strip()
+                        
+                        message = await context.bot.send_poll(
+                            chat_id=chat.id,
+                            question=question_text,
+                            options=question['options'],
+                            type=Poll.QUIZ,
+                            correct_option_id=question['correct_answer'],
+                            is_anonymous=False
+                        )
+                        
+                        if message and message.poll:
+                            poll_data = {
+                                'chat_id': chat.id,
+                                'correct_option_id': question['correct_answer'],
+                                'user_answers': {},
+                                'poll_id': message.poll.id,
+                                'question': question_text,
+                                'timestamp': datetime.now().isoformat()
+                            }
+                            context.bot_data[f"poll_{message.poll.id}"] = poll_data
+                            
+                            self.db.update_last_quiz_message(chat.id, message.message_id)
+                            self.db.increment_quiz_count()
+                            
+                            logger.info(f"Auto-sent quiz to group {chat.id} after bot added")
 
                     logger.info(f"Bot added to group {chat.title} ({chat.id})")
 
@@ -532,6 +570,49 @@ We're here to help! 🌟"""
             self.quiz_manager.add_active_chat(chat.id)
             await self.ensure_group_registered(chat, context)
             await self.send_welcome_message(chat.id, context)
+            
+            # Auto-send quiz after 5 seconds in DM
+            if chat.type == 'private':
+                await asyncio.sleep(5)
+                
+                last_quiz_msg_id = self.db.get_last_quiz_message(chat.id)
+                if last_quiz_msg_id:
+                    try:
+                        await context.bot.delete_message(chat.id, last_quiz_msg_id)
+                        logger.info(f"Deleted old quiz message {last_quiz_msg_id} in DM {chat.id}")
+                    except Exception as e:
+                        logger.debug(f"Could not delete old quiz message: {e}")
+                
+                question = self.quiz_manager.get_random_question(chat.id)
+                if question:
+                    question_text = question['question'].strip()
+                    if question_text.startswith('/addquiz'):
+                        question_text = question_text[len('/addquiz'):].strip()
+                    
+                    message = await context.bot.send_poll(
+                        chat_id=chat.id,
+                        question=question_text,
+                        options=question['options'],
+                        type=Poll.QUIZ,
+                        correct_option_id=question['correct_answer'],
+                        is_anonymous=False
+                    )
+                    
+                    if message and message.poll:
+                        poll_data = {
+                            'chat_id': chat.id,
+                            'correct_option_id': question['correct_answer'],
+                            'user_answers': {},
+                            'poll_id': message.poll.id,
+                            'question': question_text,
+                            'timestamp': datetime.now().isoformat()
+                        }
+                        context.bot_data[f"poll_{message.poll.id}"] = poll_data
+                        
+                        self.db.update_last_quiz_message(chat.id, message.message_id)
+                        self.db.increment_quiz_count()
+                        
+                        logger.info(f"Auto-sent quiz to DM {chat.id} after /start")
             
         except Exception as e:
             logger.error(f"Error in start command: {e}")
@@ -1900,17 +1981,14 @@ Use/help to see all commands."""
     async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send a quiz to a specific chat using native Telegram quiz format"""
         try:
-            # First, try to delete the last quiz if it exists
-            try:
-                chat_history = self.command_history.get(chat_id, [])
-                if chat_history:
-                    last_quiz = next((cmd for cmd in reversed(chat_history) if cmd.startswith("/quiz_")), None)
-                    if last_quiz:
-                        msg_id = int(last_quiz.split("_")[1])
-                        await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
-                        logger.info(f"Deleted previous quiz message {msg_id} in chat {chat_id}")
-            except Exception as e:
-                logger.warning(f"Failed to delete previous quiz: {e}")
+            # Delete last quiz message if it exists (using database tracking)
+            last_quiz_msg_id = self.db.get_last_quiz_message(chat_id)
+            if last_quiz_msg_id:
+                try:
+                    await context.bot.delete_message(chat_id, last_quiz_msg_id)
+                    logger.info(f"Deleted old quiz message {last_quiz_msg_id} in chat {chat_id}")
+                except Exception as e:
+                    logger.debug(f"Could not delete old quiz message: {e}")
 
             # Get a random question for this specific chat
             question = self.quiz_manager.get_random_question(chat_id)
@@ -1930,7 +2008,7 @@ Use/help to see all commands."""
             # Send the poll
             message = await context.bot.send_poll(
                 chat_id=chat_id,
-                question=question_text,  # Use cleaned question text
+                question=question_text,
                 options=question['options'],
                 type=Poll.QUIZ,
                 correct_option_id=question['correct_answer'],
@@ -1943,12 +2021,17 @@ Use/help to see all commands."""
                     'correct_option_id': question['correct_answer'],
                     'user_answers': {},
                     'poll_id': message.poll.id,
-                    'question': question_text,  # Store cleaned question text
+                    'question': question_text,
                     'timestamp': datetime.now().isoformat()
                 }
                 # Store using proper poll ID key
                 context.bot_data[f"poll_{message.poll.id}"] = poll_data
                 logger.info(f"Stored quiz data: poll_id={message.poll.id}, chat_id={chat_id}")
+                
+                # Store new quiz message ID and increment quiz count
+                self.db.update_last_quiz_message(chat_id, message.message_id)
+                self.db.increment_quiz_count()
+                
                 self.command_history[chat_id].append(f"/quiz_{message.message_id}")
 
         except Exception as e:

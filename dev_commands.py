@@ -604,27 +604,24 @@ class DeveloperCommands:
             loading = await update.message.reply_text("📊 Loading statistics...")
             
             try:
-                stats = self.db.get_stats_summary()
+                total_groups = len(self.db.get_all_groups())
+                total_users = len(self.db.get_all_users_stats())
                 
-                # Format numbers with K/M suffixes
-                groups_fmt = self.format_number(stats['total_groups'])
-                users_fmt = self.format_number(stats['total_users'])
-                today_fmt = self.format_number(stats['quizzes_today'])
-                week_fmt = self.format_number(stats['quizzes_week'])
-                month_fmt = self.format_number(stats['quizzes_month'])
-                alltime_fmt = self.format_number(stats['quizzes_alltime'])
+                quizzes_today = self.db.get_quiz_stats_today()
+                quizzes_week = self.db.get_quiz_stats_week()
+                quizzes_month = self.db.get_quiz_stats_month()
+                quizzes_alltime = self.db.get_quiz_stats_alltime()
                 
-                stats_text = "🚀 Bot Stats Dashboard\n"
-                stats_text += f"✨ Groups: {groups_fmt} 🌐\n"
-                stats_text += f"🔥 Users: {users_fmt} 🚀\n\n"
-                
-                stats_text += "📊 Quizzes Fired Up!\n"
-                stats_text += f"⚡ Today: {today_fmt}\n"
-                stats_text += f"📆 This Week: {week_fmt}\n"
-                stats_text += f"📈 This Month: {month_fmt}\n"
-                stats_text += f"🏆 All Time: {alltime_fmt}\n\n"
-                
-                stats_text += "💡 Knowledge never sleeps. Neither do we. 😎"
+                stats_text = (
+                    "📊 Bot Statistics\n\n"
+                    f"• Total Groups: {total_groups:,}\n"
+                    f"• Total Users: {total_users:,}\n\n"
+                    f"📝 Total Quizzes Sent\n"
+                    f"• Today: {quizzes_today:,}\n"
+                    f"• This Week: {quizzes_week:,}\n"
+                    f"• This Month: {quizzes_month:,}\n"
+                    f"• All Time: {quizzes_alltime:,}"
+                )
                 
                 # Create interactive buttons
                 keyboard = [
@@ -1215,6 +1212,18 @@ class DeveloperCommands:
             if sent_messages:
                 self.db.save_broadcast(broadcast_id, update.effective_user.id, sent_messages)
                 logger.info(f"Saved broadcast {broadcast_id} to database with {len(sent_messages)} messages")
+            
+            # Log broadcast to database for historical tracking
+            total_targets = len(users) + len(groups)
+            message_text = context.user_data.get('broadcast_message', '')[:500] if broadcast_type == 'text' else f"[{broadcast_type.upper()} BROADCAST]"
+            self.db.log_broadcast(
+                admin_id=update.effective_user.id,
+                message_text=message_text,
+                total_targets=total_targets,
+                sent_count=success_count,
+                failed_count=fail_count,
+                skipped_count=skipped_count
+            )
             
             # Build result message
             result_text = f"✅ Broadcast completed!\n\n"
