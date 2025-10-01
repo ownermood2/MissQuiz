@@ -343,7 +343,6 @@ class TelegramQuizBot:
             self.application.add_handler(CommandHandler("quiz", self.quiz_command))
             self.application.add_handler(CommandHandler("category", self.category))
             self.application.add_handler(CommandHandler("mystats", self.mystats))
-            self.application.add_handler(CommandHandler("groupstats", self.groupstats))
 
             # Developer commands (legacy - keeping existing)
             self.application.add_handler(CommandHandler("addquiz", self.addquiz))
@@ -928,8 +927,7 @@ Here's your complete command guide:
 ➤ /category    📖 Explore quiz topics
 
 📊 𝗦𝘁𝗮𝘁𝘀 & 𝗥𝗮𝗻𝗸𝗶𝗻𝗴𝘀
-➤ /mystats       📈 View your performance
-➤ /groupstats    📊 Group analytics & top performers"""
+➤ /mystats       📈 View your performance"""
 
             # Add developer commands only for developers
             if is_dev:
@@ -1200,138 +1198,6 @@ Ready to begin? Try /quiz now! 🚀"""
             )
             logger.error(f"Error in mystats: {str(e)}\n{traceback.format_exc()}")
             await update.message.reply_text("❌ Error retrieving stats. Please try again.")
-
-    async def groupstats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Show group statistics with proper handling of no data"""
-        start_time = time.time()
-        try:
-            # Log command immediately
-            self.db.log_activity(
-                activity_type='command',
-                user_id=update.effective_user.id,
-                chat_id=update.effective_chat.id,
-                username=update.effective_user.username,
-                chat_title=getattr(update.effective_chat, 'title', None),
-                command='/groupstats',
-                success=True
-            )
-            
-            chat = update.effective_chat
-            if not chat or not chat.type.endswith('group'):
-                await update.message.reply_text("""👥 𝗚𝗿𝗼𝘂𝗽 𝗦𝘁𝗮𝘁𝘀 𝗢𝗻𝗹𝘆
-
-This command works in groups! To use it:
-1️⃣ Add me to your group
-2️⃣ Make me an admin
-3️⃣ Try /groupstats again
-
-🔥 Add me to a group now!""", parse_mode=ParseMode.MARKDOWN)
-                return
-
-            # Send loading message
-            loading_msg = await update.message.reply_text("📊 Loading group stats...")
-
-            try:
-                # Get group stats
-                stats = self.quiz_manager.get_group_leaderboard(chat.id)
-                
-                # Handle case where group has no stats
-                if not stats or not stats.get('leaderboard'):
-                    # Escape special Markdown characters in chat title
-                    escaped_title_welcome = chat.title.replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace('`', '\\`')
-                    welcome_text = f"""👋 Welcome to {escaped_title_welcome}'s Quiz Arena!
-
-📝 No quizzes taken yet in this group.
-To get started:
-• Use /quiz to start your first quiz
-• Invite friends to compete
-• Track group progress here
-
-Ready for a quiz challenge? Try /quiz now! 🎯"""
-                    await loading_msg.edit_text(welcome_text, parse_mode=ParseMode.MARKDOWN)
-                    return
-
-                # Calculate real-time metrics
-                active_now = len([u for u in stats['leaderboard'] if u.get('last_active') == datetime.now().strftime('%Y-%m-%d')])
-                participation_rate = (active_now / len(stats['leaderboard'])) * 100 if stats['leaderboard'] else 0
-
-                # Escape special Markdown characters in chat title
-                escaped_title = chat.title.replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace('`', '\\`')
-                
-                stats_message = f"""📊 𝗚𝗿𝗼𝘂𝗽 𝗦𝘁𝗮𝘁𝘀: {escaped_title}
-══════════════════
-⚡ 𝗥𝗲𝗮𝗹-𝘁𝗶𝗺𝗲 𝗠𝗲𝘁𝗿𝗶𝗰𝘀
-• Active Now: {active_now} users
-• Participation: {participation_rate:.1f}%
-• Group Score: {stats.get('total_correct', 0)} points
-
-📈 𝗔𝗰𝘁𝗶𝘃𝗶𝘁𝘆 𝗧𝗿𝗮𝗰𝗸𝗶𝗻𝗴
-• Today: {stats.get('active_users', {}).get('today', 0)} users
-• This Week: {stats.get('active_users', {}).get('week', 0)} users
-• Total Members: {stats.get('active_users', {}).get('total', 0)} users
-
-🎯 𝗚𝗿𝗼𝘂𝗽 𝗣𝗲𝗿𝗳𝗼𝗿𝗺𝗮𝗻𝗰𝗲
-• Total Quizzes: {stats.get('total_quizzes', 0)}
-• Success Rate: {stats.get('group_accuracy', 0)}%
-• Active Streak: {stats.get('group_streak', 0)} days"""
-
-                # Add top performers if any exist
-                if stats['leaderboard']:
-                    stats_message += "\n\n🏆 𝗧𝗼𝗽 𝗣𝗲𝗿𝗳𝗼𝗿𝗺𝗲𝗿𝘀"
-                    medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
-                    for rank, entry in enumerate(stats['leaderboard'][:5], 1):
-                        try:
-                            user = await context.bot.get_chat(entry['user_id'])
-                            username = user.first_name or user.username or "Anonymous"
-                            # Escape special Markdown characters in username
-                            username = username.replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace('`', '\\`')
-                            activity_indicator = "🟢" if entry.get('last_active') == datetime.now().strftime('%Y-%m-%d') else "⚪"
-                            
-                            stats_message += f"""
-
-{medals[rank-1]} {username} {activity_indicator}
-• Score: {entry.get('total_attempts', 0)} ({entry.get('accuracy', 0)}%)
-• Streak: {entry.get('current_streak', 0)} days
-• Last: {entry.get('last_active', 'Never')}"""
-                        except Exception as e:
-                            logger.error(f"Error getting user info: {e}")
-                            continue
-
-                stats_message += """
-══════════════════
-🔄 Live updates • 🟢 Active today"""
-
-                await loading_msg.edit_text(
-                    stats_message,
-                    parse_mode=ParseMode.MARKDOWN
-                )
-                response_time = int((time.time() - start_time) * 1000)
-                logger.info(f"Showed group stats in chat {chat.id} in {response_time}ms")
-                
-                self.db.log_performance_metric(
-                    metric_type='response_time',
-                    metric_name='/groupstats',
-                    value=response_time,
-                    unit='ms'
-                )
-
-            except Exception as e:
-                logger.error(f"Error displaying group stats: {e}")
-                await loading_msg.edit_text("❌ Error displaying group stats. Please try again.")
-
-        except Exception as e:
-            response_time = int((time.time() - start_time) * 1000)
-            self.db.log_activity(
-                activity_type='error',
-                user_id=update.effective_user.id if update.effective_user else None,
-                chat_id=update.effective_chat.id,
-                command='/groupstats',
-                details={'error': str(e)},
-                success=False,
-                response_time_ms=response_time
-            )
-            logger.error(f"Error in groupstats: {e}\n{traceback.format_exc()}")
-            await update.message.reply_text("❌ Error retrieving group stats. Please try again.")
 
     async def allreload(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Enhanced reload functionality with proper instance management and auto-cleanup"""

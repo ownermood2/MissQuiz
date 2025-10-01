@@ -361,8 +361,8 @@ class QuizManager:
                     'last_active': group_stats.get('last_activity_date', 'Never')
                 })
 
-        # Sort leaderboard by score and accuracy
-        leaderboard.sort(key=lambda x: (x['score'], x['accuracy']), reverse=True)
+        # Sort leaderboard by correct_answers DESC, then total_attempts DESC (as per requirements)
+        leaderboard.sort(key=lambda x: (x['correct_answers'], x['total_attempts']), reverse=True)
         group_accuracy = (total_correct_answers / total_group_quizzes * 100) if total_group_quizzes > 0 else 0
 
         return {
@@ -375,7 +375,8 @@ class QuizManager:
                 'month': len(active_users['month']),
                 'total': len(active_users['total'])
             },
-            'leaderboard': leaderboard[:10]  # Top 10 performers
+            'leaderboard': leaderboard[:20],  # Top 20 performers for pagination
+            'group_streak': 0  # Placeholder for active streak
         }
 
     def record_group_attempt(self, user_id: int, chat_id: int, is_correct: bool) -> None:

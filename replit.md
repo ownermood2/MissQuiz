@@ -6,7 +6,7 @@ This project is a Telegram Quiz Bot application designed to provide interactive 
 
 ## Production-Ready Bot (October 2025)
 **Comprehensive Testing & Optimization:**
-1. **Command Cleanup**: Removed all duplicate/unused commands not advertised in /start or /help. Kept only essential user commands (/start, /help, /quiz, /category, /mystats, /groupstats) and developer commands (/dev, /stats, /broadcast, /delbroadcast, /addquiz, /editquiz, /delquiz, /totalquiz, /allreload).
+1. **Command Cleanup**: Removed all duplicate/unused commands not advertised in /start or /help. Kept only essential user commands (/start, /help, /quiz, /category, /mystats) and developer commands (/dev, /stats, /broadcast, /delbroadcast, /addquiz, /editquiz, /delquiz, /totalquiz, /allreload).
 2. **Category Display**: Updated /category command with enhanced visual format showing 12 quiz categories with proper emojis and styling.
 3. **Lambda Job Fix**: Resolved TypeError in cleanup_questions scheduler job by creating proper async wrapper function.
 4. **Timestamp Migration**: Fixed timestamp format inconsistency (ISO 'T' → space-separated), migrated 276 activity_log records, replaced DATE() functions with optimized UTC timestamp range queries.
