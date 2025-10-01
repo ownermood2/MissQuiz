@@ -456,6 +456,26 @@ class DeveloperCommands:
             
             # Delete from database
             if self.db.delete_question(quiz_id):
+                # CRITICAL FIX: Also delete from quiz_manager's in-memory list and JSON file
+                # Match by question text since JSON questions don't have IDs
+                if quiz_to_delete:
+                    try:
+                        json_questions = self.quiz_manager.get_all_questions()
+                        # Find matching question by text
+                        quiz_index = next(
+                            (i for i, q in enumerate(json_questions) 
+                             if q.get('question', '').strip() == quiz_to_delete['question'].strip()),
+                            None
+                        )
+                        
+                        if quiz_index is not None:
+                            self.quiz_manager.delete_question(quiz_index)
+                            logger.info(f"Deleted quiz from quiz_manager at index {quiz_index}")
+                        else:
+                            logger.warning(f"Could not find quiz in quiz_manager with question: {quiz_to_delete['question'][:50]}")
+                    except Exception as e:
+                        logger.error(f"Error deleting from quiz_manager: {e}")
+                
                 # Clear the pending delete
                 context.user_data.pop('pending_delete_quiz', None)
                 
@@ -476,7 +496,7 @@ class DeveloperCommands:
                 
                 reply = await update.message.reply_text(
                     f"✅ Quiz #{quiz_id} deleted successfully! 🗑️\n\n"
-                    f"Remaining quizzes: {len(self.db.get_all_questions())}"
+                    f"Remaining quizzes: {len(self.quiz_manager.get_all_questions())}"
                 )
                 logger.info(f"Quiz #{quiz_id} deleted by user {update.effective_user.id}")
                 await self.auto_clean_message(update.message, reply, delay=3)
