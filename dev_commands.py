@@ -1516,11 +1516,27 @@ class DeveloperCommands:
                             user_data=user, bot_name_cache=bot_name_cache
                         )
                         
-                        sent_msg = await context.bot.send_message(
-                            chat_id=user['user_id'],
-                            text=message_text,
-                            reply_markup=reply_markup
-                        )
+                        # Try sending with Markdown first, fallback to plain text if parse error
+                        try:
+                            sent_msg = await context.bot.send_message(
+                                chat_id=user['user_id'],
+                                text=message_text,
+                                parse_mode=ParseMode.MARKDOWN,
+                                reply_markup=reply_markup
+                            )
+                        except Exception as parse_error:
+                            if "parse entities" in str(parse_error).lower() or "can't parse" in str(parse_error).lower():
+                                # Fallback to plain text on Markdown parse error
+                                logger.warning(f"Markdown parse error for user {user['user_id']}, falling back to plain text")
+                                sent_msg = await context.bot.send_message(
+                                    chat_id=user['user_id'],
+                                    text=message_text,
+                                    parse_mode=None,
+                                    reply_markup=reply_markup
+                                )
+                            else:
+                                raise
+                        
                         sent_messages[user['user_id']] = sent_msg.message_id
                         success_count += 1
                         pm_sent += 1
@@ -1554,11 +1570,27 @@ class DeveloperCommands:
                             group_data=group, bot_name_cache=bot_name_cache
                         )
                         
-                        sent_msg = await context.bot.send_message(
-                            chat_id=group['chat_id'],
-                            text=message_text,
-                            reply_markup=reply_markup
-                        )
+                        # Try sending with Markdown first, fallback to plain text if parse error
+                        try:
+                            sent_msg = await context.bot.send_message(
+                                chat_id=group['chat_id'],
+                                text=message_text,
+                                parse_mode=ParseMode.MARKDOWN,
+                                reply_markup=reply_markup
+                            )
+                        except Exception as parse_error:
+                            if "parse entities" in str(parse_error).lower() or "can't parse" in str(parse_error).lower():
+                                # Fallback to plain text on Markdown parse error
+                                logger.warning(f"Markdown parse error for group {group['chat_id']}, falling back to plain text")
+                                sent_msg = await context.bot.send_message(
+                                    chat_id=group['chat_id'],
+                                    text=message_text,
+                                    parse_mode=None,
+                                    reply_markup=reply_markup
+                                )
+                            else:
+                                raise
+                        
                         sent_messages[group['chat_id']] = sent_msg.message_id
                         success_count += 1
                         group_sent += 1

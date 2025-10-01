@@ -433,9 +433,9 @@ class QuizManager:
             else:
                 group_stats['current_streak'] = 0
 
-            # Also record the attempt in user's general stats
-            self.record_attempt(user_id, is_correct)
+            # Save group stats (user stats already recorded via increment_score -> record_attempt)
             self.save_data()
+            logger.debug(f"Recorded group attempt for user {user_id} in chat {chat_id} (correct={is_correct})")
 
         except Exception as e:
             logger.error(f"Error recording group attempt: {e}")
@@ -578,8 +578,9 @@ class QuizManager:
             else:
                 stats['current_streak'] = 0
 
-            # Save immediately for real-time tracking
-            self.save_data(force=True)
+            # NOTE: Only save stats.json, scores.json - NOT questions.json
+            # questions.json should only be saved during quiz CRUD operations (add/edit/delete)
+            # Removed save_data() to prevent unnecessary I/O on every quiz answer
             logger.info(f"Successfully recorded attempt for user {user_id}: score={self.scores.get(user_id_str)}, streak={stats['current_streak']}")
 
         except Exception as e:

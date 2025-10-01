@@ -255,7 +255,21 @@ class DatabaseManager:
             cursor.execute('''CREATE INDEX IF NOT EXISTS idx_performance_metrics_type_time 
                 ON performance_metrics(metric_type, timestamp)''')
             
-            logger.info("Database schema initialized successfully")
+            # Additional performance-critical indexes
+            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_quiz_stats_date 
+                ON quiz_stats(date)''')
+            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_broadcast_logs_admin 
+                ON broadcast_logs(admin_id, timestamp DESC)''')
+            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_broadcast_logs_timestamp 
+                ON broadcast_logs(timestamp DESC)''')
+            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_users_activity 
+                ON users(last_activity_date, total_quizzes)''')
+            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_groups_activity 
+                ON groups(is_active, last_activity_date)''')
+            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_quiz_history_chat 
+                ON quiz_history(chat_id, answered_at DESC)''')
+            
+            logger.info("Database schema initialized successfully with optimized indexes")
     
     def add_question(self, question: str, options: List[str], correct_answer: int) -> int:
         """Add a new quiz question"""
@@ -490,7 +504,7 @@ class DatabaseManager:
             ''', (user_id, chat_id, question_id, question_text, user_answer, correct_answer, is_correct))
     
     def get_stats_summary(self) -> Dict:
-        """Get comprehensive statistics summary"""
+        """Get comprehensive statistics summary - OPTIMIZED: reduced 11 queries to 3 queries"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             
@@ -499,68 +513,44 @@ class DatabaseManager:
                          __import__('datetime').timedelta(days=datetime.now().weekday())).strftime('%Y-%m-%d')
             month_start = datetime.now().replace(day=1).strftime('%Y-%m-%d')
             
-            cursor.execute('SELECT COUNT(*) as count FROM questions')
-            total_questions = cursor.fetchone()['count']
-            
-            cursor.execute('SELECT COUNT(*) as count FROM users')
-            total_users = cursor.fetchone()['count']
-            
-            cursor.execute('SELECT COUNT(*) as count FROM groups WHERE is_active = 1')
-            total_groups = cursor.fetchone()['count']
-            
+            # Query 1: Get all counts in one query
             cursor.execute('''
-                SELECT SUM(attempts) as count 
-                FROM user_daily_activity 
-                WHERE activity_date = ?
-            ''', (today,))
-            quizzes_today = cursor.fetchone()['count'] or 0
+                SELECT 
+                    (SELECT COUNT(*) FROM questions) as total_questions,
+                    (SELECT COUNT(*) FROM users) as total_users,
+                    (SELECT COUNT(*) FROM groups WHERE is_active = 1) as total_groups,
+                    (SELECT SUM(total_quizzes) FROM users) as quizzes_alltime,
+                    (SELECT SUM(correct_answers) FROM users) as correct_alltime
+            ''')
+            counts = cursor.fetchone()
             
+            # Query 2: Get activity data in one query with aggregation
             cursor.execute('''
-                SELECT SUM(attempts) as count 
-                FROM user_daily_activity 
-                WHERE activity_date >= ?
-            ''', (week_start,))
-            quizzes_week = cursor.fetchone()['count'] or 0
+                SELECT 
+                    SUM(CASE WHEN activity_date = ? THEN attempts ELSE 0 END) as quizzes_today,
+                    SUM(CASE WHEN activity_date >= ? THEN attempts ELSE 0 END) as quizzes_week,
+                    SUM(CASE WHEN activity_date >= ? THEN attempts ELSE 0 END) as quizzes_month,
+                    COUNT(DISTINCT CASE WHEN activity_date = ? THEN user_id END) as active_users_today,
+                    COUNT(DISTINCT CASE WHEN activity_date >= ? THEN user_id END) as active_users_week
+                FROM user_daily_activity
+            ''', (today, week_start, month_start, today, week_start))
+            activity = cursor.fetchone()
             
-            cursor.execute('''
-                SELECT SUM(attempts) as count 
-                FROM user_daily_activity 
-                WHERE activity_date >= ?
-            ''', (month_start,))
-            quizzes_month = cursor.fetchone()['count'] or 0
-            
-            cursor.execute('SELECT SUM(total_quizzes) as count FROM users')
-            quizzes_alltime = cursor.fetchone()['count'] or 0
-            
-            cursor.execute('SELECT SUM(correct_answers) as count FROM users')
-            correct_alltime = cursor.fetchone()['count'] or 0
-            
-            cursor.execute('''
-                SELECT COUNT(DISTINCT user_id) as count 
-                FROM user_daily_activity 
-                WHERE activity_date = ?
-            ''', (today,))
-            active_users_today = cursor.fetchone()['count']
-            
-            cursor.execute('''
-                SELECT COUNT(DISTINCT user_id) as count 
-                FROM user_daily_activity 
-                WHERE activity_date >= ?
-            ''', (week_start,))
-            active_users_week = cursor.fetchone()['count']
+            quizzes_alltime = counts['quizzes_alltime'] or 0
+            correct_alltime = counts['correct_alltime'] or 0
             
             return {
-                'total_questions': total_questions,
-                'total_users': total_users,
-                'total_groups': total_groups,
-                'quizzes_today': quizzes_today,
-                'quizzes_week': quizzes_week,
-                'quizzes_month': quizzes_month,
+                'total_questions': counts['total_questions'],
+                'total_users': counts['total_users'],
+                'total_groups': counts['total_groups'],
+                'quizzes_today': activity['quizzes_today'] or 0,
+                'quizzes_week': activity['quizzes_week'] or 0,
+                'quizzes_month': activity['quizzes_month'] or 0,
                 'quizzes_alltime': quizzes_alltime,
                 'correct_alltime': correct_alltime,
                 'success_rate': round((correct_alltime / max(quizzes_alltime, 1) * 100), 1),
-                'active_users_today': active_users_today,
-                'active_users_week': active_users_week,
+                'active_users_today': activity['active_users_today'] or 0,
+                'active_users_week': activity['active_users_week'] or 0,
                 'today_date': today,
                 'week_start': week_start,
                 'month_start': month_start

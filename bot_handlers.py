@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 class TelegramQuizBot:
     def __init__(self, quiz_manager):
-        """Initialize the quiz bot with enhanced features"""
+        """Initialize the quiz bot with enhanced features - OPTIMIZED with caching"""
         self.quiz_manager = quiz_manager
         self.application = None
         self.command_cooldowns = defaultdict(lambda: defaultdict(int))
@@ -35,6 +35,11 @@ class TelegramQuizBot:
         self.command_history = defaultdict(lambda: deque(maxlen=10))  # Store last 10 commands per chat
         self.cleanup_interval = 3600  # 1 hour in seconds
         self.bot_start_time = datetime.now()
+        
+        # OPTIMIZATION: Add stats caching to reduce database queries
+        self._stats_cache = None
+        self._stats_cache_time = None
+        self._stats_cache_duration = timedelta(seconds=30)  # Cache stats for 30 seconds
         
         self.db = DatabaseManager()
         self.dev_commands = DeveloperCommands(self.db, quiz_manager)
@@ -609,6 +614,15 @@ class TelegramQuizBot:
             if not poll_data:
                 logger.warning(f"No poll data found for poll_id {answer.poll_id}")
                 return
+
+            # IDEMPOTENCY PROTECTION: Check if this user already answered this poll
+            user_answer_key = f'answered_by_user_{answer.user.id}'
+            if poll_data.get(user_answer_key):
+                logger.warning(f"Poll {answer.poll_id} already answered by user {answer.user.id}, skipping duplicate")
+                return
+            
+            # Mark as processed to prevent duplicate recording
+            poll_data[user_answer_key] = True
 
             # Check if this is a correct answer
             is_correct = poll_data['correct_option_id'] in answer.option_ids
@@ -1970,7 +1984,7 @@ Failed to display quizzes. Please try again later.
             return False
 
     async def broadcast(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Send broadcast message to all chats - Developer only"""
+        """Send broadcast message to all chats - Developer only - OPTIMIZED with batching"""
         try:
             if not await self.is_developer(update.message.from_user.id):
                 await self._handle_dev_command_unauthorized(update)
@@ -1993,19 +2007,35 @@ Failed to display quizzes. Please try again later.
             success_count = 0
             failed_count = 0
             
-            # Send to all chats
-            for chat_id in active_chats:
-                try:
-                    await context.bot.send_message(
+            # OPTIMIZATION: Send messages in batches concurrently with controlled rate limiting
+            batch_size = 5
+            delay_between_batches = 0.5
+            
+            for i in range(0, len(active_chats), batch_size):
+                batch = active_chats[i:i + batch_size]
+                tasks = []
+                
+                for chat_id in batch:
+                    task = context.bot.send_message(
                         chat_id=chat_id,
                         text=broadcast_message,
                         parse_mode=ParseMode.MARKDOWN
                     )
-                    success_count += 1
-                    await asyncio.sleep(0.1)  # Prevent flooding
-                except Exception as e:
-                    failed_count += 1
-                    logger.error(f"Failed to send broadcast to {chat_id}: {e}")
+                    tasks.append(task)
+                
+                # Wait for all tasks in batch to complete
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                
+                for idx, result in enumerate(results):
+                    if isinstance(result, Exception):
+                        failed_count += 1
+                        logger.error(f"Failed to send broadcast to {batch[idx]}: {result}")
+                    else:
+                        success_count += 1
+                
+                # Rate limiting between batches
+                if i + batch_size < len(active_chats):
+                    await asyncio.sleep(delay_between_batches)
 
             # Send results
             results = f"""📢 Broadcast Results:
@@ -2022,7 +2052,7 @@ Failed to display quizzes. Please try again later.
                     delay=5
                 ))
 
-            logger.info(f"Broadcast completed: {success_count} successful, {failed_count} failed")
+            logger.info(f"Broadcast completed (optimized batching): {success_count} successful, {failed_count} failed")
 
         except Exception as e:
             logger.error(f"Error in broadcast: {e}")
@@ -2665,25 +2695,53 @@ No changes were made.
             await query.edit_message_text("❌ Error processing quiz deletion.")
             
     async def stats_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Show comprehensive real-time bot statistics and monitoring dashboard"""
+        """Show comprehensive real-time bot statistics and monitoring dashboard - OPTIMIZED with caching"""
         start_time = time.time()
         
         try:
-            loading_msg = await update.message.reply_text("📊 Loading real-time dashboard...")
+            loading_msg = await update.message.reply_text("📊 Loading dashboard...")
             
-            total_users = len(self.db.get_all_users_stats())
-            total_groups = len(self.db.get_all_groups())
-            active_today = self.db.get_active_users_count('today')
-            active_week = self.db.get_active_users_count('week')
+            # OPTIMIZATION: Use cached stats if available and recent (reduces 8-10 DB queries to 0)
+            current_time = datetime.now()
+            cache_valid = (self._stats_cache is not None and 
+                          self._stats_cache_time is not None and 
+                          current_time - self._stats_cache_time < self._stats_cache_duration)
             
-            quiz_today = self.db.get_quiz_stats_by_period('today')
-            quiz_week = self.db.get_quiz_stats_by_period('week')
-            quiz_month = self.db.get_quiz_stats_by_period('month')
-            quiz_all = self.db.get_quiz_stats_by_period('all')
+            if cache_valid:
+                stats_data = self._stats_cache
+                logger.debug("Using cached stats data (performance optimization)")
+            else:
+                # Fetch fresh data from database
+                stats_data = {
+                    'total_users': len(self.db.get_all_users_stats()),
+                    'total_groups': len(self.db.get_all_groups()),
+                    'active_today': self.db.get_active_users_count('today'),
+                    'active_week': self.db.get_active_users_count('week'),
+                    'quiz_today': self.db.get_quiz_stats_by_period('today'),
+                    'quiz_week': self.db.get_quiz_stats_by_period('week'),
+                    'quiz_month': self.db.get_quiz_stats_by_period('month'),
+                    'quiz_all': self.db.get_quiz_stats_by_period('all'),
+                    'perf_metrics': self.db.get_performance_summary(24),
+                    'trending': self.db.get_trending_commands(7, 5),
+                    'recent_activities': self.db.get_recent_activities(10)
+                }
+                # Cache the results
+                self._stats_cache = stats_data
+                self._stats_cache_time = current_time
+                logger.debug("Stats data fetched and cached")
             
-            perf_metrics = self.db.get_performance_summary(24)
-            trending = self.db.get_trending_commands(7, 5)
-            recent_activities = self.db.get_recent_activities(10)
+            # Extract data from cache
+            total_users = stats_data['total_users']
+            total_groups = stats_data['total_groups']
+            active_today = stats_data['active_today']
+            active_week = stats_data['active_week']
+            quiz_today = stats_data['quiz_today']
+            quiz_week = stats_data['quiz_week']
+            quiz_month = stats_data['quiz_month']
+            quiz_all = stats_data['quiz_all']
+            perf_metrics = stats_data['perf_metrics']
+            trending = stats_data['trending']
+            recent_activities = stats_data['recent_activities']
             
             process = psutil.Process()
             memory_mb = process.memory_info().rss / 1024 / 1024
