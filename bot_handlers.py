@@ -568,14 +568,15 @@ class TelegramQuizBot:
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
-            # Create personalized greeting with clickable user name
+            # Create bot link and personalized greeting with clickable user name
+            bot_link = f"[Miss Quiz 𓂀 Bot](https://t.me/{context.bot.username})"
             user_greeting = ""
             if user:
                 user_name_link = f"[{user.first_name}](tg://user?id={user.id})"
                 user_greeting = f"Hello {user_name_link}! 👋\n\n"
 
             welcome_message = f"""╔════════════════════════════════╗
-║ 🎯 𝗪𝗲𝗹𝗰𝗼𝗺𝗲 𝘁𝗼 Miss Quiz 𓂀 Bot 🇮🇳 ║
+║ 🎯 𝗪𝗲𝗹𝗰𝗼𝗺𝗲 𝘁𝗼 {bot_link} 🇮🇳 ║
 ╚════════════════════════════════╝
 
 {user_greeting}📌 𝐅𝐞𝐚𝐭𝐮𝐫𝐞𝐬 𝐘𝐨𝐮'𝐥𝐥 𝐋𝐨𝐯𝐞:
