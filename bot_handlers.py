@@ -557,7 +557,7 @@ class TelegramQuizBot:
         except Exception as e:
             logger.error(f"Error in _delete_messages_after_delay: {e}")
 
-    async def send_welcome_message(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def send_welcome_message(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE, user=None) -> None:
         """Send unified welcome message when bot joins a group or starts in private chat"""
         try:
             keyboard = [
@@ -568,27 +568,39 @@ class TelegramQuizBot:
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
-            welcome_message = """🎯 𝗪𝗲𝗹𝗰𝗼𝗺𝗲 𝘁𝗼 𝗠𝗶𝘀𝘀 𝗤𝘂𝗶𝘇 𓂀 𝗕𝗼𝘁 🇮🇳
+            # Create personalized greeting with clickable user name
+            user_greeting = ""
+            if user:
+                user_name_link = f"[{user.first_name}](tg://user?id={user.id})"
+                user_greeting = f"Hello {user_name_link}! 👋\n\n"
 
-➜ Auto Quizzes – Fresh quizzes every 30 mins 🕒
-➜ Leaderboard – Track scores & compete for glory 🏆
-➜ Categories – GK, CA, History & more! /category 📚
-➜ Instant Results – Answers in real-time ⚡
-➜ PM Mode – Clean and clutter-free 🤫
-➜ Group Mode – Auto-cleans after completion 🧹
+            welcome_message = f"""╔════════════════════════════════╗
+║ 🎯 𝗪𝗲𝗹𝗰𝗼𝗺𝗲 𝘁𝗼 Miss Quiz 𓂀 Bot 🇮🇳 ║
+╚════════════════════════════════╝
 
+{user_greeting}📌 𝐅𝐞𝐚𝐭𝐮𝐫𝐞𝐬 𝐘𝐨𝐮'𝐥𝐥 𝐋𝐨𝐯𝐞:
+➤ 🕒 Auto Quizzes – Fresh quizzes every 30 mins
+➤ 🏆 Leaderboard – Track scores & compete for glory
+➤ 📚 Categories – GK, CA, History & more! /category
+➤ ⚡ Instant Results – Answers in real-time
+➤ 🤫 PM Mode – Clean, clutter-free experience
+➤ 🧹 Group Mode – Auto-cleans after completion
+
+──────────────────────────────
 📝 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬:
-/start – Begin your quiz journey 🚀
-/help – View all commands 🛠️
-/category – Explore quiz topics 📖
-/mystats – Check your performance 📊
-/leaderboard – View top scorers 🏆
+/start — Begin your quiz journey 🚀
+/help — View all commands 🛠️
+/category — Explore quiz topics 📖
+/mystats — Check your performance 📊
+/leaderboard — View top scorers 🏆
 
+──────────────────────────────
 🔥 Add me to your groups & let the quiz fun begin! 🎯"""
 
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=welcome_message,
+                parse_mode=ParseMode.MARKDOWN,
                 reply_markup=reply_markup
             )
 
@@ -812,7 +824,7 @@ We're here to help! 🌟"""
             
             self.quiz_manager.add_active_chat(chat.id)
             await self.ensure_group_registered(chat, context)
-            await self.send_welcome_message(chat.id, context)
+            await self.send_welcome_message(chat.id, context, user)
             
             # Auto-send quiz after 5 seconds in DM
             if chat.type == 'private':
