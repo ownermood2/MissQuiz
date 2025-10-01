@@ -447,11 +447,57 @@ class QuizManager:
         random.shuffle(self.available_questions[chat_id])
         logger.info(f"Initialized question pool for chat {chat_id} with {len(self.questions)} questions")
 
-    def get_random_question(self, chat_id: int = None) -> Optional[Dict[str, Any]]:
-        """Get a random question avoiding recent ones with improved tracking"""
+    def get_random_question(self, chat_id: int = None, category: str = None) -> Optional[Dict[str, Any]]:
+        """Get a random question avoiding recent ones with improved tracking and optional category filtering"""
         try:
             if not self.questions:
                 return None
+
+            # Filter questions by category if specified
+            if category:
+                # Get questions from database with category filter
+                db_questions = self.db.get_questions_by_category(category)
+                if not db_questions:
+                    logger.warning(f"No questions found for category '{category}'")
+                    return None
+                
+                # Convert DB questions to the expected format
+                filtered_questions = []
+                for q in db_questions:
+                    filtered_questions.append({
+                        'id': q['id'],
+                        'question': q['question'],
+                        'options': json.loads(q['options']) if isinstance(q['options'], str) else q['options'],
+                        'correct_answer': q['correct_answer'],
+                        'category': q.get('category')
+                    })
+                
+                logger.info(f"Filtered {len(filtered_questions)} questions for category '{category}'")
+                
+                # If no chat_id, return random from filtered
+                if not chat_id:
+                    selected = random.choice(filtered_questions)
+                    logger.info(f"Selected random question from category '{category}': {selected['question'][:50]}...")
+                    return selected
+                
+                # For chat-specific, use filtered questions
+                available_filtered = [q for q in filtered_questions if q['question'] not in self.recent_questions.get(chat_id, [])]
+                
+                if not available_filtered:
+                    # If all category questions were recently used, reset and use any from category
+                    available_filtered = filtered_questions
+                    logger.info(f"Reset recent questions for category '{category}' in chat {chat_id}")
+                
+                selected = random.choice(available_filtered)
+                
+                # Track this question
+                self.recent_questions[chat_id].append(selected['question'])
+                self.last_question_time[chat_id][selected['question']] = datetime.now()
+                
+                logger.info(f"Selected question from category '{category}' for chat {chat_id}. "
+                           f"Question: {selected['question'][:50]}... "
+                           f"Available in category: {len(available_filtered)}")
+                return selected
 
             # If no chat_id provided, return completely random
             if not chat_id:

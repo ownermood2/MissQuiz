@@ -54,6 +54,13 @@ class DatabaseManager:
                 )
             ''')
             
+            # Migration: Add category column if it doesn't exist
+            cursor.execute("PRAGMA table_info(questions)")
+            question_columns = [column[1] for column in cursor.fetchall()]
+            if 'category' not in question_columns:
+                cursor.execute('ALTER TABLE questions ADD COLUMN category TEXT')
+                logger.info("Added category column to questions table")
+            
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS users (
                     user_id INTEGER PRIMARY KEY,
@@ -294,6 +301,23 @@ class DatabaseManager:
                     'question': row['question'],
                     'options': json.loads(row['options']),
                     'correct_answer': row['correct_answer']
+                }
+                for row in rows
+            ]
+    
+    def get_questions_by_category(self, category: str) -> List[Dict]:
+        """Get quiz questions filtered by category"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM questions WHERE category = ? ORDER BY id', (category,))
+            rows = cursor.fetchall()
+            return [
+                {
+                    'id': row['id'],
+                    'question': row['question'],
+                    'options': row['options'],
+                    'correct_answer': row['correct_answer'],
+                    'category': row['category'] if 'category' in row.keys() else None
                 }
                 for row in rows
             ]

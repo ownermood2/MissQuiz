@@ -131,7 +131,7 @@ class TelegramQuizBot:
         except Exception as e:
             logger.error(f"Failed to send admin reminder: {e}")
 
-    async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE, auto_sent: bool = False, scheduled: bool = False) -> None:
+    async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE, auto_sent: bool = False, scheduled: bool = False, category: str = None) -> None:
         """Send a quiz to a specific chat using native Telegram quiz format"""
         try:
             # Delete last quiz message if it exists (using database tracking)
@@ -154,11 +154,21 @@ class TelegramQuizBot:
                 except Exception as e:
                     logger.debug(f"Could not delete old quiz message: {e}")
 
-            # Get a random question for this specific chat
-            question = self.quiz_manager.get_random_question(chat_id)
+            # Get a random question for this specific chat (with optional category filter)
+            if category:
+                logger.info(f"Requesting quiz from category '{category}' for chat {chat_id}")
+            question = self.quiz_manager.get_random_question(chat_id, category=category)
             if not question:
-                await context.bot.send_message(chat_id=chat_id, text="No questions available.")
-                logger.warning(f"No questions available for chat {chat_id}")
+                if category:
+                    await context.bot.send_message(
+                        chat_id=chat_id, 
+                        text=f"❌ No questions available in the '{category}' category.\n\n"
+                             f"Please try another category or contact the administrator."
+                    )
+                    logger.warning(f"No questions available for category '{category}' in chat {chat_id}")
+                else:
+                    await context.bot.send_message(chat_id=chat_id, text="No questions available.")
+                    logger.warning(f"No questions available for chat {chat_id}")
                 return
 
             # Ensure question text is clean
@@ -223,11 +233,14 @@ class TelegramQuizBot:
                         'chat_type': chat_type,
                         'auto_sent': auto_sent,
                         'scheduled': scheduled,
+                        'category': category,
                         'poll_id': message.poll.id,
                         'message_id': message.message_id
                     },
                     success=True
                 )
+                if category:
+                    logger.info(f"Sent quiz from category '{category}' to chat {chat_id}")
                 logger.info(f"Logged quiz_sent activity for chat {chat_id} (auto_sent={auto_sent}, scheduled={scheduled})")
 
         except Exception as e:
@@ -406,6 +419,12 @@ class TelegramQuizBot:
             self.application.add_handler(CallbackQueryHandler(
                 self.handle_leaderboard_pagination,
                 pattern="^leaderboard_page:"
+            ))
+            
+            # Add callback query handler for category selection
+            self.application.add_handler(CallbackQueryHandler(
+                self.handle_category_callback,
+                pattern="^cat_"
             ))
 
             # Schedule automated quiz job - every 30 minutes
@@ -1007,7 +1026,7 @@ Here's your complete command guide:
             await update.message.reply_text("Error showing help. Please try again later.")
 
     async def category(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle the /category command"""
+        """Handle the /category command with interactive buttons"""
         start_time = time.time()
         try:
             # Log command immediately
@@ -1021,26 +1040,60 @@ Here's your complete command guide:
                 success=True
             )
             
-            category_text = """📚 𝗩𝗜𝗘𝗪 𝗖𝗔𝗧𝗘𝗚𝗢𝗥𝗜𝗘𝗦  
-══════════════════  
-📑 𝗔𝗩𝗔𝗜𝗟𝗔𝗕𝗟𝗘 𝗤𝗨𝗜𝗭 𝗖𝗔𝗧𝗘𝗚𝗢𝗥𝗜𝗘𝗦  
-• General Knowledge 🌍
-• Current Affairs 📰
-• Static GK 📚
-• Science & Technology 🔬
-• History 📜
-• Geography 🗺
-• Economics 💰
-• Political Science 🏛
-• Constitution 📖
-• Constitution & Law ⚖
-• Arts & Literature 🎭
-• Sports & Games 🎮  
+            # Define available categories
+            categories = [
+                ("General Knowledge", "🌍"),
+                ("Current Affairs", "📰"),
+                ("Static GK", "📚"),
+                ("Science & Technology", "🔬"),
+                ("History", "📜"),
+                ("Geography", "🗺"),
+                ("Economics", "💰"),
+                ("Political Science", "🏛"),
+                ("Constitution", "📖"),
+                ("Constitution & Law", "⚖"),
+                ("Arts & Literature", "🎭"),
+                ("Sports & Games", "🎮")
+            ]
+            
+            # Create keyboard with 2 buttons per row
+            keyboard = []
+            for i in range(0, len(categories), 2):
+                row = []
+                # First button in row
+                cat_name, emoji = categories[i]
+                row.append(InlineKeyboardButton(
+                    f"{emoji} {cat_name}",
+                    callback_data=f"cat_{cat_name}"
+                ))
+                
+                # Second button in row (if exists)
+                if i + 1 < len(categories):
+                    cat_name, emoji = categories[i + 1]
+                    row.append(InlineKeyboardButton(
+                        f"{emoji} {cat_name}",
+                        callback_data=f"cat_{cat_name}"
+                    ))
+                
+                keyboard.append(row)
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            category_text = """📚 𝗤𝗨𝗜𝗭 𝗖𝗔𝗧𝗘𝗚𝗢𝗥𝗜𝗘𝗦
+━━━━━━━━━━━━━━━━━━━━━
 
-🎯 Stay tuned! More quizzes coming soon!  
-🛠 Need help? Use /help for more commands!"""
+🎯 𝗖𝗵𝗼𝗼𝘀𝗲 𝗮 𝗖𝗮𝘁𝗲𝗴𝗼𝗿𝘆:
+Click any button below to get a quiz from that category!
 
-            await update.message.reply_text(category_text, parse_mode=ParseMode.MARKDOWN)
+━━━━━━━━━━━━━━━━━━━━━
+💡 Tip: More categories coming soon!"""
+
+            await update.message.reply_text(
+                category_text,
+                reply_markup=reply_markup,
+                parse_mode=ParseMode.MARKDOWN
+            )
+            
             response_time = int((time.time() - start_time) * 1000)
             logger.info(f"/category completed in {response_time}ms")
             
@@ -2606,7 +2659,7 @@ Use/help to see all commands."""
         except Exception as e:
             logger.error(f"Error in automated quiz broadcast: {str(e)}\n{traceback.format_exc()}")
 
-    async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE, auto_sent: bool = False, scheduled: bool = False) -> None:
+    async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE, auto_sent: bool = False, scheduled: bool = False, category: str = None) -> None:
         """Send a quiz to a specific chat using native Telegram quiz format"""
         try:
             # Delete last quiz message if it exists (using database tracking)
@@ -2629,11 +2682,21 @@ Use/help to see all commands."""
                 except Exception as e:
                     logger.debug(f"Could not delete old quiz message: {e}")
 
-            # Get a random question for this specific chat
-            question = self.quiz_manager.get_random_question(chat_id)
+            # Get a random question for this specific chat (with optional category filter)
+            if category:
+                logger.info(f"Requesting quiz from category '{category}' for chat {chat_id}")
+            question = self.quiz_manager.get_random_question(chat_id, category=category)
             if not question:
-                await context.bot.send_message(chat_id=chat_id, text="No questions available.")
-                logger.warning(f"No questions available for chat {chat_id}")
+                if category:
+                    await context.bot.send_message(
+                        chat_id=chat_id, 
+                        text=f"❌ No questions available in the '{category}' category.\n\n"
+                             f"Please try another category or contact the administrator."
+                    )
+                    logger.warning(f"No questions available for category '{category}' in chat {chat_id}")
+                else:
+                    await context.bot.send_message(chat_id=chat_id, text="No questions available.")
+                    logger.warning(f"No questions available for chat {chat_id}")
                 return
 
             # Ensure question text is clean
@@ -2698,11 +2761,14 @@ Use/help to see all commands."""
                         'chat_type': chat_type,
                         'auto_sent': auto_sent,
                         'scheduled': scheduled,
+                        'category': category,
                         'poll_id': message.poll.id,
                         'message_id': message.message_id
                     },
                     success=True
                 )
+                if category:
+                    logger.info(f"Sent quiz from category '{category}' to chat {chat_id}")
                 logger.info(f"Logged quiz_sent activity for chat {chat_id} (auto_sent={auto_sent}, scheduled={scheduled})")
 
         except Exception as e:
@@ -3031,6 +3097,80 @@ Start playing quizzes to track your progress.
         except Exception as e:
             logger.error(f"Error in start callback handler: {e}")
             await query.answer("❌ Error processing request", show_alert=True)
+    
+    async def handle_category_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle callbacks from category selection buttons"""
+        try:
+            query = update.callback_query
+            await query.answer()
+            
+            # Extract category name from callback data (format: "cat_CategoryName")
+            category_name = query.data.replace("cat_", "")
+            
+            logger.info(f"User {query.from_user.id} selected category: {category_name}")
+            
+            # Get user info for display
+            user = query.from_user
+            user_link = f"[{user.first_name}](tg://user?id={user.id})"
+            
+            # Check if we have questions available
+            total_questions = len(self.quiz_manager.questions)
+            
+            if total_questions == 0:
+                await query.message.reply_text(
+                    f"❌ No quiz questions available yet.\n\n"
+                    f"Please contact the administrator to add questions.",
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                logger.warning(f"No questions available for category {category_name}")
+                return
+            
+            # Send a confirmation message with the category
+            category_emoji = {
+                "General Knowledge": "🌍",
+                "Current Affairs": "📰",
+                "Static GK": "📚",
+                "Science & Technology": "🔬",
+                "History": "📜",
+                "Geography": "🗺",
+                "Economics": "💰",
+                "Political Science": "🏛",
+                "Constitution": "📖",
+                "Constitution & Law": "⚖",
+                "Arts & Literature": "🎭",
+                "Sports & Games": "🎮"
+            }
+            
+            emoji = category_emoji.get(category_name, "📚")
+            
+            # Send a quiz from the selected category
+            await query.message.reply_text(
+                f"{emoji} **{category_name}** Category Selected!\n\n"
+                f"👤 {user_link} requested a quiz\n"
+                f"⏰ Get ready for your question...",
+                parse_mode=ParseMode.MARKDOWN
+            )
+            
+            # Send the quiz to the chat with category filter
+            await self.send_quiz(query.message.chat.id, context, auto_sent=False, scheduled=False, category=category_name)
+            
+            # Log the category selection activity
+            self.db.log_activity(
+                activity_type='category_selected',
+                user_id=user.id,
+                chat_id=query.message.chat.id,
+                username=user.username,
+                command='/category',
+                details={
+                    'category': category_name,
+                    'emoji': emoji
+                },
+                success=True
+            )
+            
+        except Exception as e:
+            logger.error(f"Error in category callback handler: {e}")
+            await query.answer("❌ Error processing category selection", show_alert=True)
     
     async def handle_stats_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle callbacks from the stats dashboard"""
