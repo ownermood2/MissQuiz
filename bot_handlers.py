@@ -1070,8 +1070,8 @@ Ready to begin? Try /quiz now! 🚀"""
                 leaderboard = self.db.get_leaderboard_realtime(limit=1000)
                 user_rank = next((i+1 for i, u in enumerate(leaderboard) if u['user_id'] == user.id), 'N/A')
                 
-                # Get username display - dynamically from current user
-                username = f"@{update.effective_user.username}" if update.effective_user.username else update.effective_user.first_name
+                # Get username display - dynamically from current user (prioritize first_name)
+                username = update.effective_user.first_name if update.effective_user.first_name else (f"@{update.effective_user.username}" if update.effective_user.username else "User")
                 
                 # Format stats according to user's specification
                 quiz_attempts = stats.get('total_quizzes', 0)
