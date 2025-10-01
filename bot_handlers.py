@@ -108,7 +108,7 @@ class TelegramQuizBot:
 
 🎯 𝗬𝗼𝘂'𝗹𝗹 𝗚𝗲𝘁:
 • Automatic Quiz Sessions 🤖
-• Real-time Leaderboards 📊
+• Group Statistics & Analytics 📊
 • Enhanced Group Features 🌟
 • Smooth Quiz Experience ⚡
 
@@ -597,7 +597,7 @@ class TelegramQuizBot:
 
 {user_greeting}📌 𝐅𝐞𝐚𝐭𝐮𝐫𝐞𝐬 𝐘𝐨𝐮'𝐥𝐥 𝐋𝐨𝐯𝐞:
 ➤ 🕒 Auto Quizzes – Fresh quizzes every 30 mins
-➤ 🏆 Leaderboard – Track scores & compete for glory
+➤ 📊 Group Stats – Track performance & compete
 ➤ 📚 Categories – GK, CA, History & more! /category
 ➤ ⚡ Instant Results – Answers in real-time
 ➤ 🤫 PM Mode – Clean, clutter-free experience
@@ -959,7 +959,8 @@ Here's your complete command guide:
 ➤ /category    📖 Explore quiz topics
 
 📊 𝗦𝘁𝗮𝘁𝘀 & 𝗥𝗮𝗻𝗸𝗶𝗻𝗴𝘀
-➤ /mystats       📈 View your performance"""
+➤ /mystats       📈 View your performance
+➤ /groupstats    📊 Group analytics & top performers"""
 
             # Add developer commands only for developers
             if is_dev:
