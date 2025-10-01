@@ -1319,7 +1319,6 @@ class DeveloperCommands:
             skipped_count = 0  # Auto-removed users/groups
             
             # Create unique broadcast ID for tracking
-            import time
             broadcast_id = f"broadcast_{int(time.time())}_{update.effective_user.id}"
             
             # OPTIMIZATION: Cache bot name once instead of calling for each recipient

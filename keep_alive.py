@@ -49,32 +49,29 @@ def run():
         run()  # Recursive retry
 
 def ping_server():
-    """Ping server every minute to keep it alive"""
+    """Ping server locally to verify it's running - no external URL needed"""
     consecutive_failures = 0
-    max_failures = 3
+    max_failures = 10  # Increased tolerance - only restart if really broken
     while True:
         try:
-            # Get the Replit URL from environment
-            repl_slug = os.environ.get('REPL_SLUG', '')
-            repl_owner = os.environ.get('REPL_OWNER', '')
-            base_url = f"https://{repl_slug}.{repl_owner}.repl.co"
-
-            # Try both endpoints for redundancy
-            response1 = requests.get(f"{base_url}/", timeout=30)
-            response2 = requests.get(f"{base_url}/health", timeout=30)
-
-            if response1.status_code == 200 and response2.status_code == 200:
-                logger.info("Server pinged successfully")
+            # Ping locally since we're on the same machine
+            response = requests.get("http://127.0.0.1:5000/health", timeout=5)
+            
+            if response.status_code == 200:
+                logger.debug("Local health check passed")
                 consecutive_failures = 0
             else:
-                raise Exception(f"Unexpected status codes: / ({response1.status_code}), /health ({response2.status_code})")
+                raise Exception(f"Health check returned status {response.status_code}")
         except Exception as e:
             consecutive_failures += 1
-            logger.error(f"Failed to ping server (attempt {consecutive_failures}): {e}")
+            # Only log errors after multiple failures to reduce noise
+            if consecutive_failures >= 3:
+                logger.warning(f"Health check failing (attempt {consecutive_failures}): {e}")
 
+            # Only restart if Flask server is truly dead (10+ consecutive failures)
             if consecutive_failures >= max_failures:
-                logger.critical("Multiple ping failures detected, restarting application...")
-                os._exit(1)  # Force restart through process manager
+                logger.critical(f"Flask server appears dead after {max_failures} failures, restarting...")
+                os._exit(1)
 
         time.sleep(60)  # Check every minute
 
