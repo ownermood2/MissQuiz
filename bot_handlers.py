@@ -1584,7 +1584,7 @@ Error: {str(e)}
                         user_info = await context.bot.get_chat(user_id)
                         username = f"[{user_info.first_name}](tg://user?id={user_id})"
                     except:
-                        # Fallback: use database username or first_name
+                        # Fallback: use database username or first_name (without showing ID)
                         first_name = entry.get('first_name', '')
                         db_username = entry.get('username', '')
                         if first_name:
@@ -1592,7 +1592,7 @@ Error: {str(e)}
                         elif db_username:
                             username = f"@{db_username}"
                         else:
-                            username = f"User {user_id}"
+                            username = "Anonymous User"
                     
                     # Rank display
                     if rank <= 3:
