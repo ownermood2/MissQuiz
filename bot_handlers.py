@@ -401,6 +401,12 @@ class TelegramQuizBot:
                 self.handle_start_callback,
                 pattern="^(start_quiz|my_stats|leaderboard|help)$"
             ))
+            
+            # Add callback query handler for leaderboard pagination
+            self.application.add_handler(CallbackQueryHandler(
+                self.handle_leaderboard_pagination,
+                pattern="^leaderboard_page:"
+            ))
 
             # Schedule automated quiz job - every 30 minutes
             self.application.job_queue.run_repeating(
@@ -1532,7 +1538,7 @@ Error: {str(e)}
             await update.message.reply_text("❌ Error during reload. Please try again.")
 
     async def leaderboard(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Show global leaderboard with top 10 performers"""
+        """Show global leaderboard with top 20 performers, paginated (2 per page)"""
         start_time = time.time()
         try:
             # Log command immediately
@@ -1546,9 +1552,39 @@ Error: {str(e)}
                 success=True
             )
             
-            # Get leaderboard data from database in real-time
-            leaderboard = self.db.get_leaderboard_realtime(limit=10)
+            # Show page 0 by default
+            await self._show_leaderboard_page(update, context, page=0)
+            
+            response_time = int((time.time() - start_time) * 1000)
+            logger.info(f"Leaderboard shown successfully in {response_time}ms")
+            
+            self.db.log_performance_metric(
+                metric_type='response_time',
+                metric_name='/leaderboard',
+                value=response_time,
+                unit='ms'
+            )
 
+        except Exception as e:
+            response_time = int((time.time() - start_time) * 1000)
+            self.db.log_activity(
+                activity_type='error',
+                user_id=update.effective_user.id,
+                chat_id=update.effective_chat.id,
+                command='/leaderboard',
+                details={'error': str(e)},
+                success=False,
+                response_time_ms=response_time
+            )
+            logger.error(f"Error showing leaderboard: {e}\n{traceback.format_exc()}")
+            await update.message.reply_text("❌ Error retrieving leaderboard. Please try again.")
+    
+    async def _show_leaderboard_page(self, update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 0, edit: bool = False) -> None:
+        """Display a specific page of the leaderboard (2 entries per page)"""
+        try:
+            # Get top 20 users from database in real-time
+            leaderboard = self.db.get_leaderboard_realtime(limit=20)
+            
             # Professional header with bot branding
             leaderboard_text = """╔════════════════════════════════╗
 ║ 🏆 Miss Quiz 𓂀 Bot 🇮🇳 Leaderboard ║
@@ -1570,8 +1606,20 @@ Error: {str(e)}
                 keyboard = [[InlineKeyboardButton("🎯 Start Quiz", callback_data="start_quiz")]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
-                await update.message.reply_text(leaderboard_text, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup)
+                if edit and update.callback_query:
+                    await update.callback_query.edit_message_text(leaderboard_text, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup)
+                else:
+                    await update.message.reply_text(leaderboard_text, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup)
                 return
+
+            # Calculate pagination
+            entries_per_page = 2
+            total_pages = (len(leaderboard) + entries_per_page - 1) // entries_per_page
+            page = max(0, min(page, total_pages - 1))  # Clamp page to valid range
+            
+            start_idx = page * entries_per_page
+            end_idx = min(start_idx + entries_per_page, len(leaderboard))
+            page_entries = leaderboard[start_idx:end_idx]
 
             # Add each user's stats with premium styling
             rank_badges = {
@@ -1581,8 +1629,11 @@ Error: {str(e)}
             }
             medals = ["🥇", "🥈", "🥉"]
             
-            for rank, entry in enumerate(leaderboard, 1):
+            for entry in page_entries:
                 try:
+                    # Calculate actual rank (1-based)
+                    rank = leaderboard.index(entry) + 1
+                    
                     # Get user's first name and create clickable profile link
                     user_id = entry.get('user_id')
                     try:
@@ -1604,9 +1655,9 @@ Error: {str(e)}
                     if rank <= 3:
                         rank_display = f"{medals[rank-1]} {rank_badges[rank]}"
                     elif rank <= 9:
-                        rank_display = f"{rank}️⃣ "
+                        rank_display = f"{rank}️⃣"
                     else:
-                        rank_display = "🔟"
+                        rank_display = f"🔟" if rank == 10 else f"#{rank}"
 
                     # Format score with K suffix for large numbers
                     score_display = f"{entry['score']/1000:.1f}K" if entry['score'] >= 1000 else str(entry['score'])
@@ -1614,52 +1665,76 @@ Error: {str(e)}
                     # Add user stats with professional formatting
                     leaderboard_text += f"""
 {rank_display} 𝗥𝗮𝗻𝗸 #{rank} • {username}
-➤ 💯 Score: {score_display} points
-➤ ✅ Quizzes: {entry['total_quizzes']} | 🎯 Correct: {entry['correct_answers']}
-➤ 📊 Accuracy: {entry['accuracy']}% | ❌ Wrong: {entry['wrong_answers']}
+💯 Total Score: {score_display} points
+┣ ✅ Quizzes: {entry['total_quizzes']}
+┣ 🎯 Correct: {entry['correct_answers']}
+┗ ❌ Wrong: {entry['wrong_answers']}
 ──────────────────────────────"""
 
                 except Exception as e:
                     logger.error(f"Error displaying user {entry.get('user_id')}: {e}")
                     continue
 
-            # Professional footer with live tracking info
-            leaderboard_text += """
+            # Professional footer with page info
+            leaderboard_text += f"""
 
+📄 Page {page + 1}/{total_pages} • Showing ranks {start_idx + 1}-{end_idx}
 📱 Live Tracking – Rankings update in real-time!
-🔥 Use /quiz to climb the ranks and compete! 🎯"""
+🔥 Use /quiz to climb the ranks! 🎯"""
 
-            try:
-                keyboard = [[InlineKeyboardButton("🎯 Start Quiz", callback_data="start_quiz")]]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                await update.message.reply_text(leaderboard_text, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup)
-                response_time = int((time.time() - start_time) * 1000)
-                logger.info(f"Leaderboard shown successfully in {response_time}ms")
-                
-                self.db.log_performance_metric(
-                    metric_type='response_time',
-                    metric_name='/leaderboard',
-                    value=response_time,
-                    unit='ms'
+            # Create navigation buttons
+            keyboard = []
+            nav_buttons = []
+            
+            if page > 0:
+                nav_buttons.append(InlineKeyboardButton("🔙 Back", callback_data=f"leaderboard_page:{page-1}"))
+            
+            if page < total_pages - 1:
+                nav_buttons.append(InlineKeyboardButton("⏭ Next", callback_data=f"leaderboard_page:{page+1}"))
+            
+            if nav_buttons:
+                keyboard.append(nav_buttons)
+            
+            keyboard.append([InlineKeyboardButton("🎯 Start Quiz", callback_data="start_quiz")])
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            # Send or edit message
+            if edit and update.callback_query:
+                await update.callback_query.edit_message_text(
+                    leaderboard_text, 
+                    parse_mode=ParseMode.MARKDOWN, 
+                    reply_markup=reply_markup
                 )
-            except Exception as e:
-                logger.error(f"Failed to send leaderboard: {e}")
-                # Fallback to plain text
-                await update.message.reply_text("❌ Error displaying leaderboard. Please try again.")
+            else:
+                await update.message.reply_text(
+                    leaderboard_text, 
+                    parse_mode=ParseMode.MARKDOWN, 
+                    reply_markup=reply_markup
+                )
 
         except Exception as e:
-            response_time = int((time.time() - start_time) * 1000)
-            self.db.log_activity(
-                activity_type='error',
-                user_id=update.effective_user.id,
-                chat_id=update.effective_chat.id,
-                command='/leaderboard',
-                details={'error': str(e)},
-                success=False,
-                response_time_ms=response_time
-            )
-            logger.error(f"Error showing leaderboard: {e}\n{traceback.format_exc()}")
-            await update.message.reply_text("❌ Error retrieving leaderboard. Please try again.")
+            logger.error(f"Error showing leaderboard page: {e}\n{traceback.format_exc()}")
+            error_msg = "❌ Error displaying leaderboard. Please try again."
+            if edit and update.callback_query:
+                await update.callback_query.edit_message_text(error_msg)
+            else:
+                await update.message.reply_text(error_msg)
+    
+    async def handle_leaderboard_pagination(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle leaderboard page navigation callbacks"""
+        try:
+            query = update.callback_query
+            await query.answer()
+            
+            # Extract page number from callback data (format: "leaderboard_page:N")
+            page = int(query.data.split(":")[1])
+            
+            # Show the requested page
+            await self._show_leaderboard_page(update, context, page=page, edit=True)
+            
+        except Exception as e:
+            logger.error(f"Error handling leaderboard pagination: {e}\n{traceback.format_exc()}")
+            await query.answer("❌ Error loading page", show_alert=True)
 
 
 
