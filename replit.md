@@ -1,14 +1,6 @@
 # Overview
 
-This project is a Telegram Quiz Bot application that enables interactive quiz functionality across Telegram chats and groups. The system combines a Flask web interface for administration with a Telegram bot for user interaction. The bot manages quiz questions, tracks user scores and statistics, and provides comprehensive analytics through both web and bot interfaces.
-
-**Version 2.1** includes major upgrades:
-- SQLite database for better performance and data integrity
-- Enhanced developer commands with access control
-- Auto-clean feature for group-friendly behavior
-- **Instant broadcast system** with smart rate limiting
-- **Quick developer management** with streamlined commands
-- Comprehensive statistics (today, week, month, all-time)
+This project is a Telegram Quiz Bot application designed to provide interactive quiz functionality within Telegram chats and groups. It features a Flask web interface for administration and a Telegram bot for user interaction. The bot manages quiz questions, tracks user scores and statistics, and offers comprehensive analytics through both web and bot interfaces. The project aims to deliver a robust, scalable, and user-friendly quiz experience with advanced administrative capabilities and detailed performance tracking.
 
 # User Preferences
 
@@ -17,221 +9,46 @@ Preferred communication style: Simple, everyday language.
 # System Architecture
 
 ## Application Structure
-The application follows a modular monolithic architecture with clear separation of concerns:
-
-- **Flask Web Application** (`app.py`) - Serves as the administrative interface for managing quiz content
-- **Telegram Bot Handler** (`bot_handlers.py`) - Manages all Telegram bot interactions and user commands
-- **Developer Commands Module** (`dev_commands.py`) - Handles all developer-only commands with enhanced features (NEW)
-- **Database Manager** (`database_manager.py`) - SQLite database operations for all data persistence (NEW)
-- **Quiz Manager** (`quiz_manager.py`) - Core business logic for quiz operations, scoring, and data management
-- **Configuration** (`config.py`) - Centralized configuration for OWNER/WIFU access control (NEW)
-- **Process Management** (`main.py`, `run_forever.py`) - Handles application lifecycle and automatic restarts
-- **Migration Script** (`migrate_to_sqlite.py`) - One-time migration from JSON to SQLite (NEW)
+The application employs a modular monolithic architecture, separating concerns into distinct components:
+- **Flask Web Application**: Administrative interface for content management.
+- **Telegram Bot Handler**: Manages all Telegram bot interactions and user commands.
+- **Developer Commands Module**: Handles developer-specific commands with enhanced features and access control.
+- **Database Manager**: Manages all SQLite database operations for data persistence.
+- **Quiz Manager**: Contains the core business logic for quiz operations, scoring, and data management.
+- **Configuration**: Centralized configuration for access control and settings.
+- **Process Management**: Handles application lifecycle, health monitoring, and automatic restarts.
 
 ## Data Storage
-The application now uses **SQLite database** for robust and efficient data management:
-
-- **SQLite Database** (`data/quiz_bot.db`) - Primary data store with the following tables:
-  - `questions` - Quiz questions with options and correct answers
-  - `users` - User information and statistics
-  - `developers` - Developer access management
-  - `groups` - Active chat/group information
-  - `user_daily_activity` - Daily activity tracking per user
-  - `quiz_history` - Complete history of all quiz attempts
-
-**Legacy JSON Files** (kept for backup):
-- `data/questions.json` - Original questions database
-- `data/user_stats.json` - Original user statistics
-- `data/developers.json` - Original developer list
-- `data/active_chats.json` - Original active chats
+The system utilizes a **SQLite database** (`data/quiz_bot.db`) for robust data management, including tables for `questions`, `users`, `developers`, `groups`, `user_daily_activity`, and `quiz_history`.
 
 ## Frontend Architecture
-- **Bootstrap-based Admin Panel** - Simple web interface for question management
-- **Static Assets** - JavaScript for dynamic form handling and API interactions
-- **Template Engine** - Flask's Jinja2 templating for server-side rendering
+- **Admin Panel**: Bootstrap-based web interface for question management.
+- **Templating**: Flask's Jinja2 for server-side rendering.
 
 ## Bot Architecture
-- **Command Handlers** - Structured command processing with cooldown mechanisms
-- **Admin Management** - Role-based access control for bot administration
-- **Developer Commands** - Enhanced developer-only commands with strict access control:
-  - `/delquiz` - Delete quiz questions (FIXED - no more Markdown errors)
-  - `/dev [user_id]` - Quick add developers OR manage with add/remove/list (OPTIMIZED)
-  - `/stats` - Enhanced statistics (today, week, month, all-time)
-  - `/allreload` - Global bot restart
-  - `/broadband` - Simple broadcast without forward tags
-  - `/broadcast` - Instant broadcast with smart rate limiting (OPTIMIZED)
-  - `/delbroadcast` - Delete latest broadcast from anywhere (OPTIMIZED)
-- **Auto-Clean Feature** - Automatically deletes command/reply messages after 5 seconds for clean groups (NEW)
-- **Access Control** - Only OWNER and WIFU can use developer commands (NEW)
-- **Statistics Tracking** - Comprehensive user and group activity monitoring with time-based analytics
-- **Memory Management** - Built-in health checks and automatic restart capabilities
+- **Command Handlers**: Structured processing of commands with cooldowns.
+- **Access Control**: Role-based access for administration and developer commands (OWNER/WIFU).
+- **Developer Commands**: Enhanced commands for quiz deletion, developer management, statistics, bot restarts, and advanced broadcast functionalities (with media, buttons, and placeholders).
+- **Auto-Clean Feature**: Automatically deletes command and reply messages in groups for a cleaner chat experience.
+- **Statistics Tracking**: Comprehensive user and group activity monitoring with time-based analytics.
+- **Broadcast System**: Supports various broadcast types (text, media, buttons) with smart placeholder replacement, live tracking, and auto-cleanup for inactive chats.
+- **Memory Management**: Health checks and automatic restart capabilities to ensure stability.
 
-## Process Management
-- **Health Monitoring** - Memory usage tracking and automatic restarts
-- **Keep-Alive Service** - Flask server for uptime monitoring
-- **Error Recovery** - Automatic restart mechanisms with exponential backoff
-- **Logging System** - Comprehensive logging to both console and files
+## System Design Choices
+- **Modular Design**: Separation of concerns for maintainability.
+- **SQLite Integration**: For improved performance and data integrity over previous JSON file storage.
+- **Advanced Broadcasts**: Implementation of a versatile broadcast system supporting diverse content types and dynamic placeholders.
+- **Automated Scheduling**: Quiz scheduling to active groups with persistent scheduling across restarts.
+- **Robust Error Handling & Logging**: Comprehensive logging and error recovery mechanisms.
 
 # External Dependencies
 
-## Core Framework Dependencies
-- **Flask** - Web application framework for the admin interface
-- **python-telegram-bot** - Telegram Bot API wrapper for bot functionality
-- **psutil** - System monitoring for health checks and memory management
-
-## Infrastructure Services
-- **Telegram Bot API** - Primary interface for user interactions
-- **UptimeRobot** (implied) - External monitoring service for bot availability
-- **Replit Environment** - Hosting platform with specific port requirements (5000)
-
-## Optional Integrations
-The architecture supports future integration with database systems (Drizzle ORM compatibility mentioned), suggesting potential migration from file-based storage to relational databases.
+- **Flask**: Web framework for the administrative panel.
+- **python-telegram-bot**: Library for interacting with the Telegram Bot API.
+- **psutil**: Used for system monitoring, particularly memory usage.
+- **Telegram Bot API**: The primary external service for bot operations.
+- **Replit Environment**: Hosting platform, requiring specific port configurations (e.g., 5000).
 
 ## Environment Variables
-- **TELEGRAM_TOKEN** - Required for Telegram bot authentication
-- **SESSION_SECRET** - Flask session security (with fallback default)
-
-# Recent Changes
-
-## Version 2.2 - September 30, 2025
-
-### Critical Bug Fixes
-1. **Developer Access Fix** (CRITICAL)
-   - Fixed `is_developer()` method to query SQLite database instead of legacy JSON file
-   - Newly added developers via `/dev` command now properly recognized by `/help` command
-   - Access control now works correctly for all developer commands
-
-2. **Start Command Redesign**
-   - Simplified interface with clean, professional layout
-   - Removed all interactive buttons except "Add to Your Group"
-   - Updated welcome message with arrow bullets (➜) for features
-   - Clear command list with descriptions
-   - Focused call-to-action for group additions
-
-### New Features
-1. **Restart Confirmation System**
-   - Bot now sends PM to OWNER after successful `/allreload` restart
-   - Confirmation message: "✅ Bot restarted successfully and is now online!" with timestamp
-   - Flag file system ensures reliable delivery (retries if sending fails)
-   - Only sends once per restart (automatic cleanup after success)
-   - Prevents lost notifications during network issues
-
-### User Experience Improvements
-- Cleaner start experience without overwhelming button choices
-- More professional and focused welcome message
-- Commands listed clearly with descriptions
-- Emphasis on group functionality
-- OWNER gets confirmation after bot restarts (no more guessing)
-
-## Version 2.1 - September 30, 2025
-
-### Performance Optimizations
-1. **Quick Developer Management**
-   - `/dev` command now accepts user ID directly: `/dev 123456`
-   - No need for "add" keyword for quick additions
-   - Streamlined workflow for adding developers
-   - Falls back to add/remove/list for detailed management
-
-2. **Instant Broadcast System**
-   - Removed delays for instant message delivery to all groups
-   - Smart rate limiting: Only applies 0.03s delay for broadcasts >20 recipients
-   - Messages tracked per chat for accurate deletion
-   - Both forward and text broadcast modes optimized
-
-3. **Enhanced Broadcast Deletion**
-   - `/delbroadcast` now works from anywhere (no need to reply)
-   - Tracks latest broadcast across all chats
-   - Deletes correct message ID in each chat
-   - Instant deletion without delays
-   - Clear success/failure reporting
-
-### Technical Improvements
-- Efficient broadcast tracking using bot_data with unique IDs
-- Message ID mapping per chat for accurate operations
-- Smart rate limiting to prevent Telegram API flood limits
-- Better logging for broadcast operations
-- Improved error handling for permission issues
-
-## Version 2.0 - September 30, 2025
-
-### Major Upgrades
-1. **SQLite Database Integration**
-   - Migrated from JSON files to SQLite database
-   - Better performance and data integrity
-   - Comprehensive schema with proper indexes
-   - Migration script provided for data transfer
-
-2. **Enhanced Developer Commands**
-   - Fixed `/delquiz` Markdown parsing errors
-   - Enhanced `/dev` command for developer management
-   - Upgraded `/stats` with today/week/month/all-time statistics
-   - Added `/allreload` for bot restarts
-   - Added `/broadband` for simple broadcasts
-   - Enhanced `/broadcast` with reply-to support
-   - Added `/delbroadcast` for deleting broadcast messages
-
-3. **Access Control System**
-   - Strict OWNER and WIFU access control
-   - Friendly unauthorized message for other users
-   - Configurable via `config.py`
-   - Cannot remove OWNER/WIFU from developers
-
-4. **Auto-Clean Feature**
-   - Commands auto-delete after 5 seconds
-   - Keeps group chats clean and organized
-   - Configurable delay per command
-   - Group-friendly behavior
-
-5. **Comprehensive Logging**
-   - All developer actions logged
-   - Detailed error tracking
-   - Success/failure reporting
-   - User action attribution
-
-6. **Broadcast System**
-   - Plain text broadcasts (`/broadband`)
-   - Message forwarding (`/broadcast` with reply)
-   - Direct message sending (`/broadcast` with text)
-   - Delete broadcasts (`/delbroadcast`)
-   - Confirmation before sending
-   - Rate limiting to prevent Telegram blocks
-   - Success/failure statistics
-
-7. **Automatic Quiz Scheduling**
-   - Sends quiz every 30 minutes to all active groups
-   - Persistent scheduling across bot restarts
-   - Admin reminders when questions run low
-
-### Bug Fixes
-- Fixed `/delquiz` Markdown parsing error (Can't parse entities)
-- Fixed stats button callback handler
-- Improved error handling across all commands
-- Fixed bot token exposure in logs (httpx logger set to WARNING level)
-- Fixed `/dev list` to show both developer name and user ID
-- Fixed `/allreload` slow restart issue (corrected os.execv call)
-- Enhanced `/delquiz` to remember quiz ID (no ID needed for /delquiz_confirm)
-- Updated `/stats` with emoji-rich format and smart number formatting (K/M)
-
-### Documentation
-- Created `DEVELOPER_COMMANDS.md` with complete command guide
-- Updated `replit.md` with new architecture
-- Added `config.py` for centralized configuration
-- Comprehensive inline code documentation
-
-### Files Added
-- `config.py` - Configuration for OWNER/WIFU access
-- `database_manager.py` - SQLite database management
-- `dev_commands.py` - Enhanced developer commands module
-- `migrate_to_sqlite.py` - JSON to SQLite migration script
-- `DEVELOPER_COMMANDS.md` - Complete developer commands guide
-- `data/quiz_bot.db` - SQLite database file
-
-### Technical Improvements
-- Modular architecture with separation of concerns
-- Type hints for better code maintainability
-- Context managers for database connections
-- Async/await for non-blocking operations
-- Rate limiting for broadcast operations
-- Proper exception handling throughout
-- Security hardening: Bot token protected in logs
-- Production-ready logging configuration
+- **TELEGRAM_TOKEN**: Essential for Telegram bot authentication.
+- **SESSION_SECRET**: Used for Flask session security.
