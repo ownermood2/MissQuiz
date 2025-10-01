@@ -307,12 +307,6 @@ class TelegramQuizBot:
             pattern="^clear_quizzes_confirm_(yes|no)$"
         ))
         
-        # Register callback for developer management
-        self.application.add_handler(CallbackQueryHandler(
-            self.handle_dev_callback,
-            pattern="^dev_"
-        ))
-        
         # Register callback for stats dashboard
         self.application.add_handler(CallbackQueryHandler(
             self.handle_stats_callback,
@@ -389,12 +383,6 @@ class TelegramQuizBot:
             self.application.add_handler(CallbackQueryHandler(
                 self.handle_clear_quizzes_callback,
                 pattern="^clear_quizzes_confirm_(yes|no)$"
-            ))
-
-            # Add callback query handler for dev command UI
-            self.application.add_handler(CallbackQueryHandler(
-                self.handle_dev_callback,
-                pattern="^dev_"
             ))
 
             # Add callback query handler for stats dashboard UI
@@ -1628,7 +1616,12 @@ Error: {str(e)}
 
 
     async def addquiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Add new quiz(zes) - Developer only"""
+        """Add new quiz(zes) - Developer only
+        
+        Usage:
+        /addquiz question | option1 | option2 | option3 | option4 | correct_number
+        /addquiz --allow-duplicates question | option1 | option2 | option3 | option4 | correct_number
+        """
         start_time = time.time()
         try:
             if not await self.is_developer(update.message.from_user.id):
@@ -1646,9 +1639,14 @@ Error: {str(e)}
                 success=True
             )
 
-            # Extract message content
-            content = update.message.text.split(" ", 1)
-            if len(content) < 2:
+            # Extract message content and check for allow_duplicates flag
+            message_text = update.message.text
+            allow_duplicates = '--allow-duplicates' in message_text or '-d' in message_text
+            
+            # Remove the command and flags
+            message_text = message_text.replace('/addquiz', '').replace('--allow-duplicates', '').replace('-d', '').strip()
+            
+            if not message_text:
                 await update.message.reply_text(
                     "❌ Please provide questions in the correct format.\n\n"
                     "For single question:\n"
@@ -1656,12 +1654,13 @@ Error: {str(e)}
                     "For multiple questions (using the | format):\n"
                     "/addquiz question1 | option1 | option2 | option3 | option4 | correct_number\n"
                     "/addquiz question2 | option1 | option2 | option3 | option4 | correct_number\n\n"
+                    "To allow duplicate questions:\n"
+                    "/addquiz --allow-duplicates question | options...\n\n"
                     "Add more Quiz /addquiz !"
                 )
                 return
 
             questions_data = []
-            message_text = content[1].strip()
 
             # Split by newlines to handle multiple questions
             lines = message_text.split('\n')
@@ -1695,30 +1694,45 @@ Error: {str(e)}
                     "For multiple questions (using the | format):\n"
                     "/addquiz question1 | option1 | option2 | option3 | option4 | correct_number\n"
                     "/addquiz question2 | option1 | option2 | option3 | option4 | correct_number\n\n"
+                    "To allow duplicate questions:\n"
+                    "/addquiz --allow-duplicates question | options...\n\n"
                     "Add more Quiz /addquiz !"
                 )
                 return
 
             # Add questions and get stats
-            stats = self.quiz_manager.add_questions(questions_data)
+            stats = self.quiz_manager.add_questions(questions_data, allow_duplicates=allow_duplicates)
             total_questions = len(self.quiz_manager.get_all_questions())
+            
+            # Get database count for verification
+            db_questions = self.db.get_all_questions()
+            db_count = len(db_questions)
 
-            # Format response message
+            # Format response message with comprehensive feedback
+            duplicate_warning = ""
+            if stats['rejected']['duplicates'] > 0 and not allow_duplicates:
+                duplicate_warning = f"\n\n⚠️ 𝗗𝘂𝗽𝗹𝗶𝗰𝗮𝘁𝗲 𝗪𝗮𝗿𝗻𝗶𝗻𝗴:\n{stats['rejected']['duplicates']} questions were rejected as duplicates.\nUse /addquiz --allow-duplicates to override."
+            
+            db_status = "✅" if stats['db_saved'] == stats['added'] else "⚠️"
+            
             response = f"""📝 𝗤𝘂𝗶𝘇 𝗔𝗱𝗱𝗶𝘁𝗶𝗼𝗻 𝗥𝗲𝗽𝗼𝗿𝘁
 ════════════════
 ✅ Successfully added: {stats['added']} questions
+{db_status} Database saved: {stats['db_saved']}/{stats['added']}
 
-👉 𝗧𝗼𝘁𝗮𝗹 𝗤𝘂𝗶𝘇: {total_questions}
+👉 𝗧𝗼𝘁𝗮𝗹 𝗤𝘂𝗶𝘇𝘇𝗲𝘀:
+• JSON: {total_questions}
+• Database: {db_count}
 
 ❌ 𝗥𝗲𝗷𝗲𝗰𝘁𝗲𝗱:
 • Duplicates: {stats['rejected']['duplicates']}
 • Invalid Format: {stats['rejected']['invalid_format']}
-• Invalid Options: {stats['rejected']['invalid_options']}
+• Invalid Options: {stats['rejected']['invalid_options']}{duplicate_warning}
 ════════════════"""
 
             await update.message.reply_text(response, parse_mode=ParseMode.MARKDOWN)
             response_time = int((time.time() - start_time) * 1000)
-            logger.info(f"/addquiz completed in {response_time}ms - added {stats['added']} quizzes")
+            logger.info(f"/addquiz completed in {response_time}ms - added {stats['added']} quizzes (DB: {stats['db_saved']}, duplicates allowed: {allow_duplicates})")
 
         except Exception as e:
             response_time = int((time.time() - start_time) * 1000)
@@ -1800,13 +1814,13 @@ Add new quizzes using /addquiz command
                     marker = "✅" if i-1 == quiz['correct_answer'] else "⭕"
                     quiz_text += f"\n{marker} {i}. {opt}"
 
-                quiz_text += """
+                quiz_text += f"""
 ════════════════
 
 To edit this quiz:
-/editquiz {quiz_number}
+/editquiz {quiz['id']}
 To delete this quiz:
-/delquiz {quiz_number}"""
+/delquiz {quiz['id']}"""
 
                 await update.message.reply_text(
                     quiz_text,
@@ -2649,213 +2663,6 @@ No changes were made.
         except Exception as e:
             logger.error(f"Error in handle_clear_quizzes_callback: {e}")
             await query.edit_message_text("❌ Error processing quiz deletion.")
-            
-    async def dev_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Manage developer roles professionally with username support"""
-        try:
-            user_id = update.message.from_user.id
-            
-            # First check if user is already a developer
-            is_dev = await self.is_developer(user_id)
-            
-            if not is_dev:
-                await update.message.reply_text("⛔ You don't have permission to manage developer roles.")
-                return
-                
-            # If the user is a developer, show the developer management interface
-            dev_message = """👑 𝐃𝐞𝐯𝐞𝐥𝐨𝐩𝐞𝐫 𝐌𝐚𝐧𝐚𝐠𝐞𝐦𝐞𝐧𝐭
-━━━━━━━━━━━━━━━━━━━━━━━
-            
-🔐 You have developer access to this bot.
-
-To add a new developer, use either:
-/dev add <user_id>
-/dev add @username (if user has interacted with bot)
-
-To remove a developer, use:
-/dev remove <user_id>
-/dev remove @username
-
-To list all developers, use:
-/dev list
-
-💡 The user ID can be found by forwarding a message from that user to @userinfobot.
-━━━━━━━━━━━━━━━━━━━━━━━"""
-
-            # Check if there are any arguments
-            if context.args:
-                command = context.args[0].lower()
-                
-                # Handle different subcommands
-                if command == "list":
-                    # Get the actual developers list
-                    dev_list = await self.get_developers()
-                    
-                    if not dev_list:
-                        await update.message.reply_text("ℹ️ No developers are currently registered.")
-                        return
-                    
-                    # Format developers list message
-                    dev_text = "🔐 𝐂𝐮𝐫𝐫𝐞𝐧𝐭 𝐃𝐞𝐯𝐞𝐥𝐨𝐩𝐞𝐫𝐬\n━━━━━━━━━━━━━━━━━━━━━━━\n"
-                    
-                    for i, dev_id in enumerate(dev_list, 1):
-                        # Mark current user
-                        if dev_id == user_id:
-                            dev_text += f"• {dev_id} (you)\n"
-                        else:
-                            dev_text += f"• {dev_id}\n"
-                    
-                    dev_text += "━━━━━━━━━━━━━━━━━━━━━━━"
-                    await update.message.reply_text(dev_text)
-                    
-                elif command == "add" and len(context.args) > 1:
-                    new_dev_identifier = context.args[1]
-                    
-                    # Check if it's a username (starts with @)
-                    if new_dev_identifier.startswith('@'):
-                        # Remove the @ symbol
-                        username = new_dev_identifier[1:]
-                        
-                        # Display loading message
-                        loading_msg = await update.message.reply_text("🔍 Searching for user...")
-                        
-                        # This requires user lookup functionality
-                        # For now, inform the user about the limitation
-                        await loading_msg.edit_text("ℹ️ Username lookup is not yet implemented. Please use numeric user ID for now.")
-                        return
-                    else:
-                        # Try to parse as numeric ID
-                        try:
-                            new_dev_id = int(new_dev_identifier)
-                            
-                            # Get current developers list
-                            dev_list = await self.get_developers()
-                            
-                            if new_dev_id in dev_list:
-                                await update.message.reply_text(f"ℹ️ User ID {new_dev_id} is already a developer.")
-                                return
-                            
-                            # Add to developers list
-                            dev_list.append(new_dev_id)
-                            
-                            # Save updated list
-                            if await self.save_developers(dev_list):
-                                await update.message.reply_text(f"✅ User ID {new_dev_id} has been added as a developer.")
-                                logger.info(f"Developer {new_dev_id} added by {user_id}")
-                            else:
-                                await update.message.reply_text("❌ Failed to save developer information. Please try again.")
-                        except ValueError:
-                            await update.message.reply_text("❌ Invalid user ID. Please provide a numeric ID or valid username.")
-                        
-                elif command == "remove" and len(context.args) > 1:
-                    remove_identifier = context.args[1]
-                    
-                    # Check if it's a username (starts with @)
-                    if remove_identifier.startswith('@'):
-                        # Remove the @ symbol
-                        username = remove_identifier[1:]
-                        
-                        # Display loading message
-                        loading_msg = await update.message.reply_text("🔍 Searching for user...")
-                        
-                        # This requires user lookup functionality
-                        # For now, inform the user about the limitation
-                        await loading_msg.edit_text("ℹ️ Username lookup is not yet implemented. Please use numeric user ID for now.")
-                        return
-                    else:
-                        # Try to parse as numeric ID
-                        try:
-                            remove_dev_id = int(remove_identifier)
-                            
-                            # Get current developers list
-                            dev_list = await self.get_developers()
-                            
-                            if remove_dev_id not in dev_list:
-                                await update.message.reply_text(f"ℹ️ User ID {remove_dev_id} is not a developer.")
-                                return
-                            
-                            # Check if user is trying to remove themselves
-                            if remove_dev_id == user_id:
-                                # Only allow if there are other developers
-                                if len(dev_list) > 1:
-                                    confirm_keyboard = [
-                                        [
-                                            InlineKeyboardButton("✅ Yes, remove myself", callback_data=f"dev_remove_self_{user_id}"),
-                                            InlineKeyboardButton("❌ Cancel", callback_data="dev_remove_cancel")
-                                        ]
-                                    ]
-                                    reply_markup = InlineKeyboardMarkup(confirm_keyboard)
-                                    
-                                    await update.message.reply_text(
-                                        "⚠️ Are you sure you want to remove yourself as a developer?\n\nYou will lose developer privileges immediately.",
-                                        reply_markup=reply_markup
-                                    )
-                                else:
-                                    await update.message.reply_text("⚠️ You cannot remove yourself as you are the only developer.")
-                            else:
-                                # Remove from developers list
-                                dev_list.remove(remove_dev_id)
-                                
-                                # Save updated list
-                                if await self.save_developers(dev_list):
-                                    await update.message.reply_text(f"✅ User ID {remove_dev_id} has been removed as a developer.")
-                                    logger.info(f"Developer {remove_dev_id} removed by {user_id}")
-                                else:
-                                    await update.message.reply_text("❌ Failed to save developer information. Please try again.")
-                        except ValueError:
-                            await update.message.reply_text("❌ Invalid user ID. Please provide a numeric ID or valid username.")
-                        
-                else:
-                    await update.message.reply_text("❌ Invalid developer command. Use /dev for help.")
-            else:
-                await update.message.reply_text(dev_message, parse_mode=ParseMode.MARKDOWN)
-                
-        except Exception as e:
-            logger.error(f"Error in dev_command: {e}")
-            await update.message.reply_text("❌ Error processing command. Please try again.")
-            
-    async def handle_dev_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle callbacks from developer command"""
-        try:
-            query = update.callback_query
-            await query.answer()
-            
-            if not await self.is_developer(query.from_user.id):
-                await query.edit_message_text("⛔ Unauthorized access.")
-                return
-                
-            # Handle developer self-removal
-            if query.data.startswith("dev_remove_self_"):
-                user_id = int(query.data.split("_")[-1])
-                
-                # Verify that user is the same who initiated the command
-                if user_id != query.from_user.id:
-                    await query.edit_message_text("⚠️ User ID mismatch. Security violation detected.")
-                    return
-                    
-                # Get developers list
-                dev_list = await self.get_developers()
-                
-                if user_id in dev_list:
-                    # Remove user from developers
-                    dev_list.remove(user_id)
-                    
-                    # Save updated list
-                    if await self.save_developers(dev_list):
-                        await query.edit_message_text("✅ You have been removed from the developers list.")
-                        logger.info(f"Developer {user_id} removed themselves")
-                    else:
-                        await query.edit_message_text("❌ Failed to update developers list. Please try again.")
-                else:
-                    await query.edit_message_text("⚠️ You are no longer a developer.")
-            
-            # Handle cancellation
-            elif query.data == "dev_remove_cancel":
-                await query.edit_message_text("✅ Operation cancelled. You remain a developer.")
-                
-        except Exception as e:
-            logger.error(f"Error in handle_dev_callback: {e}")
-            await query.edit_message_text("❌ Error processing developer command. Please try again.")
             
     async def stats_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show comprehensive real-time bot statistics and monitoring dashboard"""

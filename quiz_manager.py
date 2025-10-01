@@ -6,6 +6,7 @@ import traceback
 from typing import List, Dict, Optional, Any
 from datetime import datetime, timedelta
 from collections import defaultdict, deque
+from database_manager import DatabaseManager
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,10 @@ class QuizManager:
         self.scores = {}
         self.active_chats = []
         self.stats = {}
+
+        # Initialize database connection for persistent storage
+        self.db = DatabaseManager()
+        logger.info("Database connection initialized in QuizManager")
 
         # Initialize caching structures
         self._cached_questions = None
@@ -581,8 +586,16 @@ class QuizManager:
             logger.error(f"Error recording attempt for user {user_id}: {str(e)}\n{traceback.format_exc()}")
             raise
 
-    def add_questions(self, questions_data: List[Dict]) -> Dict:
-        """Add multiple questions with validation and duplicate detection"""
+    def add_questions(self, questions_data: List[Dict], allow_duplicates: bool = False) -> Dict:
+        """Add multiple questions with validation and duplicate detection
+        
+        Args:
+            questions_data: List of question dictionaries
+            allow_duplicates: If True, allows duplicate questions to be added
+        
+        Returns:
+            Dictionary with statistics about added/rejected questions
+        """
         stats = {
             'added': 0,
             'rejected': {
@@ -590,14 +603,16 @@ class QuizManager:
                 'invalid_format': 0,
                 'invalid_options': 0
             },
-            'errors': []
+            'errors': [],
+            'db_saved': 0,
+            'db_failed': 0
         }
 
         if len(questions_data) > 500:
             stats['errors'].append("Maximum 500 questions allowed at once")
             return stats
 
-        logger.info(f"Starting to add {len(questions_data)} questions. Current count: {len(self.questions)}")
+        logger.info(f"Starting to add {len(questions_data)} questions. Current count: {len(self.questions)}. Allow duplicates: {allow_duplicates}")
         added_questions = []
 
         for question_data in questions_data:
@@ -636,12 +651,13 @@ class QuizManager:
                     stats['errors'].append(f"Question text too short: {question}")
                     continue
 
-                # Check for duplicates
-                if any(q['question'].lower() == question.lower() for q in self.questions):
-                    logger.warning(f"Duplicate question detected: {question}")
-                    stats['rejected']['duplicates'] += 1
-                    stats['errors'].append(f"Duplicate question: {question}")
-                    continue
+                # Check for duplicates (only if allow_duplicates is False)
+                if not allow_duplicates:
+                    if any(q['question'].lower() == question.lower() for q in self.questions):
+                        logger.warning(f"Duplicate question detected: {question}")
+                        stats['rejected']['duplicates'] += 1
+                        stats['errors'].append(f"Duplicate question: {question}")
+                        continue
 
                 # Validate options
                 if len(options) != 4 or not all(opt for opt in options):
@@ -674,9 +690,28 @@ class QuizManager:
         if stats['added'] > 0:
             # Update questions list with new questions
             self.questions.extend(added_questions)
-            # Force save immediately after adding questions
+            
+            # Save to database - CRITICAL: Ensure all questions are persisted to database
+            for question_obj in added_questions:
+                try:
+                    db_id = self.db.add_question(
+                        question=question_obj['question'],
+                        options=question_obj['options'],
+                        correct_answer=question_obj['correct_answer']
+                    )
+                    if db_id:
+                        stats['db_saved'] += 1
+                        logger.info(f"Saved question to database with ID {db_id}: {question_obj['question'][:50]}...")
+                    else:
+                        stats['db_failed'] += 1
+                        logger.error(f"Failed to save question to database: {question_obj['question'][:50]}...")
+                except Exception as e:
+                    stats['db_failed'] += 1
+                    logger.error(f"Database error saving question: {str(e)}\n{traceback.format_exc()}")
+            
+            # Force save to JSON immediately after adding questions (backward compatibility)
             self.save_data(force=True)
-            logger.info(f"Added {stats['added']} questions. New total: {len(self.questions)}")
+            logger.info(f"Added {stats['added']} questions. New total: {len(self.questions)}. DB saved: {stats['db_saved']}, DB failed: {stats['db_failed']}")
 
         return stats
 

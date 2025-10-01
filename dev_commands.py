@@ -1055,14 +1055,11 @@ class DeveloperCommands:
             
             await status.edit_text(
                 f"✅ Broadcast completed!\n\n"
-                f"📱 PM Sent: {pm_sent}\n"
-                f"👥 Groups Sent: {group_sent}\n"
-                f"━━━━━━━━━━━━━━━\n"
                 f"✅ Total Sent: {success_count}\n"
                 f"❌ Failed: {fail_count}"
             )
             
-            logger.info(f"Broadcast completed by {update.effective_user.id}: {pm_sent} PMs, {group_sent} groups ({success_count} total, {fail_count} failed)")
+            logger.info(f"Broadcast completed by {update.effective_user.id}: {success_count} sent, {fail_count} failed")
             
             # Clear broadcast data
             context.user_data.pop('broadcast_message', None)
