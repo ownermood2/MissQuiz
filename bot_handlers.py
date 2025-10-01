@@ -633,6 +633,14 @@ class TelegramQuizBot:
             # Get user info for logging
             username = answer.user.username if answer.user.username else None
             
+            # Update user information in database with current username
+            self.db.add_or_update_user(
+                user_id=answer.user.id,
+                username=answer.user.username,
+                first_name=answer.user.first_name,
+                last_name=answer.user.last_name
+            )
+            
             # Calculate response time if timestamp is available
             response_time_ms = None
             if 'timestamp' in poll_data:
@@ -767,6 +775,14 @@ We're here to help! 🌟"""
         try:
             chat = update.effective_chat
             user = update.effective_user
+            
+            # Update user information in database with current username
+            self.db.add_or_update_user(
+                user_id=user.id,
+                username=user.username,
+                first_name=user.first_name,
+                last_name=user.last_name
+            )
             
             # Log command immediately
             self.db.log_activity(
@@ -1033,6 +1049,14 @@ We're here to help! 🌟"""
                 logger.error("No user found in update")
                 await update.message.reply_text("❌ Could not identify user.")
                 return
+
+            # Update user information in database with current username
+            self.db.add_or_update_user(
+                user_id=user.id,
+                username=user.username,
+                first_name=user.first_name,
+                last_name=user.last_name
+            )
 
             # Log command immediately
             self.db.log_activity(
