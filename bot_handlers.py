@@ -1577,13 +1577,23 @@ Error: {str(e)}
             
             for rank, entry in enumerate(leaderboard, 1):
                 try:
-                    # Use username from database entry
-                    username = entry.get('username', 'Anonymous')
+                    # Get user's first name and create clickable profile link
+                    user_id = entry.get('user_id')
+                    try:
+                        # Try to fetch user info from Telegram for clickable link
+                        user_info = await context.bot.get_chat(user_id)
+                        username = f"[{user_info.first_name}](tg://user?id={user_id})"
+                    except:
+                        # Fallback: use database username or first_name
+                        first_name = entry.get('first_name', '')
+                        db_username = entry.get('username', '')
+                        if first_name:
+                            username = f"[{first_name}](tg://user?id={user_id})"
+                        elif db_username:
+                            username = f"@{db_username}"
+                        else:
+                            username = f"User {user_id}"
                     
-                    # Limit username length
-                    if len(username) > 20:
-                        username = username[:17] + "..."
-
                     # Rank display
                     if rank <= 3:
                         rank_display = f"{medals[rank-1]} {rank_badges[rank]}"
