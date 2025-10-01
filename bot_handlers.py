@@ -2914,30 +2914,30 @@ To list all developers, use:
             if not trending_text:
                 trending_text = "No commands used yet\n"
             
-            stats_message = f"""📊 **Real-Time Dashboard**
+            stats_message = f"""📊 Real-Time Dashboard
 ━━━━━━━━━━━━━━━━━━━
 
-👥 **User Engagement**
+👥 User Engagement
 • Total Users: {total_users:,}
 • Active Today: {active_today}
 • Active This Week: {active_week}
 
-📝 **Quiz Activity** (Today/Week/Month/All)
+📝 Quiz Activity (Today/Week/Month/All)
 • Quizzes Sent: {quiz_today['quizzes_sent']}/{quiz_week['quizzes_sent']}/{quiz_month['quizzes_sent']}/{quiz_all['quizzes_sent']}
 • Success Rate: {quiz_all['success_rate']}%
 
-📊 **Groups**
+📊 Groups
 • Total Groups: {total_groups:,}
 
-⚡ **Performance** (24h)
+⚡ Performance (24h)
 • Avg Response Time: {perf_metrics['avg_response_time']:.0f}ms
 • Commands Executed: {perf_metrics['total_api_calls']:,}
 • Error Rate: {perf_metrics['error_rate']:.1f}%
 • Memory Usage: {memory_mb:.1f}MB
 
-🔥 **Trending Commands** (7d)
+🔥 Trending Commands (7d)
 {trending_text}
-📜 **Recent Activity**
+📜 Recent Activity
 {activity_feed}
 ━━━━━━━━━━━━━━━━━━━
 ⚙️ Uptime: {uptime_str} | 🕐 Load: {(time.time() - start_time)*1000:.0f}ms"""
@@ -2956,7 +2956,6 @@ To list all developers, use:
             
             await loading_msg.edit_text(
                 stats_message,
-                parse_mode=ParseMode.MARKDOWN,
                 reply_markup=reply_markup
             )
             
@@ -3140,30 +3139,30 @@ Start playing quizzes to track your progress.
                 if not trending_text:
                     trending_text = "No commands used yet\n"
                 
-                stats_message = f"""📊 **Real-Time Dashboard**
+                stats_message = f"""📊 Real-Time Dashboard
 ━━━━━━━━━━━━━━━━━━━
 
-👥 **User Engagement**
+👥 User Engagement
 • Total Users: {total_users:,}
 • Active Today: {active_today}
 • Active This Week: {active_week}
 
-📝 **Quiz Activity** (Today/Week/Month/All)
+📝 Quiz Activity (Today/Week/Month/All)
 • Quizzes Sent: {quiz_today['quizzes_sent']}/{quiz_week['quizzes_sent']}/{quiz_month['quizzes_sent']}/{quiz_all['quizzes_sent']}
 • Success Rate: {quiz_all['success_rate']}%
 
-📊 **Groups**
+📊 Groups
 • Total Groups: {total_groups:,}
 
-⚡ **Performance** (24h)
+⚡ Performance (24h)
 • Avg Response Time: {perf_metrics['avg_response_time']:.0f}ms
 • Commands Executed: {perf_metrics['total_api_calls']:,}
 • Error Rate: {perf_metrics['error_rate']:.1f}%
 • Memory Usage: {memory_mb:.1f}MB
 
-🔥 **Trending Commands** (7d)
+🔥 Trending Commands (7d)
 {trending_text}
-📜 **Recent Activity**
+📜 Recent Activity
 {activity_feed}
 ━━━━━━━━━━━━━━━━━━━
 ⚙️ Uptime: {uptime_str} | 🕐 Load: {(time.time() - start_time)*1000:.0f}ms"""
@@ -3182,13 +3181,12 @@ Start playing quizzes to track your progress.
                 
                 await query.edit_message_text(
                     stats_message,
-                    parse_mode=ParseMode.MARKDOWN,
                     reply_markup=reply_markup
                 )
                 
             elif query.data == "stats_activity":
                 recent_activities = self.db.get_recent_activities(25)
-                activity_text = "📊 **Recent Activity Feed**\n━━━━━━━━━━━━━━━━━━━\n\n"
+                activity_text = "📊 Recent Activity Feed\n━━━━━━━━━━━━━━━━━━━\n\n"
                 
                 for activity in recent_activities:
                     time_ago = self.db.format_relative_time(activity['timestamp'])
@@ -3216,7 +3214,6 @@ Start playing quizzes to track your progress.
                 
                 await query.edit_message_text(
                     activity_text,
-                    parse_mode=ParseMode.MARKDOWN,
                     reply_markup=reply_markup
                 )
                 
@@ -3226,21 +3223,21 @@ Start playing quizzes to track your progress.
                 process = psutil.Process()
                 memory_mb = process.memory_info().rss / 1024 / 1024
                 
-                perf_text = f"""⚡ **Performance Metrics** (24h)
+                perf_text = f"""⚡ Performance Metrics (24h)
 ━━━━━━━━━━━━━━━━━━━
 
-📈 **Response Times**
+📈 Response Times
 • Average: {perf_metrics['avg_response_time']:.2f}ms
 • Total API Calls: {perf_metrics['total_api_calls']:,}
 
-💾 **Memory Usage**
+💾 Memory Usage
 • Current: {memory_mb:.2f} MB
 • Average: {perf_metrics['avg_memory_mb']:.2f} MB
 
-❌ **Error Rate**
+❌ Error Rate
 • Rate: {perf_metrics['error_rate']:.2f}%
 
-🟢 **Uptime**
+🟢 Uptime
 • Status: {perf_metrics['uptime_percent']:.1f}%
 
 ━━━━━━━━━━━━━━━━━━━"""
@@ -3250,7 +3247,6 @@ Start playing quizzes to track your progress.
                 
                 await query.edit_message_text(
                     perf_text,
-                    parse_mode=ParseMode.MARKDOWN,
                     reply_markup=reply_markup
                 )
                 
@@ -3258,17 +3254,17 @@ Start playing quizzes to track your progress.
                 trending = self.db.get_trending_commands(7, 10)
                 activity_stats = self.db.get_activity_stats(7)
                 
-                trends_text = "📈 **Trends & Analytics** (7d)\n━━━━━━━━━━━━━━━━━━━\n\n"
-                trends_text += "🔥 **Trending Commands**\n"
+                trends_text = "📈 Trends & Analytics (7d)\n━━━━━━━━━━━━━━━━━━━\n\n"
+                trends_text += "🔥 Trending Commands\n"
                 for i, cmd in enumerate(trending, 1):
                     trends_text += f"{i}. /{cmd['command']}: {cmd['count']}x\n"
                 
-                trends_text += f"\n📊 **Activity Breakdown**\n"
+                trends_text += f"\n📊 Activity Breakdown\n"
                 for activity_type, count in activity_stats['activities_by_type'].items():
                     trends_text += f"• {activity_type}: {count:,}\n"
                 
-                trends_text += f"\n✅ **Success Rate**: {activity_stats['success_rate']:.1f}%\n"
-                trends_text += f"⚡ **Avg Response**: {activity_stats['avg_response_time_ms']:.0f}ms\n"
+                trends_text += f"\n✅ Success Rate: {activity_stats['success_rate']:.1f}%\n"
+                trends_text += f"⚡ Avg Response: {activity_stats['avg_response_time_ms']:.0f}ms\n"
                 trends_text += "\n━━━━━━━━━━━━━━━━━━━"
                 
                 keyboard = [[InlineKeyboardButton("🔙 Back to Dashboard", callback_data="stats_refresh")]]
@@ -3276,7 +3272,6 @@ Start playing quizzes to track your progress.
                 
                 await query.edit_message_text(
                     trends_text,
-                    parse_mode=ParseMode.MARKDOWN,
                     reply_markup=reply_markup
                 )
                 
@@ -3438,7 +3433,6 @@ Start playing quizzes to track your progress.
                 
                 await query.edit_message_text(
                     activity_text,
-                    parse_mode=ParseMode.MARKDOWN,
                     reply_markup=reply_markup
                 )
                 
@@ -3473,7 +3467,6 @@ Start playing quizzes to track your progress.
                 
                 await query.edit_message_text(
                     perf_text,
-                    parse_mode=ParseMode.MARKDOWN,
                     reply_markup=reply_markup
                 )
                 
