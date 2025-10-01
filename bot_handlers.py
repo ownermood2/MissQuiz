@@ -1629,7 +1629,7 @@ Error: {str(e)}
             try:
                 keyboard = [[InlineKeyboardButton("🎯 Start Quiz", callback_data="start_quiz")]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
-                await update.message.reply_text(leaderboard_text, reply_markup=reply_markup)
+                await update.message.reply_text(leaderboard_text, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup)
                 response_time = int((time.time() - start_time) * 1000)
                 logger.info(f"Leaderboard shown successfully in {response_time}ms")
                 
