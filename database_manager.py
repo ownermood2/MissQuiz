@@ -1672,15 +1672,34 @@ class DatabaseManager:
             logger.error(f"Error getting user quiz stats for {user_id}: {e}")
             return None
     
-    def get_leaderboard_realtime(self, limit: int = 10) -> List[Dict]:
+    def get_leaderboard_count(self) -> int:
         """
-        Get leaderboard from database in real-time
+        Get total count of eligible users for leaderboard (lightweight query)
+        
+        Returns:
+            Total count of users with at least one quiz attempt
+        """
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT COUNT(*) FROM users WHERE total_quizzes > 0
+                ''')
+                return cursor.fetchone()[0]
+        except Exception as e:
+            logger.error(f"Error getting leaderboard count: {e}")
+            return 0
+    
+    def get_leaderboard_realtime(self, limit: int = 10, offset: int = 0) -> Tuple[List[Dict], int]:
+        """
+        Get leaderboard from database in real-time with pagination support
         
         Args:
             limit: Number of top users to return (default: 10)
+            offset: Number of users to skip (default: 0)
             
         Returns:
-            List of dictionaries with user leaderboard data
+            Tuple of (leaderboard data, total count of eligible users)
         """
         try:
             import time
@@ -1688,6 +1707,14 @@ class DatabaseManager:
             
             with self.get_connection() as conn:
                 cursor = conn.cursor()
+                
+                # First, get the total count of eligible users
+                cursor.execute('''
+                    SELECT COUNT(*) FROM users WHERE total_quizzes > 0
+                ''')
+                total_count = cursor.fetchone()[0]
+                
+                # Then get the paginated leaderboard data
                 cursor.execute('''
                     SELECT 
                         u.user_id,
@@ -1703,8 +1730,8 @@ class DatabaseManager:
                     FROM users u
                     WHERE u.total_quizzes > 0
                     ORDER BY u.current_score DESC, u.success_rate DESC, u.total_quizzes DESC
-                    LIMIT ?
-                ''', (limit,))
+                    LIMIT ? OFFSET ?
+                ''', (limit, offset))
                 
                 leaderboard = []
                 for row in cursor.fetchall():
@@ -1712,6 +1739,7 @@ class DatabaseManager:
                     leaderboard.append({
                         'user_id': row['user_id'],
                         'username': username,
+                        'first_name': row['first_name'],
                         'score': row['current_score'],
                         'total_quizzes': row['total_quizzes'],
                         'correct_answers': row['correct_answers'],
@@ -1721,11 +1749,11 @@ class DatabaseManager:
                     })
                 
                 query_time = int((time.time() - start_time) * 1000)
-                logger.debug(f"Leaderboard query completed in {query_time}ms")
-                return leaderboard
+                logger.debug(f"Leaderboard query completed in {query_time}ms (offset={offset}, limit={limit}, total={total_count})")
+                return leaderboard, total_count
         except Exception as e:
             logger.error(f"Error getting leaderboard: {e}")
-            return []
+            return [], 0
     
     def log_performance_metric(self, metric_type: str, value: float, metric_name: str = None, 
                               unit: str = None, details: dict = None):

@@ -1175,7 +1175,7 @@ Ready to begin? Try /quiz now! 🚀"""
                     return
 
                 # Get user rank
-                leaderboard = self.db.get_leaderboard_realtime(limit=1000)
+                leaderboard, _ = self.db.get_leaderboard_realtime(limit=1000, offset=0)
                 user_rank = next((i+1 for i, u in enumerate(leaderboard) if u['user_id'] == user.id), 'N/A')
                 
                 # Get username display as clickable Telegram profile link
@@ -1669,21 +1669,41 @@ Error: {str(e)}
             await update.message.reply_text("❌ Error retrieving leaderboard. Please try again.")
     
     async def _show_leaderboard_page(self, update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 0, edit: bool = False, scope: str = 'global') -> None:
-        """Display a specific page of the leaderboard (2 entries per page) - supports group and global scopes"""
+        """Display a specific page of the leaderboard (20 entries per page) - supports group and global scopes"""
         try:
             chat = update.effective_chat
             bot_link = f"[Miss Quiz 𓂀 Bot](https://t.me/{context.bot.username})"
             
-            # Fetch leaderboard data based on scope
+            # Define pagination parameters
+            entries_per_page = 20
+            
+            # CRITICAL FIX: Get total_count FIRST, clamp page, THEN fetch data
             if scope == 'group':
-                # Get group-specific leaderboard
+                # Get group-specific leaderboard (all data first)
                 stats = self.quiz_manager.get_group_leaderboard(chat.id)
-                leaderboard = stats.get('leaderboard', [])
+                all_leaderboard = stats.get('leaderboard', [])
+                total_count = len(all_leaderboard)
+                
+                # Calculate total pages and clamp page BEFORE slicing
+                total_pages = max(1, (total_count + entries_per_page - 1) // entries_per_page)
+                page = max(0, min(page, total_pages - 1))
+                
+                # Now slice with clamped page
+                offset = page * entries_per_page
+                leaderboard = all_leaderboard[offset:offset + entries_per_page]
                 scope_title = f"👥 Group Leaderboard: {chat.title}"
                 scope_emoji = "👥"
             else:
-                # Get global leaderboard
-                leaderboard = self.db.get_leaderboard_realtime(limit=20)
+                # Get global leaderboard count using get_leaderboard_realtime (avoid double COUNT)
+                _, total_count = self.db.get_leaderboard_realtime(limit=0, offset=0)
+                
+                # Calculate total pages and clamp page BEFORE fetching
+                total_pages = max(1, (total_count + entries_per_page - 1) // entries_per_page)
+                page = max(0, min(page, total_pages - 1))
+                
+                # Now compute offset from clamped page and fetch actual data
+                offset = page * entries_per_page
+                leaderboard, total_count = self.db.get_leaderboard_realtime(limit=entries_per_page, offset=offset)
                 scope_title = "🌍 Global Leaderboard"
                 scope_emoji = "🌍"
             
@@ -1697,8 +1717,8 @@ Error: {str(e)}
 
 ──────────────────────────────"""
 
-            # If no participants yet
-            if not leaderboard:
+            # If no participants yet (only show empty state when truly no users)
+            if total_count == 0:
                 leaderboard_text += f"""\n
 🎯 No champions yet!
 💡 Be the first to claim the throne!
@@ -1721,15 +1741,23 @@ Error: {str(e)}
                 else:
                     await update.message.reply_text(leaderboard_text, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup)
                 return
-
-            # Calculate pagination
-            entries_per_page = 2
-            total_pages = (len(leaderboard) + entries_per_page - 1) // entries_per_page
-            page = max(0, min(page, total_pages - 1))  # Clamp page to valid range
             
+            # EDGE CASE FALLBACK: If leaderboard is empty but users exist (shouldn't happen after fix)
+            if not leaderboard and total_count > 0:
+                logger.warning(f"Edge case detected: leaderboard empty but total_count={total_count}, page={page}. Retrying with last page.")
+                # This shouldn't happen after the clamping fix, but as a safety fallback:
+                page = max(0, total_pages - 1)
+                if scope == 'group':
+                    offset = page * entries_per_page
+                    leaderboard = all_leaderboard[offset:offset + entries_per_page]
+                else:
+                    offset = page * entries_per_page
+                    leaderboard, _ = self.db.get_leaderboard_realtime(limit=entries_per_page, offset=offset)
+            
+            # Calculate display indices (page and total_pages already computed and clamped above)
             start_idx = page * entries_per_page
-            end_idx = min(start_idx + entries_per_page, len(leaderboard))
-            page_entries = leaderboard[start_idx:end_idx]
+            end_idx = min(start_idx + len(leaderboard), start_idx + entries_per_page)
+            page_entries = leaderboard
 
             # Add each user's stats with premium styling
             rank_badges = {
@@ -1739,10 +1767,10 @@ Error: {str(e)}
             }
             medals = ["🥇", "🥈", "🥉"]
             
-            for entry in page_entries:
+            for idx, entry in enumerate(page_entries):
                 try:
-                    # Calculate actual rank (1-based)
-                    rank = leaderboard.index(entry) + 1
+                    # Calculate actual rank (1-based) from page offset
+                    rank = start_idx + idx + 1
                     
                     # Get user's first name and create clickable profile link
                     user_id = entry.get('user_id')
