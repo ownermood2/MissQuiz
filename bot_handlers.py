@@ -2725,7 +2725,8 @@ Start playing quizzes to track your progress.
                             except Exception:
                                 continue
                     
-                    total_groups = len(valid_active_chats)
+                    # Get actual group count from database (not mixed with users)
+                    total_groups = len(self.db.get_all_groups())
                     
                     # Check valid statistics
                     if hasattr(self.quiz_manager, 'stats') and self.quiz_manager.stats:
