@@ -2248,23 +2248,7 @@ Failed to display quizzes. Please try again later.
                     is_admin = await self.check_admin_status(chat_id, context)
 
                     if is_admin:
-                        # Clean old messages first
-                        try:
-                            messages_to_delete = []
-                            async for message in context.bot.get_chat_history(chat_id, limit=100):
-                                if (message.from_user.id == context.bot.id and
-                                    (datetime.now() - message.date).total_seconds() > 3600):  # Delete messages older than 1 hour
-                                    messages_to_delete.append(message.message_id)
-
-                            for msg_id in messages_to_delete:
-                                try:
-                                    await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
-                                except Exception:
-                                    continue
-                        except Exception as e:
-                            logger.error(f"Error cleaning old messages in chat {chat_id}: {e}")
-
-                        # Send new quiz with tracking parameters
+                        # Send new quiz with tracking parameters (message cleanup handled elsewhere)
                         await self.send_quiz(chat_id, context, auto_sent=True, scheduled=True)
                         logger.info(f"Sent scheduled quiz to chat {chat_id}")
                     else:
@@ -3836,28 +3820,10 @@ Type: {activity_type.upper()}
             raise
 
     async def cleanup_old_messages(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Clean up old messages from the chat"""
-        try:
-            # Get messages older than 2 hours
-            cutoff_time = datetime.now() - timedelta(hours=2)
-
-            async for message in context.bot.get_chat_history(chat_id, limit=100):
-                if message.from_user.id == context.bot.id:
-                    msg_time = message.date.replace(tzinfo=None)
-                    if msg_time < cutoff_time:
-                        try:
-                            await context.bot.delete_message(
-                                chat_id=chat_id,
-                                message_id=message.message_id
-                            )
-                        except Exception as e:
-                            logger.error(f"Error deleting message {message.message_id}: {e}")
-                            continue
-
-            logger.info(f"Cleaned up old messages in chat {chat_id}")
-
-        except Exception as e:
-            logger.error(f"Error cleaning up messages: {e}")
+        """Clean up old messages from the chat - Disabled (get_chat_history not available)"""
+        # NOTE: get_chat_history() is not available in python-telegram-bot
+        # Message cleanup is handled via other mechanisms (auto-delete after quiz completion)
+        logger.debug(f"Message cleanup skipped for chat {chat_id} - handled by auto-delete mechanisms")
 
     async def send_automated_quiz(self, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send automated quiz to all active groups"""
