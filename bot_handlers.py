@@ -1549,22 +1549,28 @@ Error: {str(e)}
             # Get leaderboard data from database in real-time
             leaderboard = self.db.get_leaderboard_realtime(limit=10)
 
-            # Premium header with description
-            leaderboard_text = """╔═══════════════════════╗
-║  🏆 𝗚𝗹𝗼𝗯𝗮𝗹 𝗟𝗲𝗮𝗱𝗲𝗿𝗯𝗼𝗮𝗿𝗱  ║
-╚═══════════════════════╝
+            # Professional header with bot branding
+            leaderboard_text = """╔════════════════════════════════╗
+║ 🏆 Miss Quiz 𓂀 Bot 🇮🇳 Leaderboard ║
+╚════════════════════════════════╝
 
-✨ 𝗧𝗼𝗽 𝟭𝟬 𝗤𝘂𝗶𝘇 𝗖𝗵𝗮𝗺𝗽𝗶𝗼𝗻𝘀 ✨
-━━━━━━━━━━━━━━━━━━━━━━━"""
+✨ Top Quiz Champions - Live Rankings ✨
+
+──────────────────────────────"""
 
             # If no participants yet
             if not leaderboard:
-                leaderboard_text += "\n\n🎯 No champions yet!\n💡 Be the first to claim the throne!"
+                leaderboard_text += """\n
+🎯 No champions yet!
+💡 Be the first to claim the throne!
+
+──────────────────────────────
+🔥 Use /quiz to start your journey! 🎯"""
                 
                 keyboard = [[InlineKeyboardButton("🎯 Start Quiz", callback_data="start_quiz")]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
-                await update.message.reply_text(leaderboard_text, reply_markup=reply_markup)
+                await update.message.reply_text(leaderboard_text, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup)
                 return
 
             # Add each user's stats with premium styling
@@ -1605,26 +1611,23 @@ Error: {str(e)}
                     # Format score with K suffix for large numbers
                     score_display = f"{entry['score']/1000:.1f}K" if entry['score'] >= 1000 else str(entry['score'])
                     
-                    # Add separator
-                    leaderboard_text += "\n━━━━━━━━━━━━━━━━━━━━━━━\n"
-                    
-                    # Add user stats with premium formatting
-                    leaderboard_text += f"""{rank_display} 𝗥𝗮𝗻𝗸 #{rank} • {username}
-
-┏ 💯 Score: {score_display} points
-┣ ✅ Quizzes: {entry['total_quizzes']}
-┣ 🎯 Correct: {entry['correct_answers']}
-┣ 📊 Accuracy: {entry['accuracy']}%
-┗ ❌ Wrong: {entry['wrong_answers']}"""
+                    # Add user stats with professional formatting
+                    leaderboard_text += f"""
+{rank_display} 𝗥𝗮𝗻𝗸 #{rank} • {username}
+➤ 💯 Score: {score_display} points
+➤ ✅ Quizzes: {entry['total_quizzes']} | 🎯 Correct: {entry['correct_answers']}
+➤ 📊 Accuracy: {entry['accuracy']}% | ❌ Wrong: {entry['wrong_answers']}
+──────────────────────────────"""
 
                 except Exception as e:
                     logger.error(f"Error displaying user {entry.get('user_id')}: {e}")
                     continue
 
-            # Footer with real-time info
-            leaderboard_text += "\n\n━━━━━━━━━━━━━━━━━━━━━━━"
-            leaderboard_text += "\n\n📱 Rankings update in real-time"
-            leaderboard_text += "\n🎮 Use /quiz to climb the ranks!"
+            # Professional footer with live tracking info
+            leaderboard_text += """
+
+📱 Live Tracking – Rankings update in real-time!
+🔥 Use /quiz to climb the ranks and compete! 🎯"""
 
             try:
                 keyboard = [[InlineKeyboardButton("🎯 Start Quiz", callback_data="start_quiz")]]
