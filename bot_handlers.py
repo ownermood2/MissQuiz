@@ -30,8 +30,8 @@ class TelegramQuizBot:
         """Initialize the quiz bot with enhanced features - OPTIMIZED with caching"""
         self.quiz_manager = quiz_manager
         self.application = None
-        self.command_cooldowns = defaultdict(lambda: defaultdict(int))
-        self.COOLDOWN_PERIOD = 3  # seconds between commands
+        self.user_command_cooldowns = defaultdict(dict)  # {user_id: {command: timestamp}}
+        self.USER_COMMAND_COOLDOWN = 60  # 60 seconds cooldown for user commands in groups
         self.command_history = defaultdict(lambda: deque(maxlen=10))  # Store last 10 commands per chat
         self.cleanup_interval = 3600  # 1 hour in seconds
         self.bot_start_time = datetime.now()
@@ -43,6 +43,34 @@ class TelegramQuizBot:
         self.db = DatabaseManager()
         self.dev_commands = DeveloperCommands(self.db, quiz_manager)
         logger.info("TelegramQuizBot initialized with database and developer commands")
+
+    def check_user_command_cooldown(self, user_id: int, command: str, chat_type: str) -> tuple[bool, int]:
+        """Check if user command is on cooldown (only in groups)
+        
+        Args:
+            user_id: User's Telegram ID
+            command: Command name (without /)
+            chat_type: Type of chat ('private', 'group', 'supergroup')
+            
+        Returns:
+            tuple: (is_allowed, remaining_seconds)
+        """
+        # No cooldown in private chats
+        if chat_type == "private":
+            return True, 0
+        
+        # Check cooldown for groups
+        current_time = time.time()
+        last_used = self.user_command_cooldowns[user_id].get(command, 0)
+        time_passed = current_time - last_used
+        
+        if time_passed < self.USER_COMMAND_COOLDOWN:
+            remaining = int(self.USER_COMMAND_COOLDOWN - time_passed)
+            return False, remaining
+        
+        # Update last used time
+        self.user_command_cooldowns[user_id][command] = current_time
+        return True, 0
 
     async def ensure_group_registered(self, chat, context: ContextTypes.DEFAULT_TYPE = None):
         """Register group in database for broadcasts - works regardless of admin status"""
@@ -353,7 +381,6 @@ class TelegramQuizBot:
             self.application.add_handler(CommandHandler("delquiz_confirm", self.dev_commands.delquiz_confirm))
             self.application.add_handler(CommandHandler("dev", self.dev_commands.dev))
             self.application.add_handler(CommandHandler("stats", self.stats_command))
-            self.application.add_handler(CommandHandler("allreload", self.dev_commands.allreload))
             self.application.add_handler(CommandHandler("broadcast", self.dev_commands.broadcast))
             self.application.add_handler(CommandHandler("broadcast_confirm", self.dev_commands.broadcast_confirm))
             self.application.add_handler(CommandHandler("delbroadcast", self.dev_commands.delbroadcast))
@@ -381,11 +408,6 @@ class TelegramQuizBot:
                 pattern="^(start_quiz|my_stats|help)$"
             ))
             
-            # Add callback query handler for category selection
-            self.application.add_handler(CallbackQueryHandler(
-                self.handle_category_callback,
-                pattern="^cat_"
-            ))
 
             # Schedule automated quiz job - every 30 minutes
             self.application.job_queue.run_repeating(
@@ -765,13 +787,6 @@ We're here to help! 🌟"""
                     unit='ms'
                 )
                 
-                # Auto-delete command message in groups
-                if update.message.chat.type != "private":
-                    asyncio.create_task(self._delete_messages_after_delay(
-                        chat_id=update.message.chat_id,
-                        message_ids=[update.message.message_id],
-                        delay=5
-                    ))
             except Exception as e:
                 logger.error(f"Error in quiz command: {e}")
                 await loading_message.edit_text("❌ Oops! Something went wrong. Try /quiz again!")
@@ -797,6 +812,12 @@ We're here to help! 🌟"""
         try:
             chat = update.effective_chat
             user = update.effective_user
+            
+            # Check cooldown (only in groups)
+            is_allowed, remaining = self.check_user_command_cooldown(user.id, "start", chat.type)
+            if not is_allowed:
+                await update.message.reply_text(f"⏰ Please wait {remaining} seconds before using this command again")
+                return
             
             # Update user information in database with current username
             self.db.add_or_update_user(
@@ -912,6 +933,14 @@ We're here to help! 🌟"""
         """Handle the /help command"""
         start_time = time.time()
         try:
+            # Check cooldown (only in groups)
+            is_allowed, remaining = self.check_user_command_cooldown(
+                update.effective_user.id, "help", update.effective_chat.type
+            )
+            if not is_allowed:
+                await update.message.reply_text(f"⏰ Please wait {remaining} seconds before using this command again")
+                return
+            
             # Log command immediately
             self.db.log_activity(
                 activity_type='command',
@@ -962,7 +991,7 @@ Here's your complete command guide:
 ➤ /editquiz       ✏️ Edit existing questions
 ➤ /delquiz        🗑️ Delete a quiz
 ➤ /totalquiz      🔢 Total quiz count
-➤ /allreload      🔄 Restart bot globally"""
+"""
 
             help_text += f"""
 
@@ -1016,9 +1045,17 @@ Here's your complete command guide:
             await update.message.reply_text("Error showing help. Please try again later.")
 
     async def category(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle the /category command with interactive buttons"""
+        """Handle the /category command - Text-only list (no buttons)"""
         start_time = time.time()
         try:
+            # Check cooldown (only in groups)
+            is_allowed, remaining = self.check_user_command_cooldown(
+                update.effective_user.id, "category", update.effective_chat.type
+            )
+            if not is_allowed:
+                await update.message.reply_text(f"⏰ Please wait {remaining} seconds before using this command again")
+                return
+            
             # Log command immediately
             self.db.log_activity(
                 activity_type='command',
@@ -1030,50 +1067,32 @@ Here's your complete command guide:
                 success=True
             )
             
-            # Define available categories
-            categories = [
-                ("General Knowledge", "🌍"),
-                ("Current Affairs", "📰"),
-                ("Static GK", "📚"),
-                ("Science & Technology", "🔬"),
-                ("History", "📜"),
-                ("Geography", "🗺"),
-                ("Economics", "💰"),
-                ("Political Science", "🏛"),
-                ("Constitution", "📖"),
-                ("Constitution & Law", "⚖"),
-                ("Arts & Literature", "🎭"),
-                ("Sports & Games", "🎮")
-            ]
-            
-            # Create keyboard with 2 buttons per row
-            keyboard = []
-            for i in range(0, len(categories), 2):
-                row = []
-                # First button in row
-                cat_name, emoji = categories[i]
-                row.append(InlineKeyboardButton(
-                    f"{emoji} {cat_name}",
-                    callback_data=f"cat_{cat_name}"
-                ))
-                
-                # Second button in row (if exists)
-                if i + 1 < len(categories):
-                    cat_name, emoji = categories[i + 1]
-                    row.append(InlineKeyboardButton(
-                        f"{emoji} {cat_name}",
-                        callback_data=f"cat_{cat_name}"
-                    ))
-                
-                keyboard.append(row)
-            
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            
-            category_text = "📚 Select a quiz category:"
+            # Text-only category list
+            category_text = """━━━━━━━━━━━━━━━━━━━━━━━
+📚 𝗤𝗨𝗜𝗭 𝗖𝗔𝗧𝗘𝗚𝗢𝗥𝗜𝗘𝗦
+━━━━━━━━━━━━━━━━━━━━━━━
+
+📑 Choose a Category to Begin:
+
+🌍  General Knowledge
+📰  Current Affairs
+📚  Static GK
+🔬  Science & Technology
+📜  History
+🗺  Geography
+💰  Economics
+🏛  Political Science
+📖  Constitution
+⚖️  Constitution & Law
+🎭  Arts & Literature
+🎮  Sports & Games
+
+──────────────────────────────
+🎯 More quizzes coming soon!
+🛠 Use /help for commands"""
 
             reply_message = await update.message.reply_text(
                 category_text,
-                reply_markup=reply_markup,
                 parse_mode=ParseMode.MARKDOWN
             )
             
@@ -1087,13 +1106,6 @@ Here's your complete command guide:
                 unit='ms'
             )
             
-            # Auto-delete command and reply in groups
-            if update.message.chat.type != "private":
-                asyncio.create_task(self._delete_messages_after_delay(
-                    chat_id=update.message.chat_id,
-                    message_ids=[update.message.message_id, reply_message.message_id],
-                    delay=5
-                ))
         except Exception as e:
             response_time = int((time.time() - start_time) * 1000)
             self.db.log_activity(
@@ -1117,6 +1129,14 @@ Here's your complete command guide:
             if not user:
                 logger.error("No user found in update")
                 await update.message.reply_text("❌ Could not identify user.")
+                return
+
+            # Check cooldown (only in groups)
+            is_allowed, remaining = self.check_user_command_cooldown(
+                user.id, "mystats", update.effective_chat.type
+            )
+            if not is_allowed:
+                await update.message.reply_text(f"⏰ Please wait {remaining} seconds before using this command again")
                 return
 
             # Update user information in database with current username
@@ -1223,109 +1243,6 @@ Ready to begin? Try /quiz now! 🚀"""
             )
             logger.error(f"Error in mystats: {str(e)}\n{traceback.format_exc()}")
             await update.message.reply_text("❌ Error retrieving stats. Please try again.")
-
-    async def allreload(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Enhanced reload functionality with proper instance management and auto-cleanup"""
-        try:
-            if not await self.is_developer(update.message.from_user.id):
-                await self._handle_dev_command_unauthorized(update)
-                return
-
-            # Send initial status message
-            status_message = await update.message.reply_text(
-                "🔄 𝗥𝗲𝗹𝗼𝗮𝗱 𝗣𝗿𝗼𝗴𝗿𝗲𝘀𝘀\n════════════════\n⏳ Saving current state...",
-                parse_mode=ParseMode.MARKDOWN
-            )
-
-            try:
-                # Save current state
-                self.quiz_manager.save_data(force=True)
-                logger.info("Current state saved successfully")
-
-                # Update status
-                await status_message.edit_text(
-                    "🔄 𝗥𝗲𝗹𝗼𝗮𝗱 𝗣𝗿𝗼𝗴𝗿𝗲𝘀𝘀\n════════════════\n✅ Current state saved\n⏳ Scanning active chats...",
-                    parse_mode=ParseMode.MARKDOWN
-                )
-
-                # Get current active chats
-                current_chats = set(self.quiz_manager.get_active_chats())
-                discovered_chats = set()
-
-                # Scan existing chats
-                async def scan_chat(chat_id):
-                    try:
-                        chat = await context.bot.get_chat(chat_id)
-                        if chat.type in ['group', 'supergroup', 'private']:
-                            discovered_chats.add(chat_id)
-                            logger.info(f"Discovered chat: {chat.title if chat.title else 'Private'} ({chat_id})")
-                    except Exception as e:
-                        logger.warning(f"Could not scan chat {chat_id}: {e}")
-
-                # Execute all scans concurrently
-                scan_tasks = [scan_chat(chat_id) for chat_id in current_chats]
-                await asyncio.gather(*scan_tasks, return_exceptions=True)
-
-                # Update active chats
-                new_chats = discovered_chats - current_chats
-                removed_chats = current_chats - discovered_chats
-
-                for chat_id in new_chats:
-                    self.quiz_manager.add_active_chat(chat_id)
-
-                for chat_id in removed_chats:
-                    self.quiz_manager.remove_active_chat(chat_id)
-
-                # Reload data and update stats
-                self.quiz_manager.load_data()
-                self.quiz_manager.update_all_stats()
-
-                # Get updated stats
-                stats = self.quiz_manager.get_global_statistics()
-                
-                # Send success message
-                success_message = f"""✅ 𝗥𝗲𝗹𝗼𝗮𝗱 𝗖𝗼𝗺𝗽𝗹𝗲𝘁𝗲
-════════════════
-📊 𝗦𝘁𝗮𝘁𝘂𝘀:
-• Active Chats: {len(discovered_chats):,}
-• Users Tracked: {stats['users']['total']:,}
-• Questions: {stats['performance']['questions_available']:,}
-• Stats Updated: ✅
-════════════════
-🔄 Auto-deleting in 5s..."""
-
-                await status_message.edit_text(
-                    success_message,
-                    parse_mode=ParseMode.MARKDOWN
-                )
-
-                # Schedule deletion for both command and status messages in groups
-                if update.message.chat.type != "private":
-                    asyncio.create_task(self._delete_messages_after_delay(
-                        chat_id=update.message.chat_id,
-                        message_ids=[update.message.message_id, status_message.message_id],
-                        delay=5
-                    ))
-
-                # Schedule quiz delivery for active chats
-                await self.send_automated_quiz(context)
-                logger.info("Reload completed successfully")
-
-            except Exception as e:
-                error_message = f"""❌ 𝗥𝗲𝗹𝗼𝗮𝗱 𝗘𝗿𝗿𝗼𝗿
-════════════════
-Error: {str(e)}
-════════════════"""
-                await status_message.edit_text(
-                    error_message,
-                    parse_mode=ParseMode.MARKDOWN
-                )
-                logger.error(f"Error during reload: {e}\n{traceback.format_exc()}")
-                raise
-
-        except Exception as e:
-            logger.error(f"Error in allreload: {e}\n{traceback.format_exc()}")
-            await update.message.reply_text("❌ Error during reload. Please try again.")
 
     async def addquiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Add new quiz(zes) - Developer only
@@ -2533,80 +2450,6 @@ Start playing quizzes to track your progress.
         except Exception as e:
             logger.error(f"Error in start callback handler: {e}")
             await query.answer("❌ Error processing request", show_alert=True)
-    
-    async def handle_category_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle callbacks from category selection buttons"""
-        try:
-            query = update.callback_query
-            await query.answer()
-            
-            # Extract category name from callback data (format: "cat_CategoryName")
-            category_name = query.data.replace("cat_", "")
-            
-            logger.info(f"User {query.from_user.id} selected category: {category_name}")
-            
-            # Get user info for display
-            user = query.from_user
-            user_link = f"[{user.first_name}](tg://user?id={user.id})"
-            
-            # Check if we have questions available
-            total_questions = len(self.quiz_manager.questions)
-            
-            if total_questions == 0:
-                await query.message.reply_text(
-                    f"❌ No quiz questions available yet.\n\n"
-                    f"Please contact the administrator to add questions.",
-                    parse_mode=ParseMode.MARKDOWN
-                )
-                logger.warning(f"No questions available for category {category_name}")
-                return
-            
-            # Send a confirmation message with the category
-            category_emoji = {
-                "General Knowledge": "🌍",
-                "Current Affairs": "📰",
-                "Static GK": "📚",
-                "Science & Technology": "🔬",
-                "History": "📜",
-                "Geography": "🗺",
-                "Economics": "💰",
-                "Political Science": "🏛",
-                "Constitution": "📖",
-                "Constitution & Law": "⚖",
-                "Arts & Literature": "🎭",
-                "Sports & Games": "🎮"
-            }
-            
-            emoji = category_emoji.get(category_name, "📚")
-            
-            # Send a quiz from the selected category
-            await query.message.reply_text(
-                f"{emoji} **{category_name}** Category Selected!\n\n"
-                f"👤 {user_link} requested a quiz\n"
-                f"⏰ Get ready for your question...",
-                parse_mode=ParseMode.MARKDOWN
-            )
-            
-            # Send the quiz to the chat with category filter
-            await self.send_quiz(query.message.chat.id, context, auto_sent=False, scheduled=False, category=category_name)
-            
-            # Log the category selection activity
-            self.db.log_activity(
-                activity_type='category_selected',
-                user_id=user.id,
-                chat_id=query.message.chat.id,
-                username=user.username,
-                command='/category',
-                details={
-                    'category': category_name,
-                    'emoji': emoji
-                },
-                success=True
-            )
-            
-        except Exception as e:
-            logger.error(f"Error in category callback handler: {e}")
-            await query.answer("❌ Error processing category selection", show_alert=True)
     
     async def handle_stats_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle callbacks from the stats dashboard"""

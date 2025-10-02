@@ -892,62 +892,6 @@ class DeveloperCommands:
             reply = await update.message.reply_text("❌ Error retrieving statistics")
             await self.auto_clean_message(update.message, reply)
     
-    async def allreload(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Restart bot globally without downtime"""
-        start_time = time.time()
-        try:
-            if not await self.check_access(update):
-                await self.send_unauthorized_message(update)
-                return
-            
-            # Log command execution immediately
-            self.db.log_activity(
-                activity_type='command',
-                user_id=update.effective_user.id,
-                chat_id=update.effective_chat.id,
-                username=update.effective_user.username,
-                chat_title=getattr(update.effective_chat, 'title', None),
-                command='/allreload',
-                details={'restart_trigger': 'manual'},
-                success=True
-            )
-            
-            await update.message.reply_text(
-                "🔄 Restarting bot now...\n\n"
-                "⏳ The bot will be back in a few seconds."
-            )
-            
-            logger.info(f"Bot restart initiated by user {update.effective_user.id}")
-            
-            # Create restart flag file to trigger confirmation message
-            os.makedirs("data", exist_ok=True)
-            with open("data/.restart_flag", "w") as f:
-                f.write(str(datetime.now().timestamp()))
-            
-            # Give time for message to send
-            await asyncio.sleep(0.5)
-            
-            # Calculate response time at end
-            response_time = int((time.time() - start_time) * 1000)
-            logger.debug(f"Command /allreload completed in {response_time}ms")
-            
-            # Restart the process properly
-            os.execv(sys.executable, [sys.executable] + sys.argv)
-        
-        except Exception as e:
-            response_time = int((time.time() - start_time) * 1000)
-            self.db.log_activity(
-                activity_type='error',
-                user_id=update.effective_user.id,
-                chat_id=update.effective_chat.id,
-                command='/allreload',
-                details={'error': str(e)},
-                success=False,
-                response_time_ms=response_time
-            )
-            logger.error(f"Error in allreload: {e}", exc_info=True)
-            await update.message.reply_text("❌ Error restarting bot")
-    
     async def broadband(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Send simple broadcast message without forward tags"""
         start_time = time.time()
