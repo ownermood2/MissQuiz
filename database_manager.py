@@ -36,6 +36,10 @@ class DatabaseManager:
         """Context manager for database connections"""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
+        
+        # Enable WAL mode for better concurrency performance
+        conn.execute('PRAGMA journal_mode=WAL')
+        
         try:
             yield conn
             conn.commit()

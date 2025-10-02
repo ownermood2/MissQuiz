@@ -1,14 +1,24 @@
 import os
 import logging
+import psutil
+from datetime import datetime
 from flask import Flask, render_template, jsonify, request
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Validate required environment variables
+if not os.environ.get("SESSION_SECRET"):
+    logger.error("SESSION_SECRET environment variable is required but not set")
+    raise ValueError("SESSION_SECRET environment variable must be set for secure session management")
 
 # Initialize Flask
 app = Flask(__name__)
-app.secret_key = os.environ.get("SESSION_SECRET", "default-secret-key")
+app.secret_key = os.environ.get("SESSION_SECRET")
+
+# Track application start time for uptime monitoring
+start_time = datetime.now()
 
 # Initialize Quiz Manager
 try:
@@ -46,6 +56,20 @@ async def init_bot():
 @app.route('/')
 def admin_panel():
     return render_template('admin.html')
+
+@app.route('/health')
+def health():
+    """Health check endpoint with detailed status"""
+    uptime = datetime.now() - start_time
+    process = psutil.Process(os.getpid())
+    memory_usage = process.memory_info().rss / 1024 / 1024
+    
+    return jsonify({
+        'status': 'alive',
+        'uptime': str(uptime),
+        'memory_usage_mb': round(memory_usage, 2),
+        'timestamp': datetime.now().isoformat()
+    })
 
 @app.route('/api/questions', methods=['GET'])
 def get_questions():
