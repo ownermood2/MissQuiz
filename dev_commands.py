@@ -51,11 +51,24 @@ class DeveloperCommands:
         """Send friendly unauthorized message"""
         message = await update.effective_message.reply_text(config.UNAUTHORIZED_MESSAGE)
         
-        await self.auto_clean_message(update.effective_message, message)
+        # Clean unauthorized messages (not developer responses)
+        await self.auto_clean_message(update.effective_message, message, is_dev_response=False)
     
-    async def auto_clean_message(self, command_message, bot_reply, delay: int = 5):
-        """Auto-clean command and reply messages after delay (ONLY in groups, not in PM)"""
+    async def auto_clean_message(self, command_message, bot_reply, delay: int = 5, is_dev_response: bool = True):
+        """Auto-clean command and reply messages after delay
+        
+        Args:
+            command_message: The command message to clean
+            bot_reply: The bot's reply message to clean
+            delay: Delay in seconds before cleaning
+            is_dev_response: If True, skip auto-clean (developer responses should stay visible)
+        """
         try:
+            # NEVER auto-clean developer command responses
+            if is_dev_response:
+                logger.debug(f"Skipping auto-clean for developer command response")
+                return
+            
             # Only auto-clean in groups, not in private chats
             chat_type = command_message.chat.type if command_message else None
             if chat_type not in ["group", "supergroup"]:
