@@ -576,18 +576,37 @@ class TelegramQuizBot:
             logger.error(f"Error in track_chats: {e}")
 
     async def _delete_messages_after_delay(self, chat_id: int, message_ids: List[int], delay: int = 5) -> None:
-        """Delete messages after specified delay in seconds"""
+        """Delete messages after specified delay in seconds - requires admin permissions in groups"""
         try:
             await asyncio.sleep(delay)
+            
+            # Check if bot has admin permissions to delete messages
+            try:
+                bot_member = await self.application.bot.get_chat_member(chat_id, self.application.bot.id)
+                is_admin = bot_member.status in ['administrator', 'creator']
+                
+                if not is_admin:
+                    logger.info(f"Bot is not admin in chat {chat_id}, skipping auto-delete (need 'Delete messages' permission)")
+                    return
+            except Exception as e:
+                logger.debug(f"Could not check admin status for auto-delete in chat {chat_id}: {e}")
+                return
+            
+            # Attempt to delete messages
+            deleted_count = 0
             for message_id in message_ids:
                 try:
                     await self.application.bot.delete_message(
                         chat_id=chat_id,
                         message_id=message_id
                     )
+                    deleted_count += 1
                 except Exception as e:
-                    logger.warning(f"Failed to delete message {message_id} in chat {chat_id}: {e}")
+                    logger.debug(f"Could not delete message {message_id} in chat {chat_id}: {e}")
                     continue
+            
+            if deleted_count > 0:
+                logger.info(f"Auto-cleaned {deleted_count} messages in chat {chat_id}")
         except Exception as e:
             logger.error(f"Error in _delete_messages_after_delay: {e}")
 
