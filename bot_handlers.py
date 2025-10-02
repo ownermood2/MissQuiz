@@ -110,7 +110,13 @@ class TelegramQuizBot:
             bot_member = await context.bot.get_chat_member(chat_id, context.bot.id)
             return bot_member.status in ['administrator', 'creator']
         except Exception as e:
-            logger.error(f"Error checking admin status: {e}")
+            # Handle gracefully when bot is kicked - this is expected behavior
+            if "Forbidden" in str(e) or "kicked" in str(e).lower():
+                logger.info(f"Bot no longer has access to chat {chat_id} (kicked or removed)")
+                # Remove from active chats
+                self.quiz_manager.remove_active_chat(chat_id)
+            else:
+                logger.error(f"Error checking admin status for chat {chat_id}: {e}")
             return False
 
     async def send_admin_reminder(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -156,7 +162,12 @@ class TelegramQuizBot:
             logger.info(f"Sent enhanced admin reminder to group {chat_id}")
 
         except Exception as e:
-            logger.error(f"Failed to send admin reminder: {e}")
+            # Handle gracefully when bot is kicked
+            if "Forbidden" in str(e) or "kicked" in str(e).lower():
+                logger.info(f"Cannot send admin reminder to chat {chat_id} (bot removed or kicked)")
+                self.quiz_manager.remove_active_chat(chat_id)
+            else:
+                logger.error(f"Failed to send admin reminder to chat {chat_id}: {e}")
 
     async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE, auto_sent: bool = False, scheduled: bool = False, category: str = None) -> None:
         """Send a quiz to a specific chat using native Telegram quiz format"""
@@ -277,12 +288,9 @@ class TelegramQuizBot:
     async def scheduled_cleanup(self, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Automatically clean old messages every hour"""
         try:
-            active_chats = self.quiz_manager.get_active_chats()
-            for chat_id in active_chats:
-                try:
-                    await self.cleanup_old_messages(chat_id, context)
-                except Exception as e:
-                    logger.error(f"Error cleaning messages in chat {chat_id}: {e}")
+            # Note: Message cleanup is handled automatically via auto-delete mechanisms
+            # This job is kept for future cleanup extensions if needed
+            logger.debug("Message cleanup handled by auto-delete mechanisms")
 
         except Exception as e:
             logger.error(f"Error in scheduled cleanup: {e}")
@@ -473,6 +481,27 @@ class TelegramQuizBot:
         except Exception as e:
             logger.error(f"Failed to initialize bot: {e}")
             raise
+
+    def extract_status_change(self, chat_member_update):
+        """Extract whether bot was added or removed from chat"""
+        try:
+            if not chat_member_update or not hasattr(chat_member_update, 'difference'):
+                return None
+
+            status_change = chat_member_update.difference().get("status")
+            if status_change is None:
+                return None
+
+            old_status = chat_member_update.old_chat_member.status
+            new_status = chat_member_update.new_chat_member.status
+
+            was_member = old_status in ["member", "administrator", "creator"]
+            is_member = new_status in ["member", "administrator", "creator"]
+
+            return was_member, is_member
+        except Exception as e:
+            logger.error(f"Error in extract_status_change: {e}")
+            return None
 
     async def track_chats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Enhanced tracking when bot is added to or removed from chats"""
@@ -1684,78 +1713,6 @@ Failed to display quizzes. Please try again later.
             logger.error(f"Error in broadcast: {e}")
             await update.message.reply_text("❌ Error sending broadcast. Please try again.")
 
-    async def check_admin_status(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
-        """Check if bot is admin in the chat"""
-        try:
-            bot_member = await context.bot.get_chat_member(chat_id, context.bot.id)
-            return bot_member.status in ['administrator', 'creator']
-        except Exception as e:
-            logger.error(f"Error checking admin status: {e}")
-            return False
-
-    async def send_admin_reminder(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Send a professional reminder to make bot admin"""
-        try:
-            # First check if this is a group chat
-            chat = await context.bot.get_chat(chat_id)
-            if chat.type not in ["group", "supergroup"]:
-                return  # Don't send reminder in private chats
-
-            # Then check if bot is already admin
-            is_admin = await self.check_admin_status(chat_id, context)
-            if is_admin:
-                return  # Don't send reminder if bot is already admin
-
-            reminder_message = """🔔 𝗔𝗱𝗺𝗶𝗻 𝗥𝗲𝗾𝘂𝗲𝘀𝘁
-════════════════
-📌 To enable all quiz features, please:
-1. Click Group Settings
-2. Select Administrators
-3. Add "IIı 𝗤𝘂𝗶𝘇𝗶𝗺𝗽𝗮𝗰𝘁𝗕𝗼𝘁 🇮🇳 ıII" as Admin
-
-🎯 𝗕𝗲𝗻𝗲𝗳𝗶𝘁𝘀
-• Automatic Quiz Delivery
-• Message Management
-• Enhanced Group Analytics
-• Leaderboard Updates
-
-✨ Upgrade your quiz experience now!
-════════════════"""
-
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text=reminder_message,
-                parse_mode=ParseMode.MARKDOWN
-            )
-            logger.info(f"Sent admin reminder to group {chat_id}")
-
-        except Exception as e:
-            logger.error(f"Failed to send admin reminder: {e}")
-
-    async def scheduled_quiz(self, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Send scheduled quizzes to all active chats"""
-        try:
-            active_chats = self.quiz_manager.get_active_chats()
-            for chat_id in active_chats:
-                try:
-                    # Check if bot is admin
-                    is_admin = await self.check_admin_status(chat_id, context)
-
-                    if is_admin:
-                        # Send new quiz with tracking parameters (message cleanup handled elsewhere)
-                        await self.send_quiz(chat_id, context, auto_sent=True, scheduled=True)
-                        logger.info(f"Sent scheduled quiz to chat {chat_id}")
-                    else:
-                        # Send admin reminder
-                        await self.send_admin_reminder(chat_id, context)
-                        logger.info(f"Sent admin reminder to chat {chat_id}")
-
-                except Exception as e:
-                    logger.error(f"Error handling chat {chat_id}: {e}")
-                    continue
-
-        except Exception as e:
-            logger.error(f"Error in scheduled quiz: {e}")
 
     async def check_cooldown(self, user_id: int, command: str) -> bool:
         """Check if command is on cooldown for user"""
@@ -2915,132 +2872,4 @@ Start playing quizzes to track your progress.
                 "❌ Error processing system statistics.",
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("« Back", callback_data="refresh_stats")]])
             )
-
-    async def setup_bot(quiz_manager):
-        """Setup and start the Telegram bot"""
-        logger.info("Setting up Telegram bot...")
-        try:
-            bot = TelegramQuizBot(quiz_manager)
-            token = os.environ.get("TELEGRAM_TOKEN")
-            if not token:
-                raise ValueError("TELEGRAM_TOKEN environment variable is required")
-            await bot.initialize(token)
-            return bot    
-        except Exception as e:
-            logger.error(f"Failed to setup Telegram bot: {e}")
-            raise
-
-    def extract_status_change(chat_member_update):
-        """Extract whetherbot was added or removed."""
-        try:
-            if not chat_member_update or not hasattr(chat_member_update, 'difference'):
-                return None
-
-            status_change = chat_member_update.difference().get("status")
-            if status_change is None:
-                return None
-
-            old_status = chat_member_update.old_chat_member.status
-            new_status = chat_member_update.new_chat_member.status
-
-            was_member = old_status in ["member", "administrator", "creator"]
-            is_member = new_status in ["member", "administrator", "creator"]
-
-            return was_member, is_member
-        except Exception as e:
-            logger.error(f"Error in extract_status_change: {e}")
-            return None
-
-    async def setup_bot(quiz_manager):
-        """Setup and start the Telegram bot"""
-        logger.info("Setting up Telegram bot...")
-        try:
-            bot = TelegramQuizBot(quiz_manager)
-            token = os.environ.get("TELEGRAM_TOKEN")
-            if not token:
-                raise ValueError("TELEGRAM_TOKEN environment variable is required")
-            await bot.initialize(token)
-            return bot    
-        except Exception as e:
-            logger.error(f"Failed to setup Telegram bot: {e}")
-            raise
-
-    async def cleanup_old_messages(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Clean up old messages from the chat - Disabled (get_chat_history not available)"""
-        # NOTE: get_chat_history() is not available in python-telegram-bot
-        # Message cleanup is handled via other mechanisms (auto-delete after quiz completion)
-        logger.debug(f"Message cleanup skipped for chat {chat_id} - handled by auto-delete mechanisms")
-
-    async def send_automated_quiz(self, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Send automated quiz to all active groups"""
-        try:
-            active_chats = self.quiz_manager.get_active_chats()
-            for chat_id in active_chats:
-                try:
-                    # Check if bot is admin
-                    is_admin = await self.check_admin_status(chat_id, context)
-
-                    if is_admin:
-                        # Delete previous quiz if exists
-                        try:
-                            chat_history = self.command_history.get(chat_id, [])
-                            if chat_history:
-                                last_quiz = next((cmd for cmd in reversed(chat_history) if cmd.startswith("/quiz_")), None)
-                                if last_quiz:
-                                    msg_id = int(last_quiz.split("_")[1])
-                                    await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
-                                    logger.info(f"Deleted previous quiz in chat {chat_id}")
-                        except Exception as e:
-                            logger.warning(f"Failed to delete previous quiz: {e}")
-
-                        # Send new quiz with tracking parameters
-                        await self.send_quiz(chat_id, context, auto_sent=True, scheduled=True)
-                        logger.info(f"Sent automated quiz to chat {chat_id}")
-                    else:
-                        # Send admin reminder if not admin
-                        await self.send_admin_reminder(chat_id, context)
-                        logger.info(f"Sent admin reminder to chat {chat_id}")
-
-                except Exception as e:
-                    logger.error(f"Error processing chat {chat_id}: {e}")
-                    continue
-
-        except Exception as e:
-            logger.error(f"Error in automated quiz: {e}")
-
-    async def track_chats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Enhanced tracking when bot is added to or removed from chats"""
-        try:
-            chat = update.effective_chat
-            if not chat:
-                return
-
-            result = self.extract_status_change(update.my_chat_member)
-            if result is None:
-                return
-
-            was_member, is_member = result
-
-            if chat.type in ["group", "supergroup"]:
-                if not was_member and is_member:
-                    # Bot was added to a group
-                    self.quiz_manager.add_active_chat(chat.id)
-                    await self.ensure_group_registered(chat, context)
-                    await self.send_welcome_message(chat.id, context)
-
-                    # Schedule first quiz delivery (auto-sent when bot joins)
-                    if await self.check_admin_status(chat.id, context):
-                        await self.send_quiz(chat.id, context, auto_sent=True, scheduled=False)
-                    else:
-                        await self.send_admin_reminder(chat.id, context)
-
-                    logger.info(f"Bot added to group {chat.title} ({chat.id})")
-
-                elif was_member and not is_member:
-                    # Bot was removed from a group
-                    self.quiz_manager.remove_active_chat(chat.id)
-                    logger.info(f"Bot removed from group {chat.title} ({chat.id})")
-
-        except Exception as e:
-            logger.error(f"Error in track_chats: {e}")
 
