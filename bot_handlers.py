@@ -1053,26 +1053,7 @@ Here's your complete command guide:
             
             reply_markup = InlineKeyboardMarkup(keyboard)
             
-            category_text = """📚 𝗩𝗜𝗘𝗪 𝗖𝗔𝗧𝗘𝗚𝗢𝗥𝗜𝗘𝗦
-═══════════════════════════
-📑 Available Quiz Categories
-
-🌍 General Knowledge  
-📰 Current Affairs  
-📚 Static GK  
-🔬 Science & Technology  
-📜 History  
-🗺 Geography  
-💰 Economics  
-🏛 Political Science  
-📖 Constitution  
-⚖ Constitution & Law  
-🎭 Arts & Literature  
-🎮 Sports & Games  
-
-──────────────────────────────  
-🎯 Stay tuned — More quizzes coming soon!  
-🛠 Need help? Use /help for more commands!"""
+            category_text = "📚 Select a quiz category:"
 
             await update.message.reply_text(
                 category_text,
