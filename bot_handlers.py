@@ -1764,7 +1764,7 @@ Failed to display quizzes. Please try again later.
         """Check if command is on cooldown for user"""
         current_time = datetime.now().timestamp()
         last_used = self.user_command_cooldowns[user_id].get(command, 0)
-        if current_time - last_used < self.COOLDOWN_PERIOD:
+        if current_time - last_used < self.USER_COMMAND_COOLDOWN:
             return False
         self.user_command_cooldowns[user_id][command] = current_time
         return True
