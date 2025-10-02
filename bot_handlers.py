@@ -434,7 +434,7 @@ class TelegramQuizBot:
                 
             self.application.job_queue.run_repeating(
                 cleanup_questions_wrapper,
-                interval=3600,  # Every hour
+                interval=86400,  # Every 24 hours
                 first=600  # Start after 10 minutes
             )
             

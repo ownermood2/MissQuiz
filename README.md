@@ -48,7 +48,6 @@ A production-ready Telegram Quiz Bot with automated quiz delivery, live real-tim
 | `/editquiz` | Edit existing questions |
 | `/delquiz` | Delete quiz questions |
 | `/totalquiz` | View all quiz questions |
-| `/allreload` | Reload bot data and cache |
 
 ## 🚀 Quick Start
 
