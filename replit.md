@@ -4,13 +4,17 @@ This project is a Telegram Quiz Bot application designed to provide interactive 
 
 # Recent Changes
 
-## Professional Chat Cleanup (October 2, 2025)
-**Auto-Delete Feature for Clean Group Chats:**
-- Added professional auto-cleanup to all user commands in group chats
-- Commands affected: /help, /category, /mystats, /quiz
-- Auto-deletes both command message and bot reply after 5 seconds in groups
-- Private chat messages remain intact for user reference
-- Result: Clean, professional group chat experience with no command clutter
+## Command Optimization & UX Enhancements (October 2, 2025)
+**Smart Command Throttling & Clean Chat Management:**
+1. **60-Second Cooldowns**: Added rate limiting to prevent spam in group chats for /start, /help, /category, /mystats commands. Users receive friendly "⏰ Please wait X seconds" messages when attempting to reuse commands within cooldown period. Private chats have no cooldown restrictions.
+2. **Auto-Delete Behavior**: 
+   - /start, /help, /category, /mystats → Auto-delete after 5 seconds in groups (clean chat experience)
+   - /quiz → Messages persist until replaced by new quiz (improved visibility)
+   - /broadcast → No auto-delete, removable only by developer (administrative control)
+3. **Category UI Simplification**: Redesigned /category from button-based interface to clean text-only list with decorative borders and emojis. Removed callback handlers for simpler, faster category browsing.
+4. **Command Cleanup**: Removed /allreload command completely - bot now relies exclusively on external supervisor (Replit/systemd/PM2) for restarts, following production best practices.
+
+**Result**: Professional, spam-resistant bot with optimized UX, clean group chats, and streamlined command structure suitable for high-traffic groups.
 
 ## Critical Production-Readiness Fixes (October 2, 2025)
 **Architect-Audited Production Hardening:**
@@ -35,7 +39,7 @@ This project is a Telegram Quiz Bot application designed to provide interactive 
 
 ## Production-Ready Bot (October 2025)
 **Comprehensive Testing & Optimization:**
-1. **Command Cleanup**: Removed all duplicate/unused commands not advertised in /start or /help. Kept only essential user commands (/start, /help, /quiz, /category, /mystats) and developer commands (/dev, /stats, /broadcast, /delbroadcast, /addquiz, /editquiz, /delquiz, /totalquiz, /allreload).
+1. **Command Cleanup**: Removed all duplicate/unused commands not advertised in /start or /help. Kept only essential user commands (/start, /help, /quiz, /category, /mystats) and developer commands (/dev, /stats, /broadcast, /delbroadcast, /addquiz, /editquiz, /delquiz, /totalquiz).
 2. **Category Display**: Updated /category command with enhanced visual format showing 12 quiz categories with proper emojis and styling.
 3. **Lambda Job Fix**: Resolved TypeError in cleanup_questions scheduler job by creating proper async wrapper function.
 4. **Timestamp Migration**: Fixed timestamp format inconsistency (ISO 'T' → space-separated), migrated 276 activity_log records, replaced DATE() functions with optimized UTC timestamp range queries.
