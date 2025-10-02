@@ -1763,10 +1763,10 @@ Failed to display quizzes. Please try again later.
     async def check_cooldown(self, user_id: int, command: str) -> bool:
         """Check if command is on cooldown for user"""
         current_time = datetime.now().timestamp()
-        last_used = self.command_cooldowns[user_id][command]
+        last_used = self.user_command_cooldowns[user_id][command]
         if current_time - last_used < self.COOLDOWN_PERIOD:
             return False
-        self.command_cooldowns[user_id][command] = current_time
+        self.user_command_cooldowns[user_id][command] = current_time
         return True
 
     async def cleanup_old_polls(self, context: ContextTypes.DEFAULT_TYPE) -> None:
