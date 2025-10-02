@@ -1679,15 +1679,7 @@ Failed to display quizzes. Please try again later.
 ✅ Successfully sent to: {success_count} chats
 ❌ Failed to send to: {failed_count} chats"""
 
-            result_msg = await update.message.reply_text(results)
-
-            # Auto-delete command and result in groups
-            if update.message.chat.type != "private":
-                asyncio.create_task(self._delete_messages_after_delay(
-                    chat_id=update.message.chat_id,
-                    message_ids=[update.message.message_id, result_msg.message_id],
-                    delay=5
-                ))
+            await update.message.reply_text(results)
 
             logger.info(f"Broadcast completed (optimized batching): {success_count} successful, {failed_count} failed")
 
