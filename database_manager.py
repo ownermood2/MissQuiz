@@ -2214,9 +2214,9 @@ class DatabaseManager:
                     cursor.execute('''
                         SELECT 
                             COUNT(*) as total_sent,
-                            SUM(CASE WHEN activity_type = 'quiz_answered' THEN 1 ELSE 0 END) as total_answered
+                            SUM(CASE WHEN activity_type IN ('quiz_answered', 'quiz_answer') THEN 1 ELSE 0 END) as total_answered
                         FROM activity_logs
-                        WHERE activity_type IN ('quiz_sent', 'quiz_answered')
+                        WHERE activity_type IN ('quiz_sent', 'quiz_answered', 'quiz_answer')
                     ''')
                 else:
                     now = datetime.now()
@@ -2234,9 +2234,9 @@ class DatabaseManager:
                     cursor.execute('''
                         SELECT 
                             COUNT(*) as total_sent,
-                            SUM(CASE WHEN activity_type = 'quiz_answered' THEN 1 ELSE 0 END) as total_answered
+                            SUM(CASE WHEN activity_type IN ('quiz_answered', 'quiz_answer') THEN 1 ELSE 0 END) as total_answered
                         FROM activity_logs
-                        WHERE activity_type IN ('quiz_sent', 'quiz_answered')
+                        WHERE activity_type IN ('quiz_sent', 'quiz_answered', 'quiz_answer')
                           AND timestamp >= ?
                     ''', (start_timestamp,))
                 

@@ -729,7 +729,7 @@ class TelegramQuizBot:
             
             # Log comprehensive quiz answer activity
             self.db.log_activity(
-                activity_type='quiz_answer',
+                activity_type='quiz_answered',
                 user_id=answer.user.id,
                 chat_id=chat_id,
                 username=username,
