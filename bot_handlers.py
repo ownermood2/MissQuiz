@@ -2050,7 +2050,16 @@ Use/help to see all commands."""
             for chat_id in active_chats:
                 try:
                     # Check if chat is a group and bot is admin
-                    chat = await context.bot.get_chat(chat_id)
+                    try:
+                        chat = await context.bot.get_chat(chat_id)
+                    except Exception as e:
+                        # Handle kicked/removed bot gracefully
+                        if "Forbidden" in str(e) or "kicked" in str(e).lower() or "not found" in str(e).lower():
+                            logger.info(f"Bot no longer has access to chat {chat_id} (kicked/removed), removing from active chats")
+                            self.quiz_manager.remove_active_chat(chat_id)
+                            continue
+                        raise  # Re-raise if it's a different error
+                    
                     if chat.type not in ["group", "supergroup"]:
                         logger.info(f"Skipping non-group chat {chat_id}")
                         continue
