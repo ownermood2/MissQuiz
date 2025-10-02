@@ -900,8 +900,8 @@ class DeveloperCommands:
                 await self.send_unauthorized_message(update)
                 return
             
-            # Get recipient counts for logging
-            users = self.db.get_all_users_stats()
+            # Get recipient counts for logging (PM-accessible users only)
+            users = self.db.get_pm_accessible_users()
             groups = self.db.get_all_groups()
             total_targets = len(users) + len(groups)
             
@@ -928,9 +928,9 @@ class DeveloperCommands:
             
             message_text = ' '.join(context.args)
             
-            # Get all users and groups - SEND TO ALL STORED USERS AND GROUPS
-            users = self.db.get_all_users_stats()  # Get ALL users, not just active
-            groups = self.db.get_all_groups()
+            # Get users with PM access and active groups for broadcast
+            users = self.db.get_pm_accessible_users()  # Only users with PM access
+            groups = self.db.get_all_groups()  # Active groups only
             
             total_targets = len(users) + len(groups)
             
@@ -1062,8 +1062,8 @@ class DeveloperCommands:
                 await self.send_unauthorized_message(update)
                 return
             
-            # Determine media type and recipient counts for logging
-            users = self.db.get_all_users_stats()
+            # Determine media type and recipient counts for logging (PM-accessible users only)
+            users = self.db.get_pm_accessible_users()
             groups = self.db.get_all_groups()
             total_targets = len(users) + len(groups)
             
@@ -1101,7 +1101,7 @@ class DeveloperCommands:
             if update.message.reply_to_message:
                 replied_message = update.message.reply_to_message
                 
-                users = self.db.get_all_users_stats()
+                users = self.db.get_pm_accessible_users()
                 groups = self.db.get_all_groups()
                 total_targets = len(users) + len(groups)
                 
@@ -1171,7 +1171,7 @@ class DeveloperCommands:
                 # Parse inline buttons from text
                 cleaned_text, reply_markup = self.parse_inline_buttons(message_text)
                 
-                users = self.db.get_all_users_stats()
+                users = self.db.get_pm_accessible_users()
                 groups = self.db.get_all_groups()
                 total_targets = len(users) + len(groups)
                 
@@ -1258,9 +1258,9 @@ class DeveloperCommands:
             
             status = await update.message.reply_text("📢 Sending broadcast...")
             
-            # Get ALL users and groups - SEND TO ALL STORED USERS AND GROUPS
-            users = self.db.get_all_users_stats()  # Get ALL users, not just active
-            groups = self.db.get_all_groups()
+            # Get users with PM access and active groups for broadcast
+            users = self.db.get_pm_accessible_users()  # Only users with PM access
+            groups = self.db.get_all_groups()  # Active groups only
             
             success_count = 0
             fail_count = 0
@@ -1752,12 +1752,13 @@ class DeveloperCommands:
             fail_count = 0
             
             # Delete from all chats instantly
-            for chat_id, message_id in broadcast_messages.items():
+            for chat_id_str, message_id in broadcast_messages.items():
                 try:
+                    chat_id = int(chat_id_str)  # Convert string to int (JSON keys are strings)
                     await context.bot.delete_message(chat_id=chat_id, message_id=message_id)
                     success_count += 1
                 except Exception as e:
-                    logger.debug(f"Failed to delete from chat {chat_id}: {e}")
+                    logger.debug(f"Failed to delete from chat {chat_id_str}: {e}")
                     fail_count += 1
             
             await status.edit_text(
