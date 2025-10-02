@@ -36,6 +36,10 @@ class TelegramQuizBot:
         self.cleanup_interval = 3600  # 1 hour in seconds
         self.bot_start_time = datetime.now()
         
+        self._stats_cache = None
+        self._stats_cache_time = None
+        self._stats_cache_duration = timedelta(minutes=5)
+        
         self.db = DatabaseManager()
         self.dev_commands = DeveloperCommands(self.db, quiz_manager)
         logger.info("TelegramQuizBot initialized with database and developer commands")
