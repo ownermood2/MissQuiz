@@ -2245,8 +2245,14 @@ Please reply to a quiz message or use:
                 logger.debug("Using cached stats data (performance optimization)")
             else:
                 # Fetch fresh data from database
+                all_users = self.db.get_all_users_stats()
+                pm_users = sum(1 for user in all_users if user.get('has_pm_access') == 1)
+                group_only_users = sum(1 for user in all_users if user.get('has_pm_access') == 0 or user.get('has_pm_access') is None)
+                
                 stats_data = {
-                    'total_users': len(self.db.get_all_users_stats()),
+                    'total_users': len(all_users),
+                    'pm_users': pm_users,
+                    'group_only_users': group_only_users,
                     'total_groups': len(self.db.get_all_groups()),
                     'active_today': self.db.get_active_users_count('today'),
                     'active_week': self.db.get_active_users_count('week'),
@@ -2265,6 +2271,8 @@ Please reply to a quiz message or use:
             
             # Extract data from cache
             total_users = stats_data['total_users']
+            pm_users = stats_data['pm_users']
+            group_only_users = stats_data['group_only_users']
             total_groups = stats_data['total_groups']
             active_today = stats_data['active_today']
             active_week = stats_data['active_week']
@@ -2314,16 +2322,18 @@ Please reply to a quiz message or use:
             
             stats_message = f"""📊 𝗕𝗼𝘁 𝗦𝘁𝗮𝘁𝘀
 ━━━━━━━━━━━━━━━━━━━━
-• 🌐 Total Groups: {total_groups:,}
-• 👥 Total Users: {total_users:,}
+• 🌐 Total Groups: {total_groups} groups
+• 👤 PM Users: {pm_users} users
+• 👥 Group-only Users: {group_only_users} users
+• 👥 Total Users: {total_users} users
 
 ════════════════════
 🤖 𝗢𝘃𝗲𝗿𝗮𝗹𝗹 𝗣𝗲𝗿𝗳𝗼𝗿𝗺𝗮𝗻𝗰𝗲
 ────────────────────
-• Today: {quiz_today['quizzes_sent']:,}
-• This Week: {quiz_week['quizzes_sent']:,}
-• This Month: {quiz_month['quizzes_sent']:,}
-• Total: {quiz_all['quizzes_sent']:,}
+• Today: {quiz_today.get('quizzes_answered', 0)}
+• This Week: {quiz_week.get('quizzes_answered', 0)}
+• This Month: {quiz_month.get('quizzes_answered', 0)}
+• Total: {quiz_all.get('quizzes_answered', 0)}
 
 ━━━━━━━━━━━━━━━━━━━━
 ✨ Keep quizzing & growing! 🚀"""
