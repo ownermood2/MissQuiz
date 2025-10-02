@@ -38,7 +38,7 @@ class TelegramQuizBot:
         
         self._stats_cache = None
         self._stats_cache_time = None
-        self._stats_cache_duration = timedelta(minutes=5)
+        self._stats_cache_duration = timedelta(seconds=10)
         
         self.db = DatabaseManager()
         self.dev_commands = DeveloperCommands(self.db, quiz_manager)
@@ -680,6 +680,10 @@ class TelegramQuizBot:
             activity_date = datetime.now().strftime('%Y-%m-%d')
             self.db.update_user_score(answer.user.id, is_correct, activity_date)
             logger.info(f"Updated stats in database for user {answer.user.id}: correct={is_correct}")
+            
+            # CRITICAL: Invalidate stats cache immediately for real-time /stats command
+            self._stats_cache = None
+            self._stats_cache_time = None
             
             # Also record in quiz_history for tracking purposes
             if question_id and selected_answer is not None:
