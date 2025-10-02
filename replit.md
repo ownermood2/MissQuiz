@@ -8,7 +8,7 @@ This project is a Telegram Quiz Bot application designed to provide interactive 
 **Smart Command Throttling & Clean Chat Management:**
 1. **60-Second Cooldowns**: Added rate limiting to prevent spam in group chats for /start, /help, /category, /mystats commands. Users receive friendly "⏰ Please wait X seconds" messages when attempting to reuse commands within cooldown period. Private chats have no cooldown restrictions.
 2. **Auto-Delete Behavior**: 
-   - /start, /help, /category, /mystats → Auto-delete after 5 seconds in groups (clean chat experience)
+   - /start, /help, /category, /mystats → Auto-delete after 60 seconds in groups (clean chat experience)
    - /quiz → Messages persist until replaced by new quiz (improved visibility)
    - /broadcast → No auto-delete, removable only by developer (administrative control)
 3. **Category UI Simplification**: Redesigned /category from button-based interface to clean text-only list with decorative borders and emojis. Removed callback handlers for simpler, faster category browsing.

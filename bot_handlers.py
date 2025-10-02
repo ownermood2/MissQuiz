@@ -562,8 +562,12 @@ class TelegramQuizBot:
         except Exception as e:
             logger.error(f"Error in _delete_messages_after_delay: {e}")
 
-    async def send_welcome_message(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE, user=None) -> None:
-        """Send unified welcome message when bot joins a group or starts in private chat"""
+    async def send_welcome_message(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE, user=None):
+        """Send unified welcome message when bot joins a group or starts in private chat
+        
+        Returns:
+            Message: The sent message object, or None if an error occurred
+        """
         try:
             keyboard = [
                 [InlineKeyboardButton(
@@ -602,7 +606,7 @@ class TelegramQuizBot:
 ──────────────────────────────
 🔥 Add me to your groups & let the quiz fun begin! 🎯"""
 
-            await context.bot.send_message(
+            sent_message = await context.bot.send_message(
                 chat_id=chat_id,
                 text=welcome_message,
                 parse_mode=ParseMode.MARKDOWN,
@@ -619,8 +623,10 @@ class TelegramQuizBot:
                     await self.send_admin_reminder(chat_id, context)
 
             logger.info(f"Sent premium welcome message to chat {chat_id}")
+            return sent_message
         except Exception as e:
             logger.error(f"Error sending welcome message: {e}")
+            return None
 
     async def handle_answer(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle quiz answers"""
@@ -849,7 +855,15 @@ We're here to help! 🌟"""
             
             self.quiz_manager.add_active_chat(chat.id)
             await self.ensure_group_registered(chat, context)
-            await self.send_welcome_message(chat.id, context, user)
+            welcome_msg = await self.send_welcome_message(chat.id, context, user)
+            
+            # Auto-delete command and reply in groups after 60 seconds
+            if chat.type != "private" and welcome_msg:
+                asyncio.create_task(self._delete_messages_after_delay(
+                    chat_id=chat.id,
+                    message_ids=[update.message.message_id, welcome_msg.message_id],
+                    delay=60
+                ))
             
             # Auto-send quiz after 5 seconds in DM
             if chat.type == 'private':
@@ -1022,12 +1036,12 @@ Here's your complete command guide:
                 unit='ms'
             )
             
-            # Auto-delete command and reply in groups
+            # Auto-delete command and reply in groups after 60 seconds
             if update.message.chat.type != "private":
                 asyncio.create_task(self._delete_messages_after_delay(
                     chat_id=update.message.chat_id,
                     message_ids=[update.message.message_id, reply_message.message_id],
-                    delay=5
+                    delay=60
                 ))
 
         except Exception as e:
@@ -1105,6 +1119,14 @@ Here's your complete command guide:
                 value=response_time,
                 unit='ms'
             )
+            
+            # Auto-delete command and reply in groups after 60 seconds
+            if update.message.chat.type != "private":
+                asyncio.create_task(self._delete_messages_after_delay(
+                    chat_id=update.message.chat_id,
+                    message_ids=[update.message.message_id, reply_message.message_id],
+                    delay=60
+                ))
             
         except Exception as e:
             response_time = int((time.time() - start_time) * 1000)
@@ -1218,12 +1240,12 @@ Ready to begin? Try /quiz now! 🚀"""
                     unit='ms'
                 )
                 
-                # Auto-delete command and reply in groups
+                # Auto-delete command and reply in groups after 60 seconds
                 if update.message.chat.type != "private":
                     asyncio.create_task(self._delete_messages_after_delay(
                         chat_id=update.message.chat_id,
                         message_ids=[update.message.message_id, loading_msg.message_id],
-                        delay=5
+                        delay=60
                     ))
 
             except Exception as e:
