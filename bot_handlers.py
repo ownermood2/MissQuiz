@@ -764,6 +764,14 @@ We're here to help! 🌟"""
                     value=response_time,
                     unit='ms'
                 )
+                
+                # Auto-delete command message in groups
+                if update.message.chat.type != "private":
+                    asyncio.create_task(self._delete_messages_after_delay(
+                        chat_id=update.message.chat_id,
+                        message_ids=[update.message.message_id],
+                        delay=5
+                    ))
             except Exception as e:
                 logger.error(f"Error in quiz command: {e}")
                 await loading_message.edit_text("❌ Oops! Something went wrong. Try /quiz again!")
@@ -969,7 +977,7 @@ Here's your complete command guide:
 ✨ Conquer the Quiz World with {bot_link}!"""
 
             # Send help message with markdown for clickable links
-            await context.bot.send_message(
+            reply_message = await context.bot.send_message(
                 chat_id=update.effective_chat.id,
                 text=help_text,
                 parse_mode=ParseMode.MARKDOWN
@@ -984,6 +992,14 @@ Here's your complete command guide:
                 value=response_time,
                 unit='ms'
             )
+            
+            # Auto-delete command and reply in groups
+            if update.message.chat.type != "private":
+                asyncio.create_task(self._delete_messages_after_delay(
+                    chat_id=update.message.chat_id,
+                    message_ids=[update.message.message_id, reply_message.message_id],
+                    delay=5
+                ))
 
         except Exception as e:
             response_time = int((time.time() - start_time) * 1000)
@@ -1055,7 +1071,7 @@ Here's your complete command guide:
             
             category_text = "📚 Select a quiz category:"
 
-            await update.message.reply_text(
+            reply_message = await update.message.reply_text(
                 category_text,
                 reply_markup=reply_markup,
                 parse_mode=ParseMode.MARKDOWN
@@ -1070,6 +1086,14 @@ Here's your complete command guide:
                 value=response_time,
                 unit='ms'
             )
+            
+            # Auto-delete command and reply in groups
+            if update.message.chat.type != "private":
+                asyncio.create_task(self._delete_messages_after_delay(
+                    chat_id=update.message.chat_id,
+                    message_ids=[update.message.message_id, reply_message.message_id],
+                    delay=5
+                ))
         except Exception as e:
             response_time = int((time.time() - start_time) * 1000)
             self.db.log_activity(
@@ -1173,6 +1197,14 @@ Ready to begin? Try /quiz now! 🚀"""
                     value=response_time,
                     unit='ms'
                 )
+                
+                # Auto-delete command and reply in groups
+                if update.message.chat.type != "private":
+                    asyncio.create_task(self._delete_messages_after_delay(
+                        chat_id=update.message.chat_id,
+                        message_ids=[update.message.message_id, loading_msg.message_id],
+                        delay=5
+                    ))
 
             except Exception as e:
                 logger.error(f"Error displaying stats: {e}")

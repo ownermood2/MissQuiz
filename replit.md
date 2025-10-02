@@ -4,6 +4,14 @@ This project is a Telegram Quiz Bot application designed to provide interactive 
 
 # Recent Changes
 
+## Professional Chat Cleanup (October 2, 2025)
+**Auto-Delete Feature for Clean Group Chats:**
+- Added professional auto-cleanup to all user commands in group chats
+- Commands affected: /help, /category, /mystats, /quiz
+- Auto-deletes both command message and bot reply after 5 seconds in groups
+- Private chat messages remain intact for user reference
+- Result: Clean, professional group chat experience with no command clutter
+
 ## Critical Production-Readiness Fixes (October 2, 2025)
 **Architect-Audited Production Hardening:**
 1. **Port Conflict Resolution**: Merged keep_alive.py health endpoint into app.py, creating single Flask instance on port 5000 serving both admin panel and health checks. Eliminated server conflicts and improved deployment simplicity.
