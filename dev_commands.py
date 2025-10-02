@@ -776,7 +776,11 @@ class DeveloperCommands:
             try:
                 # Get user & group metrics
                 all_users = self.db.get_all_users_stats()
-                total_users = len(all_users)
+                
+                # Count PM users vs Group-only users
+                pm_users = sum(1 for user in all_users if user.get('has_pm_access') == 1)
+                group_only_users = sum(1 for user in all_users if user.get('has_pm_access') == 0 or user.get('has_pm_access') is None)
+                total_users = pm_users + group_only_users
                 
                 all_groups = self.db.get_all_groups()
                 total_groups = len(all_groups)
@@ -787,10 +791,16 @@ class DeveloperCommands:
                 # Get quiz activity (real-time from activity_logs)
                 quiz_stats_today = self.db.get_quiz_stats_by_period('today')
                 quiz_stats_week = self.db.get_quiz_stats_by_period('week')
+                quiz_stats_month = self.db.get_quiz_stats_by_period('month')
                 
-                quizzes_today = quiz_stats_today.get('quizzes_sent', 0)
-                answered_today = quiz_stats_today.get('quizzes_answered', 0)
-                quizzes_week = quiz_stats_week.get('quizzes_sent', 0)
+                quizzes_today = quiz_stats_today.get('quizzes_answered', 0)
+                quizzes_week = quiz_stats_week.get('quizzes_answered', 0)
+                quizzes_month = quiz_stats_month.get('quizzes_answered', 0)
+                
+                # Get total quizzes answered (all time)
+                all_time_stats = self.db.get_quiz_stats_by_period('all')
+                quizzes_total = all_time_stats.get('quizzes_answered', 0)
+                
                 success_rate = quiz_stats_week.get('success_rate', 0)
                 
                 # Get performance metrics (24h)
@@ -841,29 +851,22 @@ class DeveloperCommands:
                     activity_feed = "• No recent activity"
                 
                 # Format the complete stats message
-                current_time = datetime.now().strftime('%H:%M:%S')
-                
                 stats_text = (
-                    f"📊 **Live Bot Statistics**\n"
-                    f"━━━━━━━━━━━━━━━━━━━\n\n"
-                    f"👥 **Users & Groups**\n"
-                    f"• Total Users: {total_users:,}\n"
-                    f"• Total Groups: {total_groups:,}\n"
-                    f"• Active Today: {active_today}\n\n"
-                    f"📝 **Quiz Activity**\n"
-                    f"• Today: {quizzes_today} sent, {answered_today} answered\n"
-                    f"• This Week: {quizzes_week} sent\n"
-                    f"• Success Rate: {success_rate}%\n\n"
-                    f"⚡ **Performance (24h)**\n"
-                    f"• Avg Response: {avg_time}ms\n"
-                    f"• Commands: {commands_24h:,}\n"
-                    f"• Error Rate: {error_rate}%\n\n"
-                    f"🔥 **Top Commands (7 days)**\n"
-                    f"{command_list}\n\n"
-                    f"📜 **Recent Activity**\n"
-                    f"{activity_feed}\n"
-                    f"━━━━━━━━━━━━━━━━━━━\n"
-                    f"🕐 Updated: {current_time}"
+                    f"📊 𝗕𝗼𝘁 𝗦𝘁𝗮𝘁𝘀\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\n"
+                    f"• 🌐 Total Groups: {total_groups} groups\n"
+                    f"• 👤 PM Users: {pm_users} users\n"
+                    f"• 👥 Group-only Users: {group_only_users} users\n"
+                    f"• 👥 Total Users: {total_users} users\n\n"
+                    f"════════════════════\n"
+                    f"🤖 𝗢𝘃𝗲𝗿𝗮𝗹𝗹 𝗣𝗲𝗿𝗳𝗼𝗿𝗺𝗮𝗻𝗰𝗲\n"
+                    f"────────────────────\n"
+                    f"• Today: {quizzes_today}\n"
+                    f"• This Week: {quizzes_week}\n"
+                    f"• This Month: {quizzes_month}\n"
+                    f"• Total: {quizzes_total}\n\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\n"
+                    f"✨ Keep quizzing & growing! 🚀"
                 )
                 
                 await loading.edit_text(stats_text, parse_mode=ParseMode.MARKDOWN)
@@ -1597,6 +1600,23 @@ class DeveloperCommands:
                 skipped_count=skipped_count
             )
             
+            # Get stats for result message
+            pm_users_count = sum(1 for user in users if user.get('has_pm_access') == 1)
+            group_only_users = sum(1 for user in users if user.get('has_pm_access') == 0 or user.get('has_pm_access') is None)
+            total_users_count = pm_users_count + group_only_users
+            total_groups_count = len(groups)
+            
+            # Get quiz performance stats
+            quiz_stats_today = self.db.get_quiz_stats_by_period('today')
+            quiz_stats_week = self.db.get_quiz_stats_by_period('week')
+            quiz_stats_month = self.db.get_quiz_stats_by_period('month')
+            all_time_stats = self.db.get_quiz_stats_by_period('all')
+            
+            quizzes_today = quiz_stats_today.get('quizzes_answered', 0)
+            quizzes_week = quiz_stats_week.get('quizzes_answered', 0)
+            quizzes_month = quiz_stats_month.get('quizzes_answered', 0)
+            quizzes_total = all_time_stats.get('quizzes_answered', 0)
+            
             # Build result message
             result_text = f"✅ Broadcast completed!\n\n"
             result_text += f"📱 PM Sent: {pm_sent}\n"
@@ -1605,7 +1625,23 @@ class DeveloperCommands:
             result_text += f"✅ Total Sent: {success_count}\n"
             result_text += f"❌ Failed: {fail_count}\n"
             if skipped_count > 0:
-                result_text += f"🗑️ Auto-Removed: {skipped_count}"
+                result_text += f"🗑️ Auto-Removed: {skipped_count}\n"
+            
+            result_text += f"\n📊 𝗕𝗼𝘁 𝗦𝘁𝗮𝘁𝘀\n"
+            result_text += f"━━━━━━━━━━━━━━━━━━━━\n"
+            result_text += f"• 🌐 Total Groups: {total_groups_count} groups\n"
+            result_text += f"• 👤 PM Users: {pm_users_count} users\n"
+            result_text += f"• 👥 Group-only Users: {group_only_users} users\n"
+            result_text += f"• 👥 Total Users: {total_users_count} users\n\n"
+            result_text += f"════════════════════\n"
+            result_text += f"🤖 𝗢𝘃𝗲𝗿𝗮𝗹𝗹 𝗣𝗲𝗿𝗳𝗼𝗿𝗺𝗮𝗻𝗰𝗲\n"
+            result_text += f"────────────────────\n"
+            result_text += f"• Today: {quizzes_today}\n"
+            result_text += f"• This Week: {quizzes_week}\n"
+            result_text += f"• This Month: {quizzes_month}\n"
+            result_text += f"• Total: {quizzes_total}\n\n"
+            result_text += f"━━━━━━━━━━━━━━━━━━━━\n"
+            result_text += f"✨ Keep quizzing & growing! 🚀"
             
             await status.edit_text(result_text)
             
