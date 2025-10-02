@@ -3,12 +3,11 @@ import sys
 import logging
 import asyncio
 import signal
-import threading
 import traceback
 from datetime import datetime, timedelta
-from keep_alive import keep_alive_app, start_keep_alive
-from app import app, init_bot
-import psutil  # Added this import
+from keep_alive import start_keep_alive
+from app import init_bot
+import psutil
 
 # Configure logging
 logging.basicConfig(
@@ -80,7 +79,9 @@ async def main():
                 from config import OWNER_ID
                 from telegram import Bot
                 
-                telegram_bot = Bot(token=os.environ.get("TELEGRAM_TOKEN"))
+                token = os.environ.get("TELEGRAM_TOKEN")
+                assert token is not None, "TELEGRAM_TOKEN environment variable is required"
+                telegram_bot = Bot(token=token)
                 confirmation_message = (
                     "✅ Bot restarted successfully and is now online!\n\n"
                     f"🕒 Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
