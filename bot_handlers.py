@@ -774,13 +774,7 @@ We're here to help! 🌟"""
             
             await self.ensure_group_registered(update.effective_chat, context)
             
-            # Only check cooldown in group chats, not in private messages
-            chat_type = update.effective_chat.type
-            if chat_type in ['group', 'supergroup']:
-                if not await self.check_cooldown(update.effective_user.id, "quiz"):
-                    await update.message.reply_text("⏳ Please wait a moment before starting another quiz!")
-                    return
-
+            # No cooldown for /quiz command - users can request quizzes anytime
             loading_message = await update.message.reply_text("🎯 Preparing your quiz...")
             
             try:
