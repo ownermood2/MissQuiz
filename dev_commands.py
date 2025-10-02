@@ -1329,14 +1329,23 @@ class DeveloperCommands:
                             await asyncio.sleep(0.03)
                     except Exception as e:
                         error_msg = str(e)
-                        # CONSTRAINED AUTO-CLEANUP: Only delete on specific permission errors
-                        if "Forbidden: bot was kicked from the group" in error_msg or "Forbidden: bot is not a member of the group chat" in error_msg:
-                            logger.info(f"AUTO-CLEANUP: Removing group {group['chat_id']} - {error_msg}")
+                        # OPTIMIZED AUTO-CLEANUP: Handle all kicked/removed scenarios
+                        if any(keyword in error_msg.lower() for keyword in [
+                            "bot was kicked", 
+                            "bot is not a member",
+                            "chat not found",
+                            "group chat was deactivated",
+                            "chat has been deleted"
+                        ]):
+                            logger.info(f"AUTO-CLEANUP: Removing group {group['chat_id']} from database and active chats - {error_msg}")
                             self.db.remove_inactive_group(group['chat_id'])
+                            # Also remove from active_chats
+                            if hasattr(self, 'quiz_manager'):
+                                self.quiz_manager.remove_active_chat(group['chat_id'])
                             skipped_count += 1
                         elif "Forbidden" in error_msg:
                             # Generic Forbidden - don't delete, just log
-                            logger.warning(f"SAFETY: Not removing group {group['chat_id']} - error was: {error_msg}")
+                            logger.warning(f"SAFETY: Not auto-removing group {group['chat_id']} - error: {error_msg}")
                             fail_count += 1
                         else:
                             logger.warning(f"Failed to send to group {group['chat_id']}: {error_msg}")
@@ -1462,14 +1471,23 @@ class DeveloperCommands:
                             await asyncio.sleep(0.03)
                     except Exception as e:
                         error_msg = str(e)
-                        # CONSTRAINED AUTO-CLEANUP: Only delete on specific permission errors
-                        if "Forbidden: bot was kicked from the group" in error_msg or "Forbidden: bot is not a member of the group chat" in error_msg:
-                            logger.info(f"AUTO-CLEANUP: Removing group {group['chat_id']} - {error_msg}")
+                        # OPTIMIZED AUTO-CLEANUP: Handle all kicked/removed scenarios
+                        if any(keyword in error_msg.lower() for keyword in [
+                            "bot was kicked", 
+                            "bot is not a member",
+                            "chat not found",
+                            "group chat was deactivated",
+                            "chat has been deleted"
+                        ]):
+                            logger.info(f"AUTO-CLEANUP: Removing group {group['chat_id']} from database and active chats - {error_msg}")
                             self.db.remove_inactive_group(group['chat_id'])
+                            # Also remove from active_chats
+                            if hasattr(self, 'quiz_manager'):
+                                self.quiz_manager.remove_active_chat(group['chat_id'])
                             skipped_count += 1
                         elif "Forbidden" in error_msg:
                             # Generic Forbidden - don't delete, just log
-                            logger.warning(f"SAFETY: Not removing group {group['chat_id']} - error was: {error_msg}")
+                            logger.warning(f"SAFETY: Not auto-removing group {group['chat_id']} - error: {error_msg}")
                             fail_count += 1
                         else:
                             logger.warning(f"Failed to send to group {group['chat_id']}: {error_msg}")
@@ -1570,14 +1588,23 @@ class DeveloperCommands:
                             await asyncio.sleep(0.03)
                     except Exception as e:
                         error_msg = str(e)
-                        # CONSTRAINED AUTO-CLEANUP: Only delete on specific permission errors
-                        if "Forbidden: bot was kicked from the group" in error_msg or "Forbidden: bot is not a member of the group chat" in error_msg:
-                            logger.info(f"AUTO-CLEANUP: Removing group {group['chat_id']} - {error_msg}")
+                        # OPTIMIZED AUTO-CLEANUP: Handle all kicked/removed scenarios
+                        if any(keyword in error_msg.lower() for keyword in [
+                            "bot was kicked", 
+                            "bot is not a member",
+                            "chat not found",
+                            "group chat was deactivated",
+                            "chat has been deleted"
+                        ]):
+                            logger.info(f"AUTO-CLEANUP: Removing group {group['chat_id']} from database and active chats - {error_msg}")
                             self.db.remove_inactive_group(group['chat_id'])
+                            # Also remove from active_chats
+                            if hasattr(self, 'quiz_manager'):
+                                self.quiz_manager.remove_active_chat(group['chat_id'])
                             skipped_count += 1
                         elif "Forbidden" in error_msg:
                             # Generic Forbidden - don't delete, just log
-                            logger.warning(f"SAFETY: Not removing group {group['chat_id']} - error was: {error_msg}")
+                            logger.warning(f"SAFETY: Not auto-removing group {group['chat_id']} - error: {error_msg}")
                             fail_count += 1
                         else:
                             logger.warning(f"Failed to send to group {group['chat_id']}: {error_msg}")
@@ -1618,15 +1645,16 @@ class DeveloperCommands:
             quizzes_month = quiz_stats_month.get('quizzes_answered', 0)
             quizzes_total = all_time_stats.get('quizzes_answered', 0)
             
-            # Build result message
+            # Build optimized result message
             result_text = f"✅ Broadcast completed!\n\n"
             result_text += f"📱 PM Sent: {pm_sent}\n"
             result_text += f"👥 Groups Sent: {group_sent}\n"
             result_text += f"━━━━━━━━━━━━━━━\n"
             result_text += f"✅ Total Sent: {success_count}\n"
-            result_text += f"❌ Failed: {fail_count}\n"
             if skipped_count > 0:
-                result_text += f"🗑️ Auto-Removed: {skipped_count}\n"
+                result_text += f"🗑️ Auto-Cleaned: {skipped_count} (kicked/inactive)\n"
+            if fail_count > 0:
+                result_text += f"⚠️ Skipped: {fail_count} (access restricted)\n"
             
             result_text += f"\n📊 𝗕𝗼𝘁 𝗦𝘁𝗮𝘁𝘀\n"
             result_text += f"━━━━━━━━━━━━━━━━━━━━\n"
