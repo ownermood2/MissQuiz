@@ -256,6 +256,35 @@ Use the `/addquiz` developer command or manually edit `data/questions.json`
 - Health check: `http://localhost:5000/health`
 - Use `/stats` command for bot analytics
 
+### Code Formatting & Quality
+
+This project uses automated tools for consistent code quality:
+
+**Format your code with Black:**
+```bash
+black .
+```
+
+**Sort imports with isort:**
+```bash
+isort .
+```
+
+**Lint code with flake8:**
+```bash
+flake8 .
+```
+
+**Run all checks at once:**
+```bash
+black . && isort . && flake8 .
+```
+
+**Install development tools:**
+```bash
+pip install -e ".[dev]"
+```
+
 ## 📊 Database Schema
 
 The bot uses SQLite with the following tables:
@@ -276,11 +305,15 @@ The bot uses SQLite with the following tables:
 - Open an issue on GitHub
 
 ### Contributing
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+Want to contribute? We'd love your help!
+
+1. Read [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines
+2. Fork the repository and create a feature branch
+3. Make your changes following our code style (Black, isort, flake8)
+4. Test thoroughly in both PM and group chats
+5. Submit a pull request with a clear description
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for complete contribution guidelines.
 
 ## 📝 License
 
