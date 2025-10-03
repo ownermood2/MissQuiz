@@ -68,3 +68,5 @@ The project uses a minimal, optimized set of dependencies:
 ## Environment Variables
 - **TELEGRAM_TOKEN**: Essential for Telegram bot authentication.
 - **SESSION_SECRET**: Used for Flask session security.
+- **OWNER_ID**: Required. Telegram user ID of the bot owner (integer). Must be set for the bot to start.
+- **WIFU_ID**: Optional. Telegram user ID of additional authorized user (integer).

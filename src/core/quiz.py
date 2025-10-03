@@ -6,7 +6,7 @@ import traceback
 from typing import List, Dict, Optional, Any
 from datetime import datetime, timedelta
 from collections import defaultdict, deque
-from database_manager import DatabaseManager
+from src.core.database import DatabaseManager
 
 logger = logging.getLogger(__name__)
 

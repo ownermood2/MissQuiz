@@ -14,8 +14,8 @@ from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from telegram.constants import ParseMode
-import config
-from database_manager import DatabaseManager
+from src.core import config
+from src.core.database import DatabaseManager
 
 logger = logging.getLogger(__name__)
 

@@ -19,9 +19,9 @@ from telegram.ext import (
     CallbackQueryHandler
 )
 from telegram.constants import ParseMode
-import config
-from database_manager import DatabaseManager
-from dev_commands import DeveloperCommands
+from src.core import config
+from src.core.database import DatabaseManager
+from src.bot.dev_commands import DeveloperCommands
 
 logger = logging.getLogger(__name__)
 
@@ -492,6 +492,142 @@ class TelegramQuizBot:
 
         except Exception as e:
             logger.error(f"Failed to initialize bot: {e}")
+            raise
+
+    async def initialize_webhook(self, token: str, webhook_url: str):
+        """Initialize the bot in webhook mode with robust network configuration"""
+        try:
+            # Build application with network resilience settings
+            from telegram.request import HTTPXRequest
+            
+            # Configure robust HTTP client with proper timeouts and retry logic
+            request = HTTPXRequest(
+                connect_timeout=10.0,
+                read_timeout=20.0, 
+                write_timeout=20.0,
+                pool_timeout=10.0,
+                connection_pool_size=8
+            )
+            
+            self.application = (
+                Application.builder()
+                .token(token)
+                .request(request)
+                .build()
+            )
+
+            # Add handlers for all commands
+            self.application.add_handler(CommandHandler("start", self.start))
+            self.application.add_handler(CommandHandler("help", self.help))
+            self.application.add_handler(CommandHandler("quiz", self.quiz_command))
+            self.application.add_handler(CommandHandler("category", self.category))
+            self.application.add_handler(CommandHandler("mystats", self.mystats))
+
+            # Developer commands (legacy - keeping existing)
+            self.application.add_handler(CommandHandler("addquiz", self.addquiz))
+            self.application.add_handler(CommandHandler("editquiz", self.editquiz))
+            self.application.add_handler(CommandHandler("totalquiz", self.totalquiz))
+            
+            # Enhanced developer commands (from dev_commands module)
+            self.application.add_handler(CommandHandler("delquiz", self.dev_commands.delquiz))
+            self.application.add_handler(CommandHandler("delquiz_confirm", self.dev_commands.delquiz_confirm))
+            self.application.add_handler(CommandHandler("dev", self.dev_commands.dev))
+            self.application.add_handler(CommandHandler("stats", self.stats_command))
+            self.application.add_handler(CommandHandler("broadcast", self.dev_commands.broadcast))
+            self.application.add_handler(CommandHandler("broadcast_confirm", self.dev_commands.broadcast_confirm))
+            self.application.add_handler(CommandHandler("delbroadcast", self.dev_commands.delbroadcast))
+            self.application.add_handler(CommandHandler("delbroadcast_confirm", self.dev_commands.delbroadcast_confirm))
+
+            # Handle answers and chat member updates
+            self.application.add_handler(PollAnswerHandler(self.handle_answer))
+            self.application.add_handler(ChatMemberHandler(self.track_chats, ChatMemberHandler.MY_CHAT_MEMBER))
+            
+            # Track ALL PM interactions (any message in private chat)
+            from telegram.ext import MessageHandler, filters
+            self.application.add_handler(
+                MessageHandler(filters.ChatType.PRIVATE & ~filters.COMMAND, self.track_pm_interaction)
+            )
+
+            # Add callback query handler for stats dashboard UI
+            self.application.add_handler(CallbackQueryHandler(
+                self.handle_stats_callback,
+                pattern="^(refresh_stats|stats_)"
+            ))
+            
+            # Add callback query handler for start command buttons
+            self.application.add_handler(CallbackQueryHandler(
+                self.handle_start_callback,
+                pattern="^(start_quiz|my_stats|help)$"
+            ))
+
+            # Schedule automated quiz job - every 30 minutes
+            self.application.job_queue.run_repeating(
+                self.send_automated_quiz,
+                interval=1800,  # 30 minutes
+                first=10  # Start first quiz after 10 seconds
+            )
+
+            # Schedule cleanup jobs
+            self.application.job_queue.run_repeating(
+                self.scheduled_cleanup,
+                interval=3600,  # Every hour
+                first=300  # Start first cleanup after 5 minutes
+            )
+            self.application.job_queue.run_repeating(
+                self.cleanup_old_polls,
+                interval=3600, #Every Hour
+                first=300
+            )
+            # Add question history cleanup job
+            async def cleanup_questions_wrapper(context):
+                """Async wrapper for cleanup_old_questions"""
+                self.quiz_manager.cleanup_old_questions()
+                
+            self.application.job_queue.run_repeating(
+                cleanup_questions_wrapper,
+                interval=86400,  # Every 24 hours
+                first=600  # Start after 10 minutes
+            )
+            
+            # Add memory usage tracking job
+            self.application.job_queue.run_repeating(
+                self.track_memory_usage,
+                interval=300,  # Every 5 minutes
+                first=60  # Start after 1 minute
+            )
+            
+            # Add performance metrics cleanup job
+            self.application.job_queue.run_repeating(
+                self.cleanup_performance_metrics,
+                interval=86400,  # Every 24 hours
+                first=3600  # Start after 1 hour
+            )
+            
+            # Add activity logs cleanup job (run at 3 AM daily)
+            self.application.job_queue.run_daily(
+                self.cleanup_old_activities,
+                time=__import__('datetime').time(hour=3, minute=0),
+                name='cleanup_old_activities'
+            )
+
+            await self.application.initialize()
+            await self.application.start()
+            
+            # Backfill groups from active_chats to database
+            await self.backfill_groups_startup()
+            
+            # Set webhook instead of polling
+            await self.application.bot.set_webhook(
+                url=webhook_url,
+                allowed_updates=Update.ALL_TYPES
+            )
+            
+            logger.info(f"Webhook set successfully: {webhook_url}")
+            
+            return self
+
+        except Exception as e:
+            logger.error(f"Failed to initialize bot in webhook mode: {e}")
             raise
 
     def extract_status_change(self, chat_member_update):
