@@ -43,14 +43,27 @@ The system uses a **SQLite database** (`data/quiz_bot.db`) for data persistence,
 - **Robust Error Handling & Logging**: Comprehensive logging and error recovery mechanisms.
 - **Real-time Tracking System**: Comprehensive activity logging and analytics.
 - **Performance Optimizations**: Database query optimization with indexing, command caching, and concurrent broadcast processing.
+- **Network Resilience**: HTTPXRequest configuration with balanced timeouts (10s connect, 20s read/write, 10s pool, 8 connections) for automatic reconnection on network failures.
+- **Single Instance Enforcement**: PID lockfile mechanism (`data/bot.lock`) prevents multiple bot instances from running simultaneously, eliminating Telegram API conflicts.
 
 # External Dependencies
 
-- **Flask**: Web framework for the administrative panel.
-- **python-telegram-bot**: Library for interacting with the Telegram Bot API.
-- **psutil**: Used for system monitoring.
+The project uses a minimal, optimized set of dependencies:
+
+- **python-telegram-bot**: Telegram Bot API wrapper with job queue support for bot functionality and scheduling.
+- **Flask**: Web framework for the administrative panel and health checks.
+- **apscheduler**: Task scheduling for automated quiz delivery (included with python-telegram-bot).
+- **psutil**: System monitoring and memory tracking for performance metrics.
+- **httpx**: Async HTTP client used by python-telegram-bot for network resilience (HTTPXRequest with configurable timeouts).
+- **gunicorn**: Production WSGI server for deployment.
+
+**Removed Dependencies** (Optimization as of Oct 2025):
+- ~~flask-sqlalchemy~~ - Not used (direct SQLite operations instead)
+- ~~psycopg2-binary~~ - Not needed (SQLite database, not PostgreSQL)
+
+## External Services
 - **Telegram Bot API**: The primary external service for bot operations.
-- **Replit Environment**: Hosting platform, requiring specific port configurations.
+- **Replit Environment**: Hosting platform with port 5000 configuration.
 
 ## Environment Variables
 - **TELEGRAM_TOKEN**: Essential for Telegram bot authentication.
