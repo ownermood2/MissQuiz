@@ -10,66 +10,6 @@
     "correct_answer": 0
   },
   {
-    "question": "Who was the founder of the Maurya Empire?",
-    "options": [
-      "Ashoka",
-      "Bindusara",
-      "Chandragupta Maurya",
-      "Chanakya"
-    ],
-    "correct_answer": 0
-  },
-  {
-    "question": "In which year did the Revolt of 1857 take place?",
-    "options": [
-      "1856",
-      "1857",
-      "1858",
-      "1859"
-    ],
-    "correct_answer": 0
-  },
-  {
-    "question": "Who is known as the \"Napoleon of India\"?",
-    "options": [
-      "Samudragupta",
-      "Chandragupta Maurya",
-      "Ashoka",
-      "Harsha"
-    ],
-    "correct_answer": 0
-  },
-  {
-    "question": "Who was the first Governor-General of independent India?",
-    "options": [
-      "C. Rajagopalachari",
-      "Lord Mountbatten",
-      "Lord Wavell",
-      "Warren Hastings"
-    ],
-    "correct_answer": 0
-  },
-  {
-    "question": "Who composed the national song \"Vande Mataram\"?",
-    "options": [
-      "Rabindranath Tagore",
-      "Bankim Chandra Chattopadhyay",
-      "Subramania Bharati",
-      "Bal Gangadhar Tilak"
-    ],
-    "correct_answer": 0
-  },
-  {
-    "question": "Who was the last Mughal Emperor?",
-    "options": [
-      "Bahadur Shah I",
-      "Aurangzeb",
-      "Bahadur Shah II",
-      "Shah Alam II"
-    ],
-    "correct_answer": 0
-  },
-  {
     "question": "Which Indus Valley site is famous for its dockyard?",
     "options": [
       "Harappa",

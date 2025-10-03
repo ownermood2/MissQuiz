@@ -1,12 +1,12 @@
 # 🎯 Telegram Quiz Bot
 
-A production-ready Telegram Quiz Bot with automated quiz delivery, live real-time statistics tracking, category-based filtering, and comprehensive analytics. Built with Python, Flask, and python-telegram-bot.
+A production-ready Telegram Quiz Bot with automated quiz delivery, real-time statistics tracking, comprehensive analytics, and professional group chat management. Built with Python 3.11+ and designed for seamless deployment on Replit, Render, or Heroku.
 
 ## ✨ Features
 
 ### Core Features
 - 🤖 **Interactive Quiz System**: Poll-based quizzes with instant feedback
-- 📊 **Live Statistics Tracking**: Real-time user stats with no caching delays
+- 📊 **Live Statistics Tracking**: Real-time user stats with no caching delays  
 - 🎨 **12 Quiz Categories**: Science, History, Geography, Sports, Technology, and more
 - ⏰ **Automated Quiz Delivery**: Scheduled quizzes every 30 minutes to active groups
 - 👥 **Multi-Platform Support**: Works in private messages and group chats
@@ -16,15 +16,16 @@ A production-ready Telegram Quiz Bot with automated quiz delivery, live real-tim
 - 🔄 **Smart Quiz Rotation**: Never repeat questions within the same chat session
 - 🎯 **Streak Tracking**: Monitor user answer streaks and performance trends
 - 🔐 **Developer Commands**: Advanced admin controls with role-based access
-- 📢 **Broadcast System**: Send announcements with media, buttons, and placeholders
+- 📢 **Enhanced Broadcast System**: Send announcements with media, buttons, and dynamic placeholders
 - 🧹 **Auto-Cleanup**: Automatically removes old quiz messages for clean chat experience
+- 🌐 **Network Resilience**: Automatic reconnection with robust timeout configuration (10s connect, 20s read/write)
 
 ### Technical Features
 - 💾 **SQLite Database**: Efficient data storage with optimized indexes
 - 🔄 **Background Jobs**: 7 automated schedulers for cleanup and monitoring
 - 📝 **Activity Logging**: Complete audit trail of all bot interactions
-- 🛡️ **Error Handling**: Robust error recovery and logging
-- 🚀 **Production-Ready**: Optimized for deployment on Render, Heroku, or Replit
+- 🛡️ **Error Handling**: Robust error recovery and comprehensive logging
+- 🚀 **Production-Ready**: Optimized for deployment with zero downtime restarts
 
 ## 📋 Commands
 
@@ -40,176 +41,106 @@ A production-ready Telegram Quiz Bot with automated quiz delivery, live real-tim
 ### Developer Commands
 | Command | Description |
 |---------|-------------|
-| `/dev` | Access developer control panel |
-| `/stats` | View bot-wide statistics and analytics |
-| `/broadcast` | Send announcements to all users/groups |
-| `/delbroadcast` | Delete previous broadcasts |
-| `/addquiz` | Add new quiz questions |
-| `/editquiz` | Edit existing questions |
-| `/delquiz` | Delete quiz questions |
-| `/totalquiz` | View all quiz questions |
+| `/dev` | Manage developer access (add/remove/list developers) |
+| `/stats` | View real-time bot statistics dashboard |
+| `/broadcast` | Send enhanced broadcast with media/buttons/placeholders |
+| `/broadcast_confirm` | Confirm and send prepared enhanced broadcast |
+| `/broadband` | Send simple plain text broadcast |
+| `/broadband_confirm` | Confirm and send prepared plain text broadcast |
+| `/delbroadcast` | Delete the latest broadcast message |
+| `/delbroadcast_confirm` | Confirm deletion of latest broadcast |
+| `/addquiz` | Add new quiz questions with duplicate detection |
+| `/editquiz` | View and edit existing quiz questions (paginated) |
+| `/delquiz` | Delete specific quiz question |
+| `/delquiz_confirm` | Confirm quiz question deletion |
+| `/totalquiz` | Display total count of available quiz questions |
+| `/performance` | View live performance metrics dashboard |
+| `/activity` | View live activity stream (with filtering/pagination) |
+| `/clear_quizzes` | **DESTRUCTIVE** - Clear all quiz questions (double confirmation) |
+| `/globalstats` | View comprehensive bot statistics (developer view) |
+| `/allreload` | Restart bot globally without downtime |
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Python 3.11 or higher
 - Telegram Bot Token (from [@BotFather](https://t.me/BotFather))
+- Git (for cloning)
 
 ### Installation
 
 1. **Clone the repository**
-   ```bash
-   git clone <your-repo-url>
-   cd telegram-quiz-bot
-   ```
+```bash
+git clone <your-repo-url>
+cd telegram-quiz-bot
+```
 
 2. **Install dependencies**
-   
-   Using pip:
-   ```bash
-   pip install -r requirements.txt
-   ```
-   
-   Or using uv (faster, recommended):
-   ```bash
-   uv sync
-   ```
-   
-   Or install from pyproject.toml directly:
-   ```bash
-   pip install .
-   ```
+
+Using pip:
+```bash
+pip install -r requirements.txt
+```
+
+Or using uv (faster, recommended):
+```bash
+uv sync
+```
 
 3. **Set up environment variables**
-   
-   Create a `.env` file or export these variables:
-   ```bash
-   export TELEGRAM_TOKEN="your_bot_token_here"
-   export SESSION_SECRET="your_random_secret_key_here"
-   ```
+
+Create a `.env` file or export these variables:
+```bash
+export TELEGRAM_TOKEN="your_bot_token_here"
+export SESSION_SECRET="your_random_secret_key_here"
+```
 
 4. **Configure developer access**
-   
-   Edit `config.py` and add your Telegram user IDs:
-   ```python
-   OWNER_ID = 123456789  # Your Telegram user ID
-   WIFU_ID = 987654321   # Secondary admin ID (optional)
-   ```
+
+Edit `config.py` and add your Telegram user IDs:
+```python
+OWNER_ID = 123456789  # Your Telegram user ID (get from @userinfobot)
+WIFU_ID = 987654321   # Secondary admin ID (optional)
+```
 
 5. **Run the bot**
-   ```bash
-   python main.py
-   ```
+```bash
+python main.py
+```
 
 The bot will:
-- Start the Telegram bot and web server
-- Initialize the SQLite database
-- Load quiz questions
-- Start 7 automated background jobs
-- Begin accepting commands
+- Start the Telegram bot and Flask web server on port 5000
+- Initialize the SQLite database with optimized indexes
+- Load quiz questions from data/questions.json
+- Start 7 automated background schedulers
+- Begin accepting commands and polling for updates
 
 ## 📦 Dependencies
 
-The project uses a minimal set of essential dependencies:
+The project uses a minimal, optimized set of dependencies:
 
-| Package | Purpose | Why Required |
-|---------|---------|--------------|
-| **python-telegram-bot** | Telegram Bot API | Core bot functionality |
-| **flask** | Web framework | Admin panel and health checks |
-| **flask-sqlalchemy** | ORM | APScheduler job persistence |
-| **apscheduler** | Task scheduling | Automated quiz delivery |
-| **psycopg2-binary** | PostgreSQL adapter | Production database support |
-| **psutil** | System monitoring | Memory tracking and health checks |
-| **requests** | HTTP client | Keep-alive pings |
-| **gunicorn** | WSGI server | Production deployment |
+| Package | Purpose |
+|---------|---------|
+| **python-telegram-bot** | Telegram Bot API wrapper with job queue support |
+| **flask** | Web framework for admin panel and health checks |
+| **apscheduler** | Task scheduling for automated quiz delivery |
+| **psutil** | System monitoring and memory tracking |
+| **requests** | HTTP client for external API calls |
+| **gunicorn** | Production WSGI server for deployment |
 
-### Why These Dependencies?
-- **flask-sqlalchemy**: Required by APScheduler for persistent job storage (scheduler won't work without it)
-- **psycopg2-binary**: Enables PostgreSQL support for production deployments (falls back to SQLite if not available)
-- All other dependencies are directly imported and actively used in the codebase
+All dependencies are actively used and essential for core functionality. No bloat, no unused packages.
 
-## 🌐 Deployment
+## 🌐 Admin Panel
 
-### Deploy to Render
+Access the web-based admin panel at `http://localhost:5000` to:
+- View all quiz questions in a responsive table
+- Add new questions via web interface
+- Edit existing questions with inline editing
+- Delete questions with confirmation
+- Monitor quiz statistics in real-time
+- View active users and groups
 
-1. **Create a new Web Service** on [Render](https://render.com)
-
-2. **Configure the service**:
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `gunicorn --bind=0.0.0.0:5000 --reuse-port main:app`
-   - **Environment Variables**:
-     - `TELEGRAM_TOKEN`: Your bot token
-     - `SESSION_SECRET`: Random secret key
-
-3. **Deploy** and your bot will be live!
-
-### Deploy to Heroku
-
-1. **Create a new app** on [Heroku](https://heroku.com)
-
-2. **Add Procfile**:
-   ```
-   web: gunicorn --bind=0.0.0.0:$PORT --reuse-port main:app
-   ```
-
-3. **Set environment variables**:
-   ```bash
-   heroku config:set TELEGRAM_TOKEN=your_token_here
-   heroku config:set SESSION_SECRET=your_secret_here
-   ```
-
-4. **Deploy**:
-   ```bash
-   git push heroku main
-   ```
-
-### Deploy to Replit
-
-1. **Import the repository** to Replit
-
-2. **Set Secrets**:
-   - Go to Tools → Secrets
-   - Add `TELEGRAM_TOKEN` and `SESSION_SECRET`
-
-3. **Configure the Run button**:
-   - Command: `python main.py`
-   - Port: 5000
-
-4. **Click Run** and your bot is live!
-
-## 📁 Project Structure
-
-```
-telegram-quiz-bot/
-├── main.py                 # Application entry point
-├── app.py                  # Flask web application
-├── bot_handlers.py         # Telegram bot command handlers
-├── dev_commands.py         # Developer commands module
-├── quiz_manager.py         # Quiz logic and data management
-├── database_manager.py     # SQLite database operations
-├── config.py              # Configuration and access control
-├── keep_alive.py          # Keep-alive server and health checks
-├── templates/             # Flask HTML templates
-│   └── admin.html        # Admin panel interface
-├── static/               # Static assets
-│   └── js/
-│       └── admin.js      # Admin panel JavaScript
-├── data/                 # Data directory
-│   ├── quiz_bot.db      # SQLite database
-│   ├── questions.json   # Quiz questions backup
-│   └── *.json           # Other data files
-└── pyproject.toml        # Python dependencies
-```
-
-## 🛠️ Configuration
-
-### Access Control
-Edit `config.py` to manage developer access:
-
-```python
-OWNER_ID = 123456789      # Primary admin
-WIFU_ID = 987654321       # Secondary admin
-```
+## ⚙️ Configuration
 
 ### Quiz Categories
 The bot supports 12 categories:
@@ -226,41 +157,264 @@ The bot supports 12 categories:
 11. 🎵 Music
 12. 🔢 Mathematics
 
-### Background Jobs
-The bot runs 7 automated schedulers:
-- **Auto Quiz Sender**: Every 30 minutes
-- **Scheduled Cleanup**: Hourly
-- **Poll Cleanup**: Hourly  
-- **Question History Cleanup**: Hourly
-- **Memory Tracking**: Every 5 minutes
-- **Performance Metrics Cleanup**: Daily
-- **Activity Logs Cleanup**: Daily at 3 AM
+### Automated Schedulers
+The bot runs 7 background jobs:
+- **Automated Quiz Sender**: Every 30 minutes (sends quiz to active groups where bot is admin)
+- **Scheduled Cleanup**: Hourly (removes inactive data)
+- **Poll Cleanup**: Hourly (cleans up old poll data)
+- **Question History Cleanup**: Daily (maintains quiz rotation freshness)
+- **Memory Tracking**: Every 5 minutes (monitors performance)
+- **Performance Metrics Cleanup**: Daily (removes metrics older than 7 days)
+- **Activity Logs Cleanup**: Daily at 3 AM (keeps 30 days of audit trail)
 
-## 🔧 Maintenance
+### Network Resilience Settings
+The bot includes robust network configuration:
+- Connect timeout: 10 seconds
+- Read timeout: 20 seconds
+- Write timeout: 20 seconds
+- Pool timeout: 10 seconds
+- Connection pool size: 8
+- Automatic reconnection on network failures
 
-### View Logs
-```bash
-tail -f bot.log
+## 📁 Project Structure
+
+```
+telegram-quiz-bot/
+├── main.py                 # Entry point - starts bot and Flask server
+├── app.py                  # Flask application and bot initialization
+├── bot_handlers.py         # Telegram command handlers and core logic
+├── dev_commands.py         # Developer-only commands with access control
+├── config.py               # Configuration, constants, and access control
+├── database_manager.py     # SQLite database operations with optimized queries
+├── quiz_manager.py         # Quiz business logic and data management
+├── requirements.txt        # Python dependencies (auto-generated from pyproject.toml)
+├── pyproject.toml          # Project metadata and dependency specifications
+├── data/                   # Database and data files
+│   ├── quiz_bot.db        # SQLite database (auto-created)
+│   └── questions.json     # Quiz questions backup
+├── static/                 # Static assets for web admin
+│   └── js/
+│       └── admin.js       # Admin panel JavaScript
+└── templates/              # HTML templates for web admin
+    └── admin.html         # Admin panel interface
 ```
 
-### Backup Database
+## 🚀 Deployment
+
+### Deploy on Replit (Recommended)
+1. Import this repository to Replit
+2. Add Secrets in Replit Tools → Secrets:
+   - `TELEGRAM_TOKEN`: Your bot token
+   - `SESSION_SECRET`: Random secret key
+3. Update `config.py` with your `OWNER_ID`
+4. Click Run - bot starts automatically!
+
+### Deploy on Render
+1. Create new Web Service on [Render](https://render.com)
+2. Connect your GitHub repository
+3. Configure:
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `python main.py`
+4. Add Environment Variables in dashboard:
+   - `TELEGRAM_TOKEN`
+   - `SESSION_SECRET`
+5. Deploy and your bot is live!
+
+### Deploy on Heroku
+1. Create new app on [Heroku](https://heroku.com)
+2. Add Procfile to repository:
+   ```
+   web: python main.py
+   ```
+3. Set Config Vars (environment variables):
+   ```bash
+   heroku config:set TELEGRAM_TOKEN=your_token_here
+   heroku config:set SESSION_SECRET=your_secret_here
+   ```
+4. Deploy:
+   ```bash
+   git push heroku main
+   ```
+
+## 🔧 Development
+
+### Adding New Quiz Questions
+
+**Via Bot (Recommended):**
+```
+/addquiz What is the capital of France?
+London
+Paris*
+Berlin
+Madrid
+
+Category: Geography
+```
+*Mark correct answer with asterisk
+
+**Via Admin Panel:**
+1. Visit `http://localhost:5000`
+2. Fill the web form with question details
+3. Select category from dropdown
+4. Mark the correct answer
+5. Click "Add Question"
+
+**Via JSON File:**
+1. Edit `data/questions.json`
+2. Add question object following the schema
+3. Restart bot or use `/allreload`
+
+### Developer Access Control
+1. Set `OWNER_ID` in `config.py` (your Telegram user ID)
+2. Owner can add developers: `/dev add @username`
+3. Developers get full access to all admin commands
+4. Remove developer access: `/dev remove @username`
+5. List all developers: `/dev list`
+
+### Database Schema
+The bot uses SQLite with optimized indexes:
+
+**Tables:**
+- `questions` - Quiz questions with categories and answers
+- `users` - User profiles, scores, and statistics
+- `developers` - Developer access control and permissions
+- `groups` - Registered groups for broadcasts and quizzes
+- `user_daily_activity` - Daily activity tracking per user
+- `quiz_history` - Complete quiz answer history
+- `activity_logs` - Comprehensive audit trail with timestamps
+- `performance_metrics` - Performance and health monitoring data
+- `quiz_stats` - Aggregated quiz statistics
+- `broadcast_logs` - Broadcast delivery tracking and analytics
+
+**Optimized Indexes:**
+- User ID lookups
+- Chat ID queries
+- Timestamp-based queries
+- Category filtering
+- Activity log searches
+
+## 🐛 Troubleshooting
+
+### Bot not responding
+- ✅ Verify `TELEGRAM_TOKEN` is correct and valid
+- ✅ Check bot is running: `python main.py`
+- ✅ Review logs for errors: `tail -f bot.log`
+- ✅ Ensure bot is not blocked by user/group
+
+### Multiple Instance Conflict Error ⚠️
+**Error:** `telegram.error.Conflict: terminated by other getUpdates request`
+
+**Cause:** Multiple bot instances running simultaneously. Telegram API only allows ONE instance to poll for updates.
+
+**How to identify:**
 ```bash
-cp data/quiz_bot.db data/quiz_bot_backup.db
+# Check for multiple instances
+ps aux | grep "python main.py" | grep -v grep
+# or
+pgrep -a python
 ```
 
-### Add Quiz Questions
-Use the `/addquiz` developer command or manually edit `data/questions.json`
+**How to fix:**
+```bash
+# Option 1: Kill all instances and restart
+pkill -f "python main.py"
+python main.py
 
-### Monitor Performance
-- Admin panel: `http://localhost:5000`
-- Health check: `http://localhost:5000/health`
-- Use `/stats` command for bot analytics
+# Option 2: Kill specific old instances (keep newest)
+ps aux | grep "python main.py" | grep -v grep
+kill <OLD_PID>  # Kill old instance, keep newest
 
-### Code Formatting & Quality
+# Option 3: Restart workflow in Replit
+# Stop the workflow and start it again
+```
 
-This project uses automated tools for consistent code quality:
+**Prevention:**
+- ⚠️ **NEVER run the bot in multiple terminals/tabs**
+- ⚠️ **Close bot on local machine before running on server**
+- ⚠️ **Use only ONE deployment method** (Replit OR Render OR Heroku, not multiple)
+- ✅ Check for running instances before starting: `pgrep -a python`
 
-**Format your code with Black:**
+### Network errors (httpx.ReadError)
+- ✅ The bot has automatic reconnection built-in
+- ✅ Network errors are logged but handled gracefully
+- ✅ Bot will automatically retry with exponential backoff
+- ✅ Check internet connection and Telegram API status
+
+### Admin panel not accessible
+- ✅ Ensure Flask is running on port 5000
+- ✅ Check firewall/security group settings
+- ✅ Verify `SESSION_SECRET` environment variable is set
+- ✅ Try accessing `http://127.0.0.1:5000` instead
+
+### Quiz not sending automatically
+- ✅ Bot must be admin in groups for auto-quiz to work
+- ✅ Grant "Delete messages" permission for auto-cleanup
+- ✅ Check scheduler logs in console output
+- ✅ Verify groups are registered: `/stats` command
+- ✅ Ensure quiz questions exist: `/totalquiz`
+
+### Auto-cleanup not working
+- ✅ Bot needs admin status with "Delete messages" permission
+- ✅ Auto-cleanup only works in groups (not PMs)
+- ✅ Check bot permissions in group settings
+- ✅ Review logs for deletion errors
+
+## 📊 Performance Monitoring
+
+The bot includes comprehensive performance tracking:
+
+**Metrics Tracked:**
+- Memory usage (every 5 minutes)
+- API call counts and response times
+- Error rates and types
+- User activity patterns
+- Quiz delivery success rates
+- Broadcast delivery analytics
+
+**View Metrics:**
+- Use `/performance [hours]` command (developer only)
+- Customize time window: `/performance 24` for last 24 hours
+- Export metrics from database: `activity_logs` and `performance_metrics` tables
+
+**Health Monitoring:**
+- Memory tracking prevents memory leaks
+- Automatic cleanup of old metrics (7-day retention)
+- Performance degradation alerts in logs
+- System resource monitoring with psutil
+
+## 🔒 Security Features
+
+- ✅ **Role-based access control** for developer commands
+- ✅ **Unauthorized access attempt logging** with user tracking
+- ✅ **Session-based admin panel authentication** with Flask sessions
+- ✅ **Environment variable protection** for sensitive data (tokens, secrets)
+- ✅ **SQL injection prevention** via parameterized queries
+- ✅ **Auto-cleanup of unauthorized messages** in groups
+- ✅ **Developer command response preservation** (never auto-cleaned)
+- ✅ **Beautiful unauthorized access messages** with decorative design
+- ✅ **Comprehensive audit trail** in activity_logs table
+
+## 🧪 Testing
+
+### Manual Testing Checklist
+- [ ] Bot responds to `/start` in PM
+- [ ] Bot responds to `/start` in group
+- [ ] Auto-quiz delivers after 5s in PM
+- [ ] Auto-quiz delivers every 30min in groups (where bot is admin)
+- [ ] Quiz answers tracked correctly
+- [ ] `/mystats` shows real-time statistics
+- [ ] `/category` displays all 12 categories
+- [ ] Developer commands require authorization
+- [ ] Broadcast system works with placeholders
+- [ ] Auto-cleanup removes old messages in groups
+- [ ] Admin panel accessible and functional
+- [ ] Network resilience handles disconnections
+
+### Code Quality Tools
+
+This project follows PEP8 and uses automated formatting:
+
+**Format code with Black:**
 ```bash
 black .
 ```
@@ -275,57 +429,103 @@ isort .
 flake8 .
 ```
 
-**Run all checks at once:**
+**Run all checks:**
 ```bash
 black . && isort . && flake8 .
 ```
 
-**Install development tools:**
+**Install dev dependencies:**
 ```bash
 pip install -e ".[dev]"
 ```
 
-## 📊 Database Schema
+## 📝 Maintenance
 
-The bot uses SQLite with the following tables:
-- **questions**: Quiz questions with categories
-- **users**: User profiles and statistics
-- **developers**: Developer access control
-- **groups**: Group chat information
-- **quiz_history**: Quiz attempt tracking
-- **activity_logs**: Complete activity audit trail
-- **performance_metrics**: Performance analytics
-- **broadcast_logs**: Broadcast history
+### Backup Database
+```bash
+# Create backup
+cp data/quiz_bot.db data/backup_$(date +%Y%m%d_%H%M%S).db
 
-## 🤝 Support & Contribution
+# Restore from backup
+cp data/backup_20250103_120000.db data/quiz_bot.db
+```
 
-### Getting Help
-- Check the `/help` command in the bot
-- Review the code documentation in `replit.md`
-- Open an issue on GitHub
+### View Live Logs
+```bash
+# Follow bot logs in real-time
+tail -f bot.log
 
-### Contributing
-Want to contribute? We'd love your help!
+# Filter for errors only
+grep ERROR bot.log
 
-1. Read [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines
-2. Fork the repository and create a feature branch
-3. Make your changes following our code style (Black, isort, flake8)
-4. Test thoroughly in both PM and group chats
-5. Submit a pull request with a clear description
+# View last 100 lines
+tail -100 bot.log
+```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for complete contribution guidelines.
+### Database Management
+```bash
+# Open SQLite database
+sqlite3 data/quiz_bot.db
+
+# Export questions to JSON
+# (automatically done on shutdown)
+
+# View table structure
+sqlite3 data/quiz_bot.db ".schema"
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please:
+
+1. **Fork the repository**
+2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
+3. **Follow code style**: Use Black, isort, flake8
+4. **Test thoroughly**: Both PM and group chats
+5. **Commit changes**: `git commit -m 'Add amazing feature'`
+6. **Push to branch**: `git push origin feature/amazing-feature`
+7. **Open Pull Request** with detailed description
+
+### Development Setup
+```bash
+# Clone your fork
+git clone https://github.com/yourusername/telegram-quiz-bot.git
+cd telegram-quiz-bot
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Install dev tools
+pip install -e ".[dev]"
+
+# Run the bot
+python main.py
+```
+
+## 📧 Support
+
+For issues, questions, or suggestions:
+- 🐛 **Bug Reports**: Open an issue on GitHub with detailed steps to reproduce
+- 💡 **Feature Requests**: Open an issue with "[Feature]" prefix
+- 📖 **Documentation**: Check `replit.md` for technical details
+- 💬 **Community**: Contact bot owner via Telegram
 
 ## 📝 License
 
-This project is open source and available under the MIT License.
+This project is open source and available under the **MIT License**.
 
-## 🎉 Credits
+## 🎉 Acknowledgments
 
-Built with ❤️ using:
-- [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot)
-- [Flask](https://flask.palletsprojects.com/)
-- [APScheduler](https://apscheduler.readthedocs.io/)
+Built with ❤️ using these amazing technologies:
+- [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot) - Telegram Bot API wrapper
+- [Flask](https://flask.palletsprojects.com/) - Web framework for admin panel
+- [APScheduler](https://apscheduler.readthedocs.io/) - Background job scheduling
+- [SQLite](https://www.sqlite.org/) - Embedded database engine
+
+Special thanks to the open-source community for these incredible tools!
 
 ---
+
+**Made with ❤️ by the Telegram Quiz Bot Team**
 
 **Ready to deploy?** Follow the deployment guide above and your quiz bot will be live in minutes! 🚀
