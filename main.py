@@ -5,6 +5,7 @@ import asyncio
 import signal
 import traceback
 import threading
+import atexit
 from datetime import datetime
 from app import init_bot, app
 
@@ -18,6 +19,49 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+# PID lockfile to prevent multiple instances
+LOCKFILE = "data/bot.lock"
+
+def acquire_lock():
+    """Acquire PID lockfile to prevent multiple bot instances"""
+    try:
+        if os.path.exists(LOCKFILE):
+            # Check if process is still running
+            with open(LOCKFILE, 'r') as f:
+                old_pid = int(f.read().strip())
+            
+            try:
+                os.kill(old_pid, 0)  # Check if process exists
+                logger.error(f"Bot is already running (PID {old_pid}). Only ONE instance allowed!")
+                logger.error("To fix: Kill old instance with: kill {old_pid}")
+                sys.exit(1)
+            except OSError:
+                # Process doesn't exist, remove stale lockfile
+                logger.info(f"Removing stale lockfile (PID {old_pid} no longer exists)")
+                os.remove(LOCKFILE)
+        
+        # Create lockfile with current PID
+        os.makedirs('data', exist_ok=True)
+        with open(LOCKFILE, 'w') as f:
+            f.write(str(os.getpid()))
+        logger.info(f"PID lockfile acquired: {os.getpid()}")
+        
+        # Register cleanup on exit
+        atexit.register(release_lock)
+        
+    except Exception as e:
+        logger.error(f"Failed to acquire lockfile: {e}")
+        sys.exit(1)
+
+def release_lock():
+    """Release PID lockfile on exit"""
+    try:
+        if os.path.exists(LOCKFILE):
+            os.remove(LOCKFILE)
+            logger.info("PID lockfile released")
+    except Exception as e:
+        logger.debug(f"Error releasing lockfile: {e}")
 
 logging.getLogger('httpx').setLevel(logging.WARNING)
 logging.getLogger('telegram').setLevel(logging.INFO)
@@ -94,6 +138,9 @@ async def main():
 
 if __name__ == "__main__":
     try:
+        # Acquire PID lockfile to prevent multiple instances
+        acquire_lock()
+        
         # Verify environment variables
         required_vars = ["TELEGRAM_TOKEN", "SESSION_SECRET"]
         missing_vars = [var for var in required_vars if not os.environ.get(var)]
