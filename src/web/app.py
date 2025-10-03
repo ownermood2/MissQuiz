@@ -280,6 +280,28 @@ def delete_question(question_id):
         logger.error(f"Error deleting question {question_id}: {e}")
         return jsonify({"status": "error", "message": "Internal server error"}), 500
 
+# Auto-initialize webhook mode when running under gunicorn
+# This ensures webhook is set up before Telegram sends updates
+def _auto_init_webhook_for_gunicorn():
+    """Auto-initialize webhook when module is imported by gunicorn"""
+    webhook_url = os.environ.get("RENDER_URL") or os.environ.get("WEBHOOK_URL")
+    mode = os.environ.get("MODE", "").lower()
+    
+    # Only auto-init if webhook URL is provided and we're not in polling mode
+    if webhook_url and mode != "polling":
+        logger.info(f"🚀 Auto-initializing webhook for gunicorn with URL: {webhook_url}")
+        try:
+            init_bot_webhook(webhook_url)
+            logger.info("✅ Webhook initialization completed - bot ready for Telegram updates")
+        except Exception as e:
+            logger.error(f"❌ Failed to auto-initialize webhook: {e}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+
+# Run auto-initialization when module is imported (for gunicorn)
+# This runs at import time, ensuring webhook is set before first request
+if __name__ != "__main__":
+    _auto_init_webhook_for_gunicorn()
+
 if __name__ == "__main__":
     """Direct execution for local testing - uses polling mode"""
     try:
