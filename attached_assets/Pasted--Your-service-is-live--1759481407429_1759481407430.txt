@@ -1,0 +1,32 @@
+ Your service is live 🎉
+==> 
+==> ///////////////////////////////////////////////////////////
+==> 
+==> Available at your primary URL https://missquiz.onrender.com
+==> 
+==> ///////////////////////////////////////////////////////////
+127.0.0.1 - - [03/Oct/2025:08:47:26 +0000] "GET / HTTP/1.1" 200 16 "-" "Go-http-client/2.0"
+INFO:apscheduler.executors.default:Running job "send_automated_quiz (trigger: interval[0:30:00], next run at: 2025-10-03 09:17:29 UTC)" (scheduled at 2025-10-03 08:47:29.082023+00:00)
+INFO:src.bot.handlers:Starting automated quiz broadcast to 0 active chats
+INFO:src.bot.handlers:Completed automated quiz broadcast cycle
+INFO:apscheduler.executors.default:Job "send_automated_quiz (trigger: interval[0:30:00], next run at: 2025-10-03 09:17:29 UTC)" executed successfully
+INFO:src.web.app:Processing webhook update: 13160065
+INFO:src.web.app:✅ Dispatched update 13160065 to background event loop for processing
+127.0.0.1 - - [03/Oct/2025:08:47:48 +0000] "POST /webhook HTTP/1.1" 200 16 "-" "-"
+INFO:src.web.app:Processing webhook update: 13160066
+INFO:src.web.app:✅ Dispatched update 13160066 to background event loop for processing
+127.0.0.1 - - [03/Oct/2025:08:48:07 +0000] "POST /webhook HTTP/1.1" 200 16 "-" "-"
+INFO:src.web.app:Processing webhook update: 13160067
+INFO:src.web.app:✅ Dispatched update 13160067 to background event loop for processing
+127.0.0.1 - - [03/Oct/2025:08:48:17 +0000] "POST /webhook HTTP/1.1" 200 16 "-" "-"
+INFO:src.web.app:Processing webhook update: 13160068
+INFO:src.web.app:✅ Dispatched update 13160068 to background event loop for processing
+127.0.0.1 - - [03/Oct/2025:08:48:18 +0000] "POST /webhook HTTP/1.1" 200 16 "-" "-"
+INFO:apscheduler.executors.default:Running job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-03 08:53:19 UTC)" (scheduled at 2025-10-03 08:48:19.171348+00:00)
+INFO:src.web.app:Processing webhook update: 13160069
+INFO:src.web.app:✅ Dispatched update 13160069 to background event loop for processing
+127.0.0.1 - - [03/Oct/2025:08:48:19 +0000] "POST /webhook HTTP/1.1" 200 16 "-" "-"
+INFO:apscheduler.executors.default:Job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-03 08:53:19 UTC)" executed successfully
+INFO:src.web.app:Processing webhook update: 13160070
+INFO:src.web.app:✅ Dispatched update 13160070 to background event loop for processing
+127.0.0.1 - - [03/Oct/2025:08:48:19 +0000] "POST /webhook HTTP/1.1" 200 16 "-" "-"

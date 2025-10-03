@@ -3,6 +3,7 @@ import logging
 import psutil
 import asyncio
 import threading
+import traceback
 from datetime import datetime
 from flask import Flask, render_template, jsonify, request
 
@@ -75,23 +76,16 @@ async def _init_bot_webhook_async(webhook_url: str):
         telegram_bot = TelegramQuizBot(quiz_manager)
         await telegram_bot.initialize_webhook(token, webhook_url)
 
-        logger.info(f"Telegram bot initialized successfully in webhook mode with URL: {webhook_url}")
+        logger.info(f"✅ Telegram bot initialized successfully in webhook mode with URL: {webhook_url}")
         
         # Signal that bot is ready
         _bot_ready_event.set()
         
-        # Keep the event loop alive indefinitely for processing updates and running schedulers
-        # This is critical - the loop must stay alive for:
-        # 1. Processing incoming webhook updates via run_coroutine_threadsafe
-        # 2. Running PTB background tasks (schedulers, job queue)
-        logger.info("Webhook event loop is now running and will stay alive for update processing")
-        
-        # Create an event that never gets set - keeps loop alive forever
-        stop_event = asyncio.Event()
-        await stop_event.wait()
+        logger.info("🎉 Webhook mode ready - handlers will process updates via background event loop")
         
     except Exception as e:
-        logger.error(f"Failed to initialize Telegram bot in webhook mode: {e}")
+        logger.error(f"❌ Failed to initialize Telegram bot in webhook mode: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise
 
 def _run_webhook_event_loop(webhook_url: str):
@@ -104,15 +98,22 @@ def _run_webhook_event_loop(webhook_url: str):
         
         logger.info("Starting background event loop for webhook mode")
         
-        # Run the bot initialization and keep loop alive
+        # Run the bot initialization
         webhook_event_loop.run_until_complete(_init_bot_webhook_async(webhook_url))
+        
+        # Keep the loop running forever to process incoming updates
+        # Updates will be submitted via asyncio.run_coroutine_threadsafe from webhook route
+        logger.info("Event loop initialization complete - now running forever to process updates")
+        webhook_event_loop.run_forever()
         
     except Exception as e:
         logger.error(f"Error in webhook event loop: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise
     finally:
-        if webhook_event_loop:
+        if webhook_event_loop and not webhook_event_loop.is_closed():
             webhook_event_loop.close()
+            logger.info("Webhook event loop closed")
 
 def init_bot_webhook(webhook_url: str):
     """Initialize the Telegram bot in webhook mode with persistent event loop"""
