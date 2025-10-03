@@ -7,25 +7,62 @@ from telegram import Update
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-if not os.environ.get("SESSION_SECRET"):
-    logger.error("SESSION_SECRET environment variable is required but not set")
-    raise ValueError("SESSION_SECRET environment variable must be set for secure session management")
-
 root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-app = Flask(__name__, 
-            template_folder=os.path.join(root_dir, 'templates'),
-            static_folder=os.path.join(root_dir, 'static'))
-app.secret_key = os.environ.get("SESSION_SECRET")
 
-try:
-    from src.core.quiz import QuizManager
-    quiz_manager = QuizManager()
-    logger.info("Quiz Manager initialized successfully")
-except Exception as e:
-    logger.error(f"Failed to initialize Quiz Manager: {e}")
-    raise
-
+_app_instance = None
+quiz_manager = None
 telegram_bot = None
+
+def create_app():
+    """Lazy app factory - creates and initializes app on first access"""
+    global _app_instance, quiz_manager
+    
+    if _app_instance is not None:
+        return _app_instance
+    
+    session_secret = os.environ.get("SESSION_SECRET")
+    if not session_secret:
+        raise ValueError("SESSION_SECRET environment variable is required")
+    
+    _app_instance = Flask(__name__, 
+                template_folder=os.path.join(root_dir, 'templates'),
+                static_folder=os.path.join(root_dir, 'static'))
+    _app_instance.secret_key = session_secret
+    
+    if quiz_manager is None:
+        try:
+            from src.core.quiz import QuizManager
+            quiz_manager = QuizManager()
+            logger.info("Quiz Manager initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize Quiz Manager: {e}")
+            raise
+    
+    return _app_instance
+
+def get_app():
+    """Get or create the Flask app instance"""
+    return create_app()
+
+class LazyApp:
+    """Lazy app wrapper that creates Flask app on first access"""
+    def __init__(self):
+        self._app = None
+    
+    def __call__(self, environ, start_response):
+        """WSGI callable - creates app on first request"""
+        if self._app is None:
+            self._app = create_app()
+        return self._app(environ, start_response)
+    
+    def __getattr__(self, name):
+        """Proxy attribute access to underlying app"""
+        if self._app is None:
+            self._app = create_app()
+        return getattr(self._app, name)
+
+# Export lazy app for gunicorn
+app = LazyApp()
 
 async def init_bot():
     """Initialize and start the Telegram bot in polling mode"""

@@ -207,12 +207,19 @@ RENDER_URL=https://your-app.onrender.com/webhook
    # Edit .env with your values
    ```
 
-4. **Run the bot:**
-   ```bash
-   python main.py
-   ```
+### Running in Polling Mode (Recommended)
 
-The bot will automatically detect your environment and run in polling mode.
+1. Make sure `.env` does NOT have RENDER_URL or WEBHOOK_URL set
+2. Run: `python main.py`
+3. Bot runs in polling mode - works perfectly for development
+
+### Running in Webhook Mode (Advanced)
+
+1. Set RENDER_URL or WEBHOOK_URL in `.env`
+2. **Production:** Use `gunicorn main:app --workers=1 --bind=0.0.0.0:5000`
+3. **Testing only:** You can run `python main.py` but gunicorn is recommended
+
+**Recommended:** Use polling mode for local development (simpler, more reliable)
 
 ---
 

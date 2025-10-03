@@ -33,18 +33,18 @@ class Config:
     database_path: str
     
     @classmethod
-    def load(cls) -> 'Config':
-        """Load configuration from environment variables"""
-        telegram_token = os.environ.get("TELEGRAM_TOKEN")
-        session_secret = os.environ.get("SESSION_SECRET")
+    def load(cls, validate: bool = False) -> 'Config':
+        """Load configuration from environment variables
         
-        if not telegram_token:
-            raise ValueError("TELEGRAM_TOKEN environment variable is required")
-        if not session_secret:
-            raise ValueError("SESSION_SECRET environment variable is required")
+        Args:
+            validate: If True, validates required fields immediately.
+                     If False (default), validation happens on access.
+        """
+        telegram_token = os.environ.get("TELEGRAM_TOKEN", "")
+        session_secret = os.environ.get("SESSION_SECRET", "")
         
         owner_id = int(os.environ.get("OWNER_ID", "0"))
-        if owner_id == 0:
+        if owner_id == 0 and validate:
             logger.warning("⚠️ OWNER_ID not set - bot will work but admin features disabled")
         
         wifu_id = None
@@ -60,7 +60,7 @@ class Config:
         port = int(os.environ.get("PORT", "5000"))
         database_path = os.environ.get("DATABASE_PATH", "data/quiz_bot.db")
         
-        return cls(
+        config = cls(
             telegram_token=telegram_token,
             session_secret=session_secret,
             owner_id=owner_id,
@@ -70,6 +70,18 @@ class Config:
             port=port,
             database_path=database_path
         )
+        
+        if validate:
+            config.validate()
+        
+        return config
+    
+    def validate(self):
+        """Validate required fields"""
+        if not self.telegram_token:
+            raise ValueError("TELEGRAM_TOKEN environment variable is required")
+        if not self.session_secret:
+            raise ValueError("SESSION_SECRET environment variable is required")
     
     def get_mode(self) -> str:
         """Auto-detect deployment mode based on environment"""
