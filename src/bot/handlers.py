@@ -132,12 +132,13 @@ class TelegramQuizBot:
             if is_admin:
                 return  # Don't send reminder if bot is already admin
 
-            reminder_message = """🔔 𝗔𝗱𝗺𝗶𝗻 𝗔𝗰𝗰𝗲𝘀𝘀 𝗡𝗲𝗲𝗱𝗲𝗱
+            bot_name = context.bot.first_name or "Bot"
+            reminder_message = f"""🔔 𝗔𝗱𝗺𝗶𝗻 𝗔𝗰𝗰𝗲𝘀𝘀 𝗡𝗲𝗲𝗱𝗲𝗱
 
 ✨ 𝗧𝗼 𝗨𝗻𝗹𝗼𝗰𝗸 𝗔𝗹𝗹 𝗙𝗲𝗮𝘁𝘂𝗿𝗲𝘀:
 1️⃣ Open Group Settings
 2️⃣ Select Administrators
-3️⃣ Add "QuizImpact Bot" as Admin
+3️⃣ Add "{bot_name}" as Admin
 
 🎯 𝗬𝗼𝘂'𝗹𝗹 𝗚𝗲𝘁:
 • Automatic Quiz Sessions 🤖
@@ -1166,11 +1167,12 @@ We're here to help! 🌟"""
             
             # Get user and bot links
             user = update.effective_user
+            bot_name = context.bot.first_name or "Quiz Bot"
             user_name_link = f"[{user.first_name}](tg://user?id={user.id})"
-            bot_link = f"[Miss Quiz 𓂀 Bot](https://t.me/{context.bot.username})"
+            bot_link = f"[{bot_name}](https://t.me/{context.bot.username})"
             
             help_text = f"""╔══════════════════════════════════╗
-║ ✨ Miss Quiz 𓂀 Bot - Command Center ║
+║ ✨ {bot_name} - Command Center ║
 ╚══════════════════════════════════╝
 
 📑 Welcome {user_name_link}!
@@ -2156,7 +2158,6 @@ Failed to delete quiz. Please try again.
                 success=True
             )
 
-            ## Force reload questions
             total_questions = len(self.quiz_manager.get_all_questions())
             logger.info(f"Total questions count: {total_questions}")
 
@@ -2229,122 +2230,6 @@ Use/help to see all commands."""
 
         except Exception as e:
             logger.error(f"Error in automated quiz broadcast: {str(e)}\n{traceback.format_exc()}")
-
-    async def send_quiz(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE, auto_sent: bool = False, scheduled: bool = False, category: str = None) -> None:
-        """Send a quiz to a specific chat using native Telegram quiz format"""
-        try:
-            # Delete last quiz message if it exists (using database tracking)
-            last_quiz_msg_id = self.db.get_last_quiz_message(chat_id)
-            if last_quiz_msg_id:
-                try:
-                    await context.bot.delete_message(chat_id, last_quiz_msg_id)
-                    logger.info(f"Deleted old quiz message {last_quiz_msg_id} in chat {chat_id}")
-                    
-                    # Log auto-delete activity
-                    self.db.log_activity(
-                        activity_type='quiz_deleted',
-                        chat_id=chat_id,
-                        details={
-                            'auto_delete': True,
-                            'old_message_id': last_quiz_msg_id
-                        },
-                        success=True
-                    )
-                except Exception as e:
-                    logger.debug(f"Could not delete old quiz message: {e}")
-
-            # Get a random question for this specific chat (with optional category filter)
-            if category:
-                logger.info(f"Requesting quiz from category '{category}' for chat {chat_id}")
-            question = self.quiz_manager.get_random_question(chat_id, category=category)
-            if not question:
-                if category:
-                    await context.bot.send_message(
-                        chat_id=chat_id, 
-                        text=f"❌ No questions available in the '{category}' category.\n\n"
-                             f"Please try another category or contact the administrator."
-                    )
-                    logger.warning(f"No questions available for category '{category}' in chat {chat_id}")
-                else:
-                    await context.bot.send_message(chat_id=chat_id, text="No questions available.")
-                    logger.warning(f"No questions available for chat {chat_id}")
-                return
-
-            # Ensure question text is clean
-            question_text = question['question'].strip()
-            if question_text.startswith('/addquiz'):
-                question_text = question_text[len('/addquiz'):].strip()
-                logger.info(f"Cleaned /addquiz prefix from question for chat {chat_id}")
-
-            logger.info(f"Sending quiz to chat {chat_id}. Question: {question_text[:50]}...")
-
-            # Send the poll
-            message = await context.bot.send_poll(
-                chat_id=chat_id,
-                question=question_text,
-                options=question['options'],
-                type=Poll.QUIZ,
-                correct_option_id=question['correct_answer'],
-                is_anonymous=False
-            )
-
-            if message and message.poll:
-                # Get question ID if available
-                question_id = question.get('id')
-                
-                poll_data = {
-                    'chat_id': chat_id,
-                    'correct_option_id': question['correct_answer'],
-                    'user_answers': {},
-                    'poll_id': message.poll.id,
-                    'question': question_text,
-                    'question_id': question_id,
-                    'timestamp': datetime.now().isoformat()
-                }
-                # Store using proper poll ID key
-                context.bot_data[f"poll_{message.poll.id}"] = poll_data
-                logger.info(f"Stored quiz data: poll_id={message.poll.id}, chat_id={chat_id}")
-                
-                # Store new quiz message ID and increment quiz count
-                self.db.update_last_quiz_message(chat_id, message.message_id)
-                self.db.increment_quiz_count()
-                
-                self.command_history[chat_id].append(f"/quiz_{message.message_id}")
-                
-                # Get chat info for logging
-                try:
-                    chat = await context.bot.get_chat(chat_id)
-                    chat_type = 'private' if chat.type == 'private' else 'group'
-                    chat_title = chat.title if chat.type in ['group', 'supergroup'] else None
-                except Exception:
-                    chat_type = 'private' if chat_id > 0 else 'group'
-                    chat_title = None
-                
-                # Log comprehensive quiz_sent activity
-                self.db.log_activity(
-                    activity_type='quiz_sent',
-                    user_id=None,  # No specific user for quiz sending
-                    chat_id=chat_id,
-                    chat_title=chat_title,
-                    details={
-                        'question_id': question_id,
-                        'question_text': question_text[:100],
-                        'chat_type': chat_type,
-                        'auto_sent': auto_sent,
-                        'scheduled': scheduled,
-                        'category': category,
-                        'poll_id': message.poll.id,
-                        'message_id': message.message_id
-                    },
-                    success=True
-                )
-                if category:
-                    logger.info(f"Sent quiz from category '{category}' to chat {chat_id}")
-                logger.info(f"Logged quiz_sent activity for chat {chat_id} (auto_sent={auto_sent}, scheduled={scheduled})")
-
-        except Exception as e:
-            logger.error(f"Error sending quiz: {str(e)}\n{traceback.format_exc()}")
-            await context.bot.send_message(chat_id=chat_id, text="Error sending quiz.")
 
     async def _handle_quiz_not_found(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle cases where quiz data is not found"""
