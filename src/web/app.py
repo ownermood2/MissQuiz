@@ -164,6 +164,52 @@ def health():
 def admin_panel():
     return render_template('admin.html')
 
+@app.route('/webhook_info')
+def webhook_info():
+    """Diagnostic endpoint to check webhook status"""
+    global telegram_bot, webhook_event_loop
+    
+    info = {
+        'bot_initialized': telegram_bot is not None,
+        'event_loop_running': webhook_event_loop is not None,
+        'webhook_url': os.environ.get("RENDER_URL") or os.environ.get("WEBHOOK_URL"),
+        'status': 'unknown'
+    }
+    
+    if telegram_bot and telegram_bot.application and telegram_bot.application.bot:
+        try:
+            # Get webhook info from Telegram
+            import asyncio
+            from concurrent.futures import Future
+            
+            future = Future()
+            
+            async def get_info():
+                webhook_info = await telegram_bot.application.bot.get_webhook_info()
+                return {
+                    'url': webhook_info.url,
+                    'has_custom_certificate': webhook_info.has_custom_certificate,
+                    'pending_update_count': webhook_info.pending_update_count,
+                    'last_error_date': webhook_info.last_error_date,
+                    'last_error_message': webhook_info.last_error_message,
+                    'max_connections': webhook_info.max_connections
+                }
+            
+            if webhook_event_loop:
+                asyncio.run_coroutine_threadsafe(get_info(), webhook_event_loop).result(timeout=5)
+                telegram_info = asyncio.run_coroutine_threadsafe(get_info(), webhook_event_loop).result(timeout=5)
+                info['telegram_webhook'] = telegram_info
+                info['status'] = 'ok' if telegram_info['url'] else 'webhook_not_set'
+            else:
+                info['status'] = 'event_loop_not_running'
+        except Exception as e:
+            info['error'] = str(e)
+            info['status'] = 'error_getting_info'
+    else:
+        info['status'] = 'bot_not_initialized'
+    
+    return jsonify(info)
+
 @app.route('/webhook', methods=['POST'])
 def webhook():
     """Webhook endpoint to receive and process Telegram updates
