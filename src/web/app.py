@@ -85,13 +85,18 @@ async def init_bot():
 
 def init_bot_webhook(webhook_url: str):
     """Initialize bot in webhook mode - called by main.py"""
-    global telegram_bot
+    global telegram_bot, quiz_manager
     try:
         from src.bot.handlers import TelegramQuizBot
+        from src.core.quiz import QuizManager
         
         token = os.environ.get("TELEGRAM_TOKEN")
         if not token:
             raise ValueError("TELEGRAM_TOKEN environment variable is required")
+        
+        if quiz_manager is None:
+            quiz_manager = QuizManager()
+            logger.info("Quiz Manager initialized for webhook mode")
         
         telegram_bot = TelegramQuizBot(quiz_manager)
         asyncio.run(telegram_bot.initialize_webhook(token, webhook_url))
