@@ -363,12 +363,24 @@ class TelegramQuizBot:
         logger.info("Registered all callback handlers")
             
     async def initialize(self, token: str):
-        """Initialize and start the bot"""
+        """Initialize and start the bot with robust network configuration"""
         try:
-            # Build application
+            # Build application with network resilience settings
+            from telegram.request import HTTPXRequest
+            
+            # Configure robust HTTP client with proper timeouts and retry logic
+            request = HTTPXRequest(
+                connect_timeout=10.0,
+                read_timeout=20.0, 
+                write_timeout=20.0,
+                pool_timeout=10.0,
+                connection_pool_size=8
+            )
+            
             self.application = (
                 Application.builder()
                 .token(token)
+                .request(request)
                 .build()
             )
 
