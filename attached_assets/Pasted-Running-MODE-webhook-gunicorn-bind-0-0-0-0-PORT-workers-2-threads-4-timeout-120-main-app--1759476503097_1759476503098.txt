@@ -1,0 +1,119 @@
+Running 'MODE=webhook gunicorn --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120 main:app'
+INFO:src.core.database:Added category column to questions table
+INFO:src.core.database:Added last_quiz_message_id column to users table
+INFO:src.core.database:Database schema initialized successfully with optimized indexes
+INFO:src.core.database:Database initialized at data/quiz_bot.db
+INFO:src.core.database:Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+INFO:src.core.quiz:Database connection initialized in QuizManager
+INFO:src.core.quiz:Saved 229 questions to file
+INFO:src.core.quiz:All data saved successfully. Questions count: 229
+INFO:src.core.quiz:Successfully loaded and cleaned 229 questions
+INFO:src.core.quiz:Active chats: 0
+INFO:src.core.quiz:Active users with stats: 0
+INFO:src.core.quiz:Users with scores: 0
+INFO:src.web.app:Quiz Manager initialized successfully
+INFO:main:Logging configured - httpx set to WARNING to protect bot token
+INFO:main:Auto-initializing bot in webhook mode with URL: https://Complete-Quiz-Bot.com/webhook
+INFO:src.web.app:Initializing bot in webhook mode with URL: https://Complete-Quiz-Bot.com/webhook
+INFO:src.web.app:Starting background event loop for webhook mode
+INFO:src.web.app:Webhook mode initialized with background event loop thread
+INFO:main:Bot initialized in webhook mode - ready for gunicorn
+[2025-10-03 07:26:40 +0000] [55] [INFO] Starting gunicorn 23.0.0
+[2025-10-03 07:26:40 +0000] [55] [INFO] Listening at: http://0.0.0.0:10000 (55)
+[2025-10-03 07:26:40 +0000] [55] [INFO] Using worker: gthread
+[2025-10-03 07:26:40 +0000] [58] [INFO] Booting worker with pid: 58
+[2025-10-03 07:26:40 +0000] [59] [INFO] Booting worker with pid: 59
+127.0.0.1 - - [03/Oct/2025:07:26:40 +0000] "HEAD / HTTP/1.1" 200 0 "-" "Go-http-client/1.1"
+INFO:src.core.database:Database schema initialized successfully with optimized indexes
+INFO:src.core.database:Database initialized at data/quiz_bot.db
+INFO:src.core.database:Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+INFO:src.bot.dev_commands:Developer commands module initialized
+INFO:src.bot.handlers:TelegramQuizBot initialized with database and developer commands
+==> Your service is live 🎉
+==> 
+==> ///////////////////////////////////////////////////////////
+==> 
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+==> Available at your primary URL https://complete-quiz-bot.onrender.com
+==> 
+==> ///////////////////////////////////////////////////////////
+INFO:apscheduler.scheduler:Added job "send_automated_quiz" to job store "default"
+INFO:apscheduler.scheduler:Added job "scheduled_cleanup" to job store "default"
+INFO:apscheduler.scheduler:Added job "cleanup_old_polls" to job store "default"
+INFO:apscheduler.scheduler:Added job "cleanup_questions_wrapper" to job store "default"
+INFO:apscheduler.scheduler:Added job "track_memory_usage" to job store "default"
+INFO:apscheduler.scheduler:Added job "cleanup_performance_metrics" to job store "default"
+INFO:apscheduler.scheduler:Added job "cleanup_old_activities" to job store "default"
+INFO:apscheduler.scheduler:Scheduler started
+INFO:telegram.ext.Application:Application started
+INFO:src.bot.handlers:Backfilling 0 groups from active_chats to database
+INFO:src.bot.handlers:Successfully backfilled 0/0 groups to database
+ERROR:src.bot.handlers:Failed to initialize bot in webhook mode: Bad webhook: failed to resolve host: name or service not known
+ERROR:src.web.app:Failed to initialize Telegram bot in webhook mode: Bad webhook: failed to resolve host: name or service not known
+ERROR:src.web.app:Error in webhook event loop: Bad webhook: failed to resolve host: name or service not known
+Exception in thread WebhookEventLoop:
+Traceback (most recent call last):
+  File "/opt/render/project/python/Python-3.13.4/lib/python3.13/threading.py", line 1043, in _bootstrap_inner
+    self.run()
+    ~~~~~~~~^^
+  File "/opt/render/project/python/Python-3.13.4/lib/python3.13/threading.py", line 994, in run
+    self._target(*self._args, **self._kwargs)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/src/src/web/app.py", line 104, in _run_webhook_event_loop
+    webhook_event_loop.run_until_complete(_init_bot_webhook_async(webhook_url))
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/render/project/python/Python-3.13.4/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/opt/render/project/src/src/web/app.py", line 75, in _init_bot_webhook_async
+    await telegram_bot.initialize_webhook(token, webhook_url)
+  File "/opt/render/project/src/src/bot/handlers.py", line 620, in initialize_webhook
+    await self.application.bot.set_webhook(
+    ...<2 lines>...
+    )
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/ext/_extbot.py", line 3898, in set_webhook
+    return await super().set_webhook(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<12 lines>...
+    )
+    ^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/_bot.py", line 4915, in set_webhook
+    return await self._post(
+           ^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/_bot.py", line 703, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/ext/_extbot.py", line 372, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/_bot.py", line 732, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/request/_baserequest.py", line 198, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/request/_baserequest.py", line 375, in _request_wrapper
+    raise exception
+telegram.error.BadRequest: Bad webhook: failed to resolve host: name or service not known
+127.0.0.1 - - [03/Oct/2025:07:26:47 +0000] "GET / HTTP/1.1" 200 16 "-" "Go-http-client/2.0"
