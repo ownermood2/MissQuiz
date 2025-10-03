@@ -91,19 +91,24 @@ The project uses a minimal, optimized set of dependencies:
 
 ## Environment Variables
 
-**Required:**
+**Required (Minimum Setup):**
 - **TELEGRAM_TOKEN**: Telegram bot authentication token (get from @BotFather)
 - **SESSION_SECRET**: Flask session security key (generate with `python -c "import secrets; print(secrets.token_hex(32))"`)
-- **OWNER_ID**: Telegram user ID of the bot owner (get from @userinfobot)
 
-**Deployment Mode:**
-- **MODE**: Deployment mode - `polling` (default, for VPS/local) or `webhook` (for Render/Heroku/Railway)
-- **WEBHOOK_URL**: Required when MODE=webhook. Your public domain + /webhook (e.g., https://your-app.onrender.com/webhook)
+**Deployment Configuration:**
+- **RENDER_URL**: For Render/production deployment (e.g., https://your-app.onrender.com/webhook)
+  - When set, bot automatically uses webhook mode
+  - When not set, bot uses polling mode (default)
+- **Alternatively, use manual configuration:**
+  - **MODE**: `polling` (default, for VPS/local) or `webhook` (for Render/Heroku/Railway)
+  - **WEBHOOK_URL**: Your public domain + /webhook (e.g., https://your-app.onrender.com/webhook)
 
 **Optional:**
+- **OWNER_ID**: Telegram user ID of the bot owner (get from @userinfobot) - Enables admin features
 - **WIFU_ID**: Telegram user ID of additional authorized user
 
 **Deployment Examples:**
-- **VPS/Local**: `MODE=polling python main.py`
-- **Render/Heroku**: `MODE=webhook WEBHOOK_URL=https://your-app.onrender.com/webhook gunicorn main:app`
-- **Replit**: Uses polling mode by default (webhook not needed)
+- **Local/VPS (Polling Mode)**: `python main.py`
+- **Render (Webhook Mode - Simplified)**: Set `RENDER_URL` environment variable, then `gunicorn main:app`
+- **Manual Webhook Mode**: `MODE=webhook WEBHOOK_URL=https://your-app.onrender.com/webhook gunicorn main:app`
+- **Replit**: Uses polling mode by default - just run `python main.py`
