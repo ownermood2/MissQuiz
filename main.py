@@ -70,6 +70,38 @@ logging.getLogger('httpx').setLevel(logging.WARNING)
 logging.getLogger('telegram').setLevel(logging.INFO)
 logger.info("Logging configured - httpx set to WARNING to protect bot token")
 
+# Auto-initialize bot in webhook mode when imported by gunicorn
+# This ensures the bot starts before gunicorn begins serving requests
+if os.environ.get("MODE", "polling").lower() == "webhook":
+    webhook_url = os.environ.get("WEBHOOK_URL")
+    if not webhook_url:
+        logger.error("WEBHOOK_URL environment variable is required when MODE=webhook")
+        raise ValueError("WEBHOOK_URL environment variable is required when MODE=webhook")
+    
+    logger.info(f"Auto-initializing bot in webhook mode with URL: {webhook_url}")
+    init_bot_webhook(webhook_url)
+    logger.info("Bot initialized in webhook mode - ready for gunicorn")
+    
+    # Register cleanup on exit to delete webhook
+    def cleanup_webhook():
+        """Delete webhook on shutdown"""
+        try:
+            from src.web.app import telegram_bot, webhook_event_loop
+            if telegram_bot and telegram_bot.application and webhook_event_loop:
+                import asyncio
+                # Submit cleanup to background event loop
+                future = asyncio.run_coroutine_threadsafe(
+                    telegram_bot.application.bot.delete_webhook(),
+                    webhook_event_loop
+                )
+                # Wait for cleanup to complete (with timeout)
+                future.result(timeout=5)
+                logger.info("Webhook deleted on shutdown")
+        except Exception as e:
+            logger.error(f"Error deleting webhook on shutdown: {e}")
+    
+    atexit.register(cleanup_webhook)
+
 def run_flask_app():
     """Run Flask server in a separate thread"""
     try:

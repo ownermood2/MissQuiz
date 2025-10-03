@@ -268,9 +268,8 @@ def init_webhook_on_startup():
         
         atexit.register(cleanup_webhook)
 
-# Auto-initialize for webhook mode
-if os.environ.get("MODE", "polling").lower() == "webhook" and __name__ != "__main__":
-    init_webhook_on_startup()
+# Note: Webhook auto-initialization now happens in main.py at module level
+# This prevents double initialization when gunicorn imports the app
 
 if __name__ == "__main__":
     try:
