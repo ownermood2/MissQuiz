@@ -159,10 +159,11 @@ def webhook():
     try:
         # Auto-initialize if not already done (handles worker initialization)
         if not telegram_bot or not webhook_event_loop:
-            webhook_url = os.environ.get("WEBHOOK_URL")
-            if webhook_url and os.environ.get("MODE", "").lower() == "webhook":
+            # Check for RENDER_URL (simplified config)
+            render_url = os.environ.get("RENDER_URL")
+            if render_url:
                 logger.info("Worker auto-initializing bot for webhook endpoint")
-                init_bot_webhook(webhook_url)
+                init_bot_webhook(render_url)
                 # Wait for bot to be ready (the init function already waits, but double-check)
                 if not _bot_ready_event.is_set():
                     logger.warning("Bot initialization completed but ready event not set")

@@ -13,9 +13,8 @@ OWNER_ID = int(os.environ.get("OWNER_ID", "0"))
 WIFU_ID = os.environ.get("WIFU_ID")
 
 if OWNER_ID == 0:
-    logger.error("OWNER_ID environment variable is not set or invalid!")
-    logger.error("Please set OWNER_ID in your environment variables")
-    sys.exit(1)
+    logger.warning("⚠️ OWNER_ID not set - bot will work but admin features disabled")
+    logger.warning("Set OWNER_ID environment variable to enable admin features")
 
 AUTHORIZED_USERS = [OWNER_ID]
 if WIFU_ID:

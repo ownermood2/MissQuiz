@@ -70,16 +70,14 @@ logging.getLogger('httpx').setLevel(logging.WARNING)
 logging.getLogger('telegram').setLevel(logging.INFO)
 logger.info("Logging configured - httpx set to WARNING to protect bot token")
 
-# Auto-initialize bot in webhook mode when imported by gunicorn
-# This ensures the bot starts before gunicorn begins serving requests
-if os.environ.get("MODE", "polling").lower() == "webhook":
-    webhook_url = os.environ.get("WEBHOOK_URL")
-    if not webhook_url:
-        logger.error("WEBHOOK_URL environment variable is required when MODE=webhook")
-        raise ValueError("WEBHOOK_URL environment variable is required when MODE=webhook")
-    
-    logger.info(f"🚀 Auto-initializing bot in webhook mode with URL: {webhook_url}")
-    init_bot_webhook(webhook_url)
+# Auto-detect webhook mode from RENDER_URL environment variable
+# If RENDER_URL is set, automatically use webhook mode (no MODE variable needed!)
+render_url = os.environ.get("RENDER_URL")
+if render_url:
+    # Auto-detected Render deployment - use webhook mode
+    logger.info(f"🚀 Detected RENDER_URL - auto-initializing in webhook mode")
+    logger.info(f"🚀 Auto-initializing bot in webhook mode with URL: {render_url}")
+    init_bot_webhook(render_url)
     logger.info("✅ Bot initialized in webhook mode - ready for gunicorn")
     
     # Register cleanup on exit to delete webhook
