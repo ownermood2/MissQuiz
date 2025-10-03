@@ -181,6 +181,9 @@ def webhook():
             logger.warning("Received empty webhook update")
             return jsonify({'status': 'ok'}), 200
         
+        # Log incoming update for debugging
+        logger.info(f"Processing webhook update: {update_data.get('update_id', 'unknown')}")
+        
         # Process the update in the background event loop
         from telegram import Update
         
@@ -199,7 +202,7 @@ def webhook():
             webhook_event_loop
         )
         
-        logger.debug(f"Dispatched webhook update {update.update_id} to background event loop")
+        logger.info(f"✅ Dispatched update {update.update_id} to background event loop for processing")
         return jsonify({'status': 'ok'}), 200
         
     except Exception as e:

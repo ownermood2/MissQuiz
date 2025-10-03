@@ -78,9 +78,9 @@ if os.environ.get("MODE", "polling").lower() == "webhook":
         logger.error("WEBHOOK_URL environment variable is required when MODE=webhook")
         raise ValueError("WEBHOOK_URL environment variable is required when MODE=webhook")
     
-    logger.info(f"Auto-initializing bot in webhook mode with URL: {webhook_url}")
+    logger.info(f"🚀 Auto-initializing bot in webhook mode with URL: {webhook_url}")
     init_bot_webhook(webhook_url)
-    logger.info("Bot initialized in webhook mode - ready for gunicorn")
+    logger.info("✅ Bot initialized in webhook mode - ready for gunicorn")
     
     # Register cleanup on exit to delete webhook
     def cleanup_webhook():
