@@ -3,7 +3,7 @@ services:
     name: telegram-quiz-bot
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: MODE=webhook gunicorn --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120 main:app
+    startCommand: MODE=webhook gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 --preload main:app
     envVars:
       - key: TELEGRAM_TOKEN
         sync: false
