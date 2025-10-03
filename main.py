@@ -9,9 +9,6 @@ import atexit
 from datetime import datetime
 from src.web.app import init_bot, init_bot_webhook, app
 
-# Export app for gunicorn (for webhook mode: gunicorn main:app)
-app = app
-
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -70,36 +67,6 @@ logging.getLogger('httpx').setLevel(logging.WARNING)
 logging.getLogger('telegram').setLevel(logging.INFO)
 logger.info("Logging configured - httpx set to WARNING to protect bot token")
 
-# Auto-detect webhook mode from RENDER_URL environment variable
-# If RENDER_URL is set, automatically use webhook mode (no MODE variable needed!)
-render_url = os.environ.get("RENDER_URL")
-if render_url:
-    # Auto-detected Render deployment - use webhook mode
-    logger.info(f"🚀 Detected RENDER_URL - auto-initializing in webhook mode")
-    logger.info(f"🚀 Auto-initializing bot in webhook mode with URL: {render_url}")
-    init_bot_webhook(render_url)
-    logger.info("✅ Bot initialized in webhook mode - ready for gunicorn")
-    
-    # Register cleanup on exit to delete webhook
-    def cleanup_webhook():
-        """Delete webhook on shutdown"""
-        try:
-            from src.web.app import telegram_bot, webhook_event_loop
-            if telegram_bot and telegram_bot.application and webhook_event_loop:
-                import asyncio
-                # Submit cleanup to background event loop
-                future = asyncio.run_coroutine_threadsafe(
-                    telegram_bot.application.bot.delete_webhook(),
-                    webhook_event_loop
-                )
-                # Wait for cleanup to complete (with timeout)
-                future.result(timeout=5)
-                logger.info("Webhook deleted on shutdown")
-        except Exception as e:
-            logger.error(f"Error deleting webhook on shutdown: {e}")
-    
-    atexit.register(cleanup_webhook)
-
 def run_flask_app():
     """Run Flask server in a separate thread"""
     try:
@@ -119,52 +86,43 @@ async def main():
         signal.signal(signal.SIGTERM, signal_handler)
         signal.signal(signal.SIGINT, signal_handler)
 
-        # Determine operation mode (polling or webhook)
+        # Determine operation mode: auto-detect from RENDER_URL or use MODE env var
+        render_url = os.environ.get("RENDER_URL")
         mode = os.environ.get("MODE", "polling").lower()
-        logger.info(f"Bot mode: {mode}")
-
-        if mode == "webhook":
-            # Webhook mode - Flask server runs in main thread for gunicorn
-            webhook_url = os.environ.get("WEBHOOK_URL")
+        
+        if render_url or mode == "webhook":
+            # Webhook mode - for production (RENDER_URL) or explicit webhook mode
+            webhook_url = render_url or os.environ.get("WEBHOOK_URL")
             if not webhook_url:
-                raise ValueError("WEBHOOK_URL environment variable is required when MODE=webhook")
+                raise ValueError("WEBHOOK_URL or RENDER_URL environment variable is required for webhook mode")
             
             logger.info(f"Starting in WEBHOOK mode with URL: {webhook_url}")
+            if render_url:
+                logger.info("Auto-detected RENDER_URL - using webhook mode for production")
             
-            # Initialize bot in webhook mode (starts background event loop thread)
-            from src.web.app import init_bot_webhook
             bot = init_bot_webhook(webhook_url)
-            logger.info("Bot initialized in webhook mode with persistent event loop")
+            logger.info("Bot initialized in webhook mode - ready for gunicorn")
             
-            # Check for restart flag and send confirmation
             await send_restart_confirmation()
             
-            # Keep main thread alive (webhook needs persistent background loop)
-            logger.info("Webhook mode active - bot running in background event loop")
-            logger.info("Flask app should be run with: gunicorn main:app")
+            logger.info("Webhook mode active - Flask app should be run with: gunicorn main:app")
             
-            # Keep the main thread running to prevent exit
             while True:
                 await asyncio.sleep(1)
-            
         else:
-            # Polling mode (default) - existing behavior
-            logger.info("Starting in POLLING mode (default)")
+            # Polling mode (default) - for development
+            logger.info("Starting in POLLING mode")
             
-            # Start Flask server in background thread
             flask_thread = threading.Thread(target=run_flask_app, daemon=True)
             flask_thread.start()
             logger.info("Flask server started on port 5000")
 
-            # Initialize and run bot
-            logger.info("Starting Telegram bot...")
+            logger.info("Starting Telegram bot in polling mode...")
             bot = await init_bot()
             logger.info("Bot initialization completed")
 
-            # Check for restart flag and send confirmation
             await send_restart_confirmation()
 
-            # Keep the main thread running
             logger.info("Bot is running. Press Ctrl+C to stop.")
             while True:
                 await asyncio.sleep(1)

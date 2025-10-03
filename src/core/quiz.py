@@ -69,16 +69,8 @@ class QuizManager:
     def load_data(self):
         """Load all data with proper error handling"""
         try:
-            # Ensure data directory exists
-            os.makedirs("data", exist_ok=True)
-
-            # Initialize questions with defaults if file is empty or corrupted
+            # Load questions from file
             try:
-                if not os.path.exists(self.questions_file):
-                    with open(self.questions_file, 'w') as f:
-                        json.dump([], f)
-                        logger.info("Created new questions file")
-
                 with open(self.questions_file, 'r') as f:
                     raw_data = json.load(f)
                     if isinstance(raw_data, dict) and 'questions' in raw_data:
@@ -121,18 +113,13 @@ class QuizManager:
                     logger.error(f"Error processing question: {e}")
                     continue
 
-            # Load other data files with proper initialization
+            # Load other data files
             for file_path, default_value, attr_name in [
                 (self.scores_file, {}, 'scores'),
                 (self.active_chats_file, [], 'active_chats'),
                 (self.stats_file, {}, 'stats')
             ]:
                 try:
-                    if not os.path.exists(file_path):
-                        with open(file_path, 'w') as f:
-                            json.dump(default_value, f)
-                            logger.info(f"Created new file: {file_path}")
-
                     with open(file_path, 'r') as f:
                         setattr(self, attr_name, json.load(f))
                 except (json.JSONDecodeError, FileNotFoundError) as e:
