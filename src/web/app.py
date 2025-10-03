@@ -107,7 +107,8 @@ def _run_webhook_event_loop(webhook_url: str):
         logger.error(f"Error in webhook event loop: {e}")
         raise
     finally:
-        webhook_event_loop.close()
+        if webhook_event_loop:
+            webhook_event_loop.close()
 
 def init_bot_webhook(webhook_url: str):
     """Initialize the Telegram bot in webhook mode with persistent event loop"""
@@ -162,6 +163,11 @@ def webhook():
         
         # Process the update in the background event loop
         from telegram import Update
+        
+        # Type guards to satisfy LSP
+        if not telegram_bot.application or not telegram_bot.application.bot:
+            logger.error("Bot application not properly initialized")
+            return jsonify({'status': 'error', 'message': 'Bot not ready'}), 500
         
         update = Update.de_json(update_data, telegram_bot.application.bot)
         
