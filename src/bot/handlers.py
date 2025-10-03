@@ -387,6 +387,7 @@ class TelegramQuizBot:
 
             # Add handlers for all commands
             self.application.add_handler(CommandHandler("start", self.start))
+            self.application.add_handler(CommandHandler("ping", self.ping))
             self.application.add_handler(CommandHandler("help", self.help))
             self.application.add_handler(CommandHandler("quiz", self.quiz_command))
             self.application.add_handler(CommandHandler("category", self.category))
@@ -519,6 +520,7 @@ class TelegramQuizBot:
 
             # Add handlers for all commands
             self.application.add_handler(CommandHandler("start", self.start))
+            self.application.add_handler(CommandHandler("ping", self.ping))
             self.application.add_handler(CommandHandler("help", self.help))
             self.application.add_handler(CommandHandler("quiz", self.quiz_command))
             self.application.add_handler(CommandHandler("category", self.category))
@@ -958,6 +960,11 @@ We're here to help! 🌟"""
         """Handle the /quiz command with loading indicator"""
         start_time = time.time()
         try:
+            user = update.effective_user
+            chat = update.effective_chat
+            
+            logger.info(f"📥 /quiz command received from user {user.id} in chat {chat.id}")
+            
             # Log command immediately
             self.db.log_activity(
                 activity_type='command',
@@ -1013,6 +1020,8 @@ We're here to help! 🌟"""
             chat = update.effective_chat
             user = update.effective_user
             
+            logger.info(f"📥 /start command received from user {user.id} in chat {chat.id} (type: {chat.type})")
+            
             # Check cooldown (only in groups)
             is_allowed, remaining = self.check_user_command_cooldown(user.id, "start", chat.type)
             if not is_allowed:
@@ -1048,6 +1057,7 @@ We're here to help! 🌟"""
                 logger.info(f"✅ GROUP TRACKED: Group {chat.id} ({chat.title})")
             
             self.quiz_manager.add_active_chat(chat.id)
+            logger.info(f"✅ Chat {chat.id} added to active chats")
             await self.ensure_group_registered(chat, context)
             welcome_msg = await self.send_welcome_message(chat.id, context, user)
             
@@ -1127,6 +1137,22 @@ We're here to help! 🌟"""
             logger.error(f"Error in start command: {e}")
             await update.message.reply_text("Error starting the bot. Please try again.")
     
+    async def ping(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle the /ping command - Simple test command for webhook debugging"""
+        try:
+            user = update.effective_user
+            chat = update.effective_chat
+            
+            logger.info(f"📥 /ping command received from user {user.id} in chat {chat.id}")
+            
+            await update.message.reply_text("pong ✅")
+            
+            logger.info(f"✅ /ping response sent successfully to user {user.id}")
+            
+        except Exception as e:
+            logger.error(f"Error in ping command: {e}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+    
     async def track_pm_interaction(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Track ANY PM interaction - Live tracking for broadcasts"""
         try:
@@ -1141,6 +1167,11 @@ We're here to help! 🌟"""
         """Handle the /help command"""
         start_time = time.time()
         try:
+            user = update.effective_user
+            chat = update.effective_chat
+            
+            logger.info(f"📥 /help command received from user {user.id} in chat {chat.id}")
+            
             # Check cooldown (only in groups)
             is_allowed, remaining = self.check_user_command_cooldown(
                 update.effective_user.id, "help", update.effective_chat.type

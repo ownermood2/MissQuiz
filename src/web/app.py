@@ -66,6 +66,10 @@ async def _init_bot_webhook_async(webhook_url: str):
         token = os.environ.get("TELEGRAM_TOKEN")
         if not token:
             raise ValueError("TELEGRAM_TOKEN environment variable is required")
+        
+        # Verify token is loaded and log status (first 10 chars only for security)
+        assert token and len(token) > 10, "TELEGRAM_TOKEN must be valid"
+        logger.info(f"✅ Token loaded: {token[:10]}...")
 
         # Initialize bot in webhook mode
         telegram_bot = TelegramQuizBot(quiz_manager)
@@ -198,7 +202,24 @@ def webhook():
             logger.warning("Received empty webhook update")
             return jsonify({'status': 'ok'}), 200
         
-        logger.info(f"Processing webhook update: {update_data.get('update_id', 'unknown')}")
+        logger.info(f"📥 Webhook update received: {update_data.get('update_id', 'unknown')}")
+        
+        # Log update type for debugging
+        update_type = None
+        if 'message' in update_data:
+            message = update_data['message']
+            if 'text' in message and message['text'].startswith('/'):
+                update_type = f"command: {message['text'].split()[0]}"
+            else:
+                update_type = "message"
+        elif 'poll_answer' in update_data:
+            update_type = "poll_answer"
+        elif 'callback_query' in update_data:
+            update_type = "callback_query"
+        else:
+            update_type = "other"
+        
+        logger.info(f"📝 Update type: {update_type}")
         
         # Validate bot application is ready
         if not telegram_bot.application or not telegram_bot.application.bot:
@@ -209,18 +230,27 @@ def webhook():
         from telegram import Update
         update = Update.de_json(update_data, telegram_bot.application.bot)
         
-        # Dispatch update to background event loop for async processing
-        # This allows Flask to respond immediately while PTB processes the update
-        asyncio.run_coroutine_threadsafe(
-            telegram_bot.application.process_update(update),
-            webhook_event_loop
-        )
+        # Dispatch update to background event loop for async processing with error handling
+        try:
+            future = asyncio.run_coroutine_threadsafe(
+                telegram_bot.application.process_update(update),
+                webhook_event_loop
+            )
+            
+            logger.info(f"✅ Update {update.update_id} dispatched to event loop (type: {update_type})")
+            
+            # Note: We don't wait for the future to complete as we need to respond to Telegram quickly
+            # The background event loop will process it asynchronously
+            
+        except Exception as dispatch_error:
+            logger.error(f"❌ Failed to dispatch update to event loop: {dispatch_error}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return jsonify({'status': 'error', 'message': 'Failed to dispatch update'}), 500
         
-        logger.info(f"✅ Dispatched update {update.update_id} to background event loop for processing")
         return jsonify({'status': 'ok'}), 200
         
     except Exception as e:
-        logger.error(f"Error processing webhook: {e}")
+        logger.error(f"❌ Error processing webhook: {e}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
