@@ -8,7 +8,6 @@ dependencies = [
     "flask>=3.1.0",
     "gunicorn>=23.0.0",
     "psutil>=7.0.0",
-    "requests>=2.32.3",
     "python-telegram-bot[job-queue,webhooks]>=22.4",
 ]
 
