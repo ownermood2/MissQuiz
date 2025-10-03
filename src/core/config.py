@@ -1,30 +1,105 @@
 """
-Configuration file for Telegram Quiz Bot
-Store OWNER and WIFU user IDs for access control
+Configuration management for Telegram Quiz Bot
+Supports auto-detection of deployment mode (webhook vs polling)
 """
 
 import os
 import logging
+from dataclasses import dataclass
+from typing import Optional
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+try:
+    from dotenv import load_dotenv
+    env_path = Path('.') / '.env'
+    if env_path.exists():
+        load_dotenv(env_path)
+        logger.info("Loaded environment variables from .env file")
+except ImportError:
+    logger.debug("python-dotenv not installed, using system environment variables only")
+
+@dataclass
+class Config:
+    """Bot configuration with auto-detection of deployment mode"""
+    telegram_token: str
+    session_secret: str
+    owner_id: int
+    wifu_id: Optional[int]
+    webhook_url: Optional[str]
+    render_url: Optional[str]
+    port: int
+    database_path: str
+    
+    @classmethod
+    def load(cls) -> 'Config':
+        """Load configuration from environment variables"""
+        telegram_token = os.environ.get("TELEGRAM_TOKEN")
+        session_secret = os.environ.get("SESSION_SECRET")
+        
+        if not telegram_token:
+            raise ValueError("TELEGRAM_TOKEN environment variable is required")
+        if not session_secret:
+            raise ValueError("SESSION_SECRET environment variable is required")
+        
+        owner_id = int(os.environ.get("OWNER_ID", "0"))
+        if owner_id == 0:
+            logger.warning("⚠️ OWNER_ID not set - bot will work but admin features disabled")
+        
+        wifu_id = None
+        wifu_id_str = os.environ.get("WIFU_ID")
+        if wifu_id_str:
+            try:
+                wifu_id = int(wifu_id_str)
+            except ValueError:
+                logger.warning(f"WIFU_ID environment variable is invalid: {wifu_id_str}")
+        
+        webhook_url = os.environ.get("WEBHOOK_URL")
+        render_url = os.environ.get("RENDER_URL")
+        port = int(os.environ.get("PORT", "5000"))
+        database_path = os.environ.get("DATABASE_PATH", "data/quiz_bot.db")
+        
+        return cls(
+            telegram_token=telegram_token,
+            session_secret=session_secret,
+            owner_id=owner_id,
+            wifu_id=wifu_id,
+            webhook_url=webhook_url,
+            render_url=render_url,
+            port=port,
+            database_path=database_path
+        )
+    
+    def get_mode(self) -> str:
+        """Auto-detect deployment mode based on environment"""
+        if self.webhook_url or self.render_url:
+            return "webhook"
+        return "polling"
+    
+    def get_webhook_url(self) -> Optional[str]:
+        """Get the webhook URL (RENDER_URL takes precedence)"""
+        return self.render_url or self.webhook_url
+    
+    def get_authorized_users(self) -> list[int]:
+        """Get list of authorized user IDs"""
+        users = [self.owner_id] if self.owner_id else []
+        if self.wifu_id:
+            users.append(self.wifu_id)
+        return users
+
 OWNER_ID = int(os.environ.get("OWNER_ID", "0"))
-
-if OWNER_ID == 0:
-    logger.warning("⚠️ OWNER_ID not set - bot will work but admin features disabled")
-    logger.warning("Set OWNER_ID environment variable to enable admin features")
-
-AUTHORIZED_USERS = [OWNER_ID]
-
-wifu_id_str = os.environ.get("WIFU_ID")
 WIFU_ID = None
+wifu_id_str = os.environ.get("WIFU_ID")
 if wifu_id_str:
     try:
         WIFU_ID = int(wifu_id_str)
-        AUTHORIZED_USERS.append(WIFU_ID)
     except ValueError:
-        logger.warning(f"WIFU_ID environment variable is set but invalid: {wifu_id_str}")
-        WIFU_ID = None
+        pass
+
+AUTHORIZED_USERS = [OWNER_ID] if OWNER_ID else []
+if WIFU_ID:
+    AUTHORIZED_USERS.append(WIFU_ID)
 
 UNAUTHORIZED_MESSAGE = """╔═════════ 🌹 𝐎𝐧𝐥𝐲 𝐑𝐞𝐬𝐩𝐞𝐜𝐭𝐞𝐝 𝐃𝐞𝐯𝐥𝐨𝐩𝐞𝐫 ═════════╗
 
@@ -32,4 +107,4 @@ UNAUTHORIZED_MESSAGE = """╔═════════ 🌹 𝐎𝐧𝐥𝐲 �
 
 ╚══════════════════════════════════════════════╝"""
 
-DATABASE_PATH = "data/quiz_bot.db"
+DATABASE_PATH = os.environ.get("DATABASE_PATH", "data/quiz_bot.db")

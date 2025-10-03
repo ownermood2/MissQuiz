@@ -48,6 +48,7 @@ replit.nix
 data/*.json
 !data/questions.json
 *.db
+data/bot.lock
 
 # Logs
 *.log
@@ -55,3 +56,9 @@ data/*.json
 
 # Secrets
 .secrets
+
+# UV lock file
+uv.lock
+
+# System
+.DS_Store

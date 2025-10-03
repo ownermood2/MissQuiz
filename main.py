@@ -2,14 +2,10 @@ import os
 import sys
 import logging
 import asyncio
-import signal
-import traceback
 import threading
-import atexit
 from datetime import datetime
-from src.web.app import init_bot, init_bot_webhook, app
+from src.core.config import Config
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -20,132 +16,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# PID lockfile to prevent multiple instances
-LOCKFILE = "data/bot.lock"
-
-def acquire_lock():
-    """Acquire PID lockfile to prevent multiple bot instances"""
-    try:
-        if os.path.exists(LOCKFILE):
-            # Check if process is still running
-            with open(LOCKFILE, 'r') as f:
-                old_pid = int(f.read().strip())
-            
-            try:
-                os.kill(old_pid, 0)  # Check if process exists
-                logger.error(f"Bot is already running (PID {old_pid}). Only ONE instance allowed!")
-                logger.error("To fix: Kill old instance with: kill {old_pid}")
-                sys.exit(1)
-            except OSError:
-                # Process doesn't exist, remove stale lockfile
-                logger.info(f"Removing stale lockfile (PID {old_pid} no longer exists)")
-                os.remove(LOCKFILE)
-        
-        # Create lockfile with current PID
-        os.makedirs('data', exist_ok=True)
-        with open(LOCKFILE, 'w') as f:
-            f.write(str(os.getpid()))
-        logger.info(f"PID lockfile acquired: {os.getpid()}")
-        
-        # Register cleanup on exit
-        atexit.register(release_lock)
-        
-    except Exception as e:
-        logger.error(f"Failed to acquire lockfile: {e}")
-        sys.exit(1)
-
-def release_lock():
-    """Release PID lockfile on exit"""
-    try:
-        if os.path.exists(LOCKFILE):
-            os.remove(LOCKFILE)
-            logger.info("PID lockfile released")
-    except Exception as e:
-        logger.debug(f"Error releasing lockfile: {e}")
-
 logging.getLogger('httpx').setLevel(logging.WARNING)
 logging.getLogger('telegram').setLevel(logging.INFO)
-logger.info("Logging configured - httpx set to WARNING to protect bot token")
 
-def run_flask_app():
-    """Run Flask server in a separate thread"""
-    try:
-        app.run(host='0.0.0.0', port=5000, use_reloader=False, debug=False)
-    except Exception as e:
-        logger.error(f"Flask server error: {e}")
-        raise
-
-async def main():
-    """Main async function to run both Flask and bot"""
-    try:
-        # Set up signal handlers for graceful shutdown
-        def signal_handler(signum, frame):
-            logger.info(f"Received signal {signum}, initiating graceful shutdown")
-            raise SystemExit("Received termination signal")
-        
-        signal.signal(signal.SIGTERM, signal_handler)
-        signal.signal(signal.SIGINT, signal_handler)
-
-        # Determine operation mode: auto-detect from RENDER_URL or use MODE env var
-        render_url = os.environ.get("RENDER_URL")
-        mode = os.environ.get("MODE", "polling").lower()
-        
-        if render_url or mode == "webhook":
-            # Webhook mode - for production (RENDER_URL) or explicit webhook mode
-            webhook_url = render_url or os.environ.get("WEBHOOK_URL")
-            if not webhook_url:
-                raise ValueError("WEBHOOK_URL or RENDER_URL environment variable is required for webhook mode")
-            
-            logger.info(f"Starting in WEBHOOK mode with URL: {webhook_url}")
-            if render_url:
-                logger.info("Auto-detected RENDER_URL - using webhook mode for production")
-            
-            bot = init_bot_webhook(webhook_url)
-            logger.info("Bot initialized in webhook mode - ready for gunicorn")
-            
-            await send_restart_confirmation()
-            
-            logger.info("Webhook mode active - Flask app should be run with: gunicorn main:app")
-            
-            while True:
-                await asyncio.sleep(1)
-        else:
-            # Polling mode (default) - for development
-            logger.info("Starting in POLLING mode")
-            
-            flask_thread = threading.Thread(target=run_flask_app, daemon=True)
-            flask_thread.start()
-            logger.info("Flask server started on port 5000")
-
-            logger.info("Starting Telegram bot in polling mode...")
-            bot = await init_bot()
-            logger.info("Bot initialization completed")
-
-            await send_restart_confirmation()
-
-            logger.info("Bot is running. Press Ctrl+C to stop.")
-            while True:
-                await asyncio.sleep(1)
-
-    except (KeyboardInterrupt, SystemExit):
-        logger.info("Shutdown signal received, exiting gracefully")
-    except Exception as e:
-        logger.error(f"Critical error: {e}\n{traceback.format_exc()}")
-        raise
-
-async def send_restart_confirmation():
+async def send_restart_confirmation(config: Config):
     """Send restart confirmation to owner if restart flag exists"""
     restart_flag_path = "data/.restart_flag"
     if os.path.exists(restart_flag_path):
         try:
-            from src.core.config import OWNER_ID
             from telegram import Bot
             
-            token = os.environ.get("TELEGRAM_TOKEN")
-            if not token:
-                raise ValueError("TELEGRAM_TOKEN environment variable is required")
-            
-            telegram_bot = Bot(token=token)
+            telegram_bot = Bot(token=config.telegram_token)
             confirmation_message = (
                 "✅ Bot restarted successfully and is now online!\n\n"
                 f"🕒 Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
@@ -153,32 +34,72 @@ async def send_restart_confirmation():
             )
             
             await telegram_bot.send_message(
-                chat_id=OWNER_ID,
+                chat_id=config.owner_id,
                 text=confirmation_message
             )
             
             os.remove(restart_flag_path)
-            logger.info(f"Restart confirmation sent to OWNER ({OWNER_ID}) and flag removed")
+            logger.info(f"Restart confirmation sent to OWNER ({config.owner_id}) and flag removed")
             
         except Exception as e:
             logger.error(f"Failed to send restart confirmation: {e}")
 
+async def run_polling_mode(config: Config):
+    """Run bot in polling mode"""
+    from src.core.quiz import QuizManager
+    from src.bot.handlers import TelegramQuizBot
+    from src.web.app import app
+    
+    logger.info("Starting in POLLING mode")
+    
+    flask_thread = threading.Thread(
+        target=lambda: app.run(host='0.0.0.0', port=config.port, use_reloader=False, debug=False),
+        daemon=True
+    )
+    flask_thread.start()
+    logger.info(f"Flask server started on port {config.port}")
+    
+    quiz_manager = QuizManager()
+    bot = TelegramQuizBot(quiz_manager)
+    await bot.initialize(config.telegram_token)
+    
+    await send_restart_confirmation(config)
+    
+    logger.info("Bot is running. Press Ctrl+C to stop.")
+    
+    try:
+        await asyncio.Event().wait()
+    except (KeyboardInterrupt, SystemExit):
+        logger.info("Shutdown signal received")
+        await bot.application.stop()
+
+def run_webhook_mode(config: Config):
+    """Run bot in webhook mode - initialize bot and export Flask app for gunicorn"""
+    from src.web.app import init_bot_webhook
+    
+    webhook_url = config.get_webhook_url()
+    logger.info(f"Initializing WEBHOOK mode with URL: {webhook_url}")
+    
+    init_bot_webhook(webhook_url)
+    logger.info("Webhook bot initialized - ready for gunicorn")
+    
+    from src.web.app import app
+    app.run(host="0.0.0.0", port=config.port)
+
 if __name__ == "__main__":
     try:
-        # Acquire PID lockfile to prevent multiple instances
-        acquire_lock()
+        config = Config.load()
+        mode = config.get_mode()
         
-        # Verify environment variables
-        required_vars = ["TELEGRAM_TOKEN", "SESSION_SECRET"]
-        missing_vars = [var for var in required_vars if not os.environ.get(var)]
-        if missing_vars:
-            logger.error(f"Missing required environment variables: {', '.join(missing_vars)}")
-            raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
-
-        # Run the async main function
-        asyncio.run(main())
+        if mode == "webhook":
+            run_webhook_mode(config)
+        else:
+            asyncio.run(run_polling_mode(config))
+            
     except KeyboardInterrupt:
         logger.info("Application shutdown requested")
     except Exception as e:
-        logger.critical(f"Fatal error: {e}\n{traceback.format_exc()}")
+        logger.critical(f"Fatal error: {e}")
         sys.exit(1)
+
+from src.web.app import app
