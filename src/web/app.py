@@ -37,6 +37,7 @@ except Exception as e:
 # Setup Telegram Bot handlers
 telegram_bot = None
 webhook_event_loop = None
+_bot_ready_event = threading.Event()  # Signals when bot is fully initialized
 
 async def init_bot():
     """Initialize and start the Telegram bot in polling mode"""
@@ -76,6 +77,9 @@ async def _init_bot_webhook_async(webhook_url: str):
 
         logger.info(f"Telegram bot initialized successfully in webhook mode with URL: {webhook_url}")
         
+        # Signal that bot is ready
+        _bot_ready_event.set()
+        
         # Keep the event loop alive indefinitely for processing updates and running schedulers
         # This is critical - the loop must stay alive for:
         # 1. Processing incoming webhook updates via run_coroutine_threadsafe
@@ -114,6 +118,9 @@ def init_bot_webhook(webhook_url: str):
     """Initialize the Telegram bot in webhook mode with persistent event loop"""
     logger.info(f"Initializing bot in webhook mode with URL: {webhook_url}")
     
+    # Clear the ready event in case of re-initialization
+    _bot_ready_event.clear()
+    
     # Start the event loop in a background daemon thread
     # This thread will keep the event loop alive for:
     # - Processing webhook updates via run_coroutine_threadsafe
@@ -126,11 +133,12 @@ def init_bot_webhook(webhook_url: str):
     )
     webhook_thread.start()
     
-    # Wait a bit for initialization to complete
-    import time
-    time.sleep(2)
+    # Wait for bot to be fully initialized (up to 10 seconds)
+    if _bot_ready_event.wait(timeout=10):
+        logger.info("Webhook mode initialized successfully - bot is ready")
+    else:
+        logger.error("Webhook initialization timeout - bot may not be ready")
     
-    logger.info("Webhook mode initialized with background event loop thread")
     return telegram_bot
 
 @app.route('/')
@@ -154,8 +162,9 @@ def webhook():
             if webhook_url and os.environ.get("MODE", "").lower() == "webhook":
                 logger.info("Worker auto-initializing bot for webhook endpoint")
                 init_bot_webhook(webhook_url)
-                import time
-                time.sleep(2)  # Wait for initialization
+                # Wait for bot to be ready (the init function already waits, but double-check)
+                if not _bot_ready_event.is_set():
+                    logger.warning("Bot initialization completed but ready event not set")
         
         if not telegram_bot:
             logger.error("Webhook received but bot is not initialized")

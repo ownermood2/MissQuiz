@@ -1,0 +1,37 @@
+Your service is live 🎉
+==> 
+==> ///////////////////////////////////////////////////////////
+==> 
+==> Available at your primary URL https://complete-quiz-bot.onrender.com
+==> 
+==> ///////////////////////////////////////////////////////////
+INFO:apscheduler.executors.default:Running job "send_automated_quiz (trigger: interval[0:30:00], next run at: 2025-10-03 08:36:56 UTC)" (scheduled at 2025-10-03 08:06:56.038227+00:00)
+INFO:src.bot.handlers:Starting automated quiz broadcast to 0 active chats
+INFO:src.bot.handlers:Completed automated quiz broadcast cycle
+INFO:apscheduler.executors.default:Job "send_automated_quiz (trigger: interval[0:30:00], next run at: 2025-10-03 08:36:56 UTC)" executed successfully
+INFO:apscheduler.executors.default:Running job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-03 08:12:46 UTC)" (scheduled at 2025-10-03 08:07:46.043753+00:00)
+INFO:apscheduler.executors.default:Job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-03 08:12:46 UTC)" executed successfully
+INFO:src.web.app:Worker auto-initializing bot for webhook endpoint
+INFO:src.web.app:Initializing bot in webhook mode with URL: https://complete-quiz-bot.onrender.com/webhook
+INFO:src.web.app:Starting background event loop for webhook mode
+INFO:src.web.app:Webhook mode initialized with background event loop thread
+ERROR:src.web.app:Webhook received but bot is not initialized
+127.0.0.1 - - [03/Oct/2025:08:07:50 +0000] "POST /webhook HTTP/1.1" 500 51 "-" "-"
+INFO:src.web.app:Worker auto-initializing bot for webhook endpoint
+INFO:src.web.app:Initializing bot in webhook mode with URL: https://complete-quiz-bot.onrender.com/webhook
+INFO:src.web.app:Starting background event loop for webhook mode
+INFO:src.web.app:Webhook mode initialized with background event loop thread
+ERROR:src.web.app:Webhook received but bot is not initialized
+127.0.0.1 - - [03/Oct/2025:08:07:54 +0000] "POST /webhook HTTP/1.1" 500 51 "-" "-"
+INFO:src.web.app:Worker auto-initializing bot for webhook endpoint
+INFO:src.web.app:Initializing bot in webhook mode with URL: https://complete-quiz-bot.onrender.com/webhook
+INFO:src.web.app:Starting background event loop for webhook mode
+INFO:src.web.app:Webhook mode initialized with background event loop thread
+ERROR:src.web.app:Webhook received but bot is not initialized
+127.0.0.1 - - [03/Oct/2025:08:08:00 +0000] "POST /webhook HTTP/1.1" 500 51 "-" "-"
+INFO:src.web.app:Worker auto-initializing bot for webhook endpoint
+INFO:src.web.app:Initializing bot in webhook mode with URL: https://complete-quiz-bot.onrender.com/webhook
+INFO:src.web.app:Starting background event loop for webhook mode
+INFO:src.web.app:Webhook mode initialized with background event loop thread
+ERROR:src.web.app:Webhook received but bot is not initialized
+127.0.0.1 - - [03/Oct/2025:08:08:09 +0000] "POST /webhook HTTP/1.1" 500 51 "-" "-"
