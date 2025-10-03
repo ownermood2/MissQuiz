@@ -8,6 +8,7 @@ Before pushing to GitHub and deploying to Render, ensure:
 - [x] Deployment configs are correct (Procfile, render.yaml)
 - [x] No hardcoded secrets in code
 - [x] Database schema is stable
+- [x] **Webhook initialization fixed** - Bot now auto-initializes when gunicorn imports main:app
 
 ---
 
