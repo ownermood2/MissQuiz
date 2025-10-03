@@ -1609,10 +1609,7 @@ Failed to display quizzes. Please try again later.
 
     async def _handle_dev_command_unauthorized(self, update: Update) -> None:
         """Handle unauthorized access to developer commands"""
-        await update.message.reply_text(
-            "⚠️ This command is only available to bot developers.",
-            parse_mode=ParseMode.MARKDOWN
-        )
+        await update.message.reply_text(config.UNAUTHORIZED_MESSAGE)
         logger.warning(f"Unauthorized access attempt to dev command by user {update.message.from_user.id}")
 
     async def is_developer(self, user_id: int) -> bool:
