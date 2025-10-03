@@ -27,13 +27,14 @@ main.py            # Entry point for both polling and webhook modes
 ```
 
 **Components:**
-- **Flask Web Application** (src/web/): Admin interface, health checks, webhook endpoint
+- **Flask Web Application** (src/web/app.py): Admin interface, health checks, webhook endpoint with _AppProxy pattern for deferred initialization
+- **WSGI Module** (src/web/wsgi.py): Production entry point for gunicorn with automatic webhook setup
 - **Telegram Bot Handler** (src/bot/): All Telegram bot interactions, schedulers
 - **Developer Commands Module** (src/bot/): Developer-specific commands with access control
 - **Database Manager** (src/core/): SQLite database operations
 - **Quiz Manager** (src/core/): Core business logic for quiz operations and scoring
-- **Configuration** (src/core/): Centralized configuration from environment variables
-- **Dual-Mode Support**: Polling (VPS/local) and Webhook (Render/Heroku/Railway) modes
+- **Configuration** (src/core/): Centralized configuration from environment variables with lazy validation
+- **Dual-Mode Support**: Polling (VPS/local) and Webhook (Render/Heroku/Railway) modes with auto-detection
 
 ## Data Storage
 The system uses a **SQLite database** (`data/quiz_bot.db`) for data persistence, including tables for `questions`, `users`, `developers`, `groups`, `user_daily_activity`, `quiz_history`, `activity_logs`, `performance_metrics`, `quiz_stats`, and `broadcast_logs`.
@@ -57,8 +58,11 @@ The system uses a **SQLite database** (`data/quiz_bot.db`) for data persistence,
 ## System Design Choices
 - **Clean Package Structure**: Organized src/ directory with core/, bot/, web/ modules for maintainability
 - **Production-Ready Deployment**: Supports both webhook (Render/Heroku) and polling (VPS) modes
-- **Dual-Mode Architecture**: MODE environment variable switches between polling and webhook seamlessly
-- **Thread-Safe Webhook**: Background daemon thread with persistent asyncio event loop for webhook mode
+- **No Import-Time Side Effects**: Lazy initialization prevents gunicorn crashes during worker bootstrap
+- **_AppProxy Pattern**: Defers both Flask app creation and route registration until first request
+- **WSGI Module**: Separate entry point (src/web/wsgi.py) for production deployments with proper webhook initialization
+- **Dual-Mode Architecture**: Auto-detects polling/webhook based on WEBHOOK_URL or RENDER_URL environment variables
+- **Docker Support**: Multi-stage Dockerfile with health checks, docker-compose for local testing
 - **SQLite Integration**: For improved performance and data integrity
 - **Advanced Broadcasts**: Implementation of a versatile broadcast system supporting diverse content types and dynamic placeholders
 - **Automated Scheduling**: Quiz scheduling to active groups with persistent scheduling
