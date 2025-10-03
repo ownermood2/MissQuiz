@@ -76,38 +76,31 @@ async def run_polling_mode(config: Config):
 # Initialize config at module level - NO validation at import time
 config = Config.load(validate=False)
 
-# Module-level webhook initialization (only if mode is webhook)
-if config.get_mode() == "webhook":
-    try:
-        from src.web.app import init_bot_webhook
-        webhook_url = config.get_webhook_url()
-        if webhook_url:
-            logger.info(f"🔧 Initializing WEBHOOK mode at import time with URL: {webhook_url}")
-            init_bot_webhook(webhook_url)
-            logger.info("✅ Webhook bot initialized - ready for gunicorn")
-    except ValueError as e:
-        # Missing env vars - will be available when gunicorn worker starts
-        logger.warning(f"Webhook init deferred: {e}")
-
-# Export app for gunicorn (at module level, not in __main__)
-from src.web.app import app
-
-# Main entry point for direct execution (python main.py)
 if __name__ == "__main__":
     try:
         # Validate config before running
         config.validate()
         
-        if config.get_mode() == "webhook":
-            # Webhook mode detected
-            logger.warning("⚠️ Webhook mode detected. For production, use: gunicorn main:app")
-            logger.warning("⚠️ For development/testing, set MODE=polling or remove RENDER_URL/WEBHOOK_URL")
-            logger.info("Starting Flask dev server for testing webhook endpoint...")
-            logger.info(f"Webhook URL: {config.get_webhook_url()}")
-            # Run Flask dev server (for testing only, use gunicorn in production)
+        mode = config.get_mode()
+        
+        if mode == "webhook":
+            # Webhook mode - warn user to use gunicorn
+            logger.warning("⚠️ WEBHOOK MODE DETECTED")
+            logger.warning("⚠️ For production, use: gunicorn src.web.wsgi:app --bind 0.0.0.0:$PORT")
+            logger.warning("⚠️ For development, set MODE=polling or remove WEBHOOK_URL")
+            logger.info("Starting Flask dev server for testing...")
+            
+            # Import app only when needed
+            from src.web.app import get_app, init_bot_webhook
+            webhook_url = config.get_webhook_url()
+            if webhook_url:
+                init_bot_webhook(webhook_url)
+            
+            app = get_app()
             app.run(host="0.0.0.0", port=config.port, debug=False)
         else:
-            # Polling mode - recommended for Replit, VPS, local development
+            # Polling mode - recommended
+            logger.info("🚀 POLLING MODE - Starting bot...")
             asyncio.run(run_polling_mode(config))
             
     except KeyboardInterrupt:

@@ -9,25 +9,21 @@ logger = logging.getLogger(__name__)
 
 root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-_app_instance = None
 quiz_manager = None
 telegram_bot = None
 
 def create_app():
-    """Lazy app factory - creates and initializes app on first access"""
-    global _app_instance, quiz_manager
-    
-    if _app_instance is not None:
-        return _app_instance
+    """Flask app factory - creates and initializes app"""
+    global quiz_manager
     
     session_secret = os.environ.get("SESSION_SECRET")
     if not session_secret:
         raise ValueError("SESSION_SECRET environment variable is required")
     
-    _app_instance = Flask(__name__, 
+    flask_app = Flask(__name__, 
                 template_folder=os.path.join(root_dir, 'templates'),
                 static_folder=os.path.join(root_dir, 'static'))
-    _app_instance.secret_key = session_secret
+    flask_app.secret_key = session_secret
     
     if quiz_manager is None:
         try:
@@ -38,31 +34,45 @@ def create_app():
             logger.error(f"Failed to initialize Quiz Manager: {e}")
             raise
     
-    return _app_instance
+    return flask_app
 
-def get_app():
-    """Get or create the Flask app instance"""
-    return create_app()
-
-class LazyApp:
-    """Lazy app wrapper that creates Flask app on first access"""
+class _AppProxy:
+    """Proxy that defers Flask app creation until first use"""
     def __init__(self):
-        self._app = None
+        self._real_app = None
+        self._deferred_registrations = []
+    
+    def _get_real_app(self):
+        """Get or create the real Flask app"""
+        if self._real_app is None:
+            self._real_app = create_app()
+            # Apply all deferred route registrations
+            for method_name, args, kwargs, func in self._deferred_registrations:
+                getattr(self._real_app, method_name)(*args, **kwargs)(func)
+            self._deferred_registrations.clear()
+            logger.info("Flask app created and routes registered")
+        return self._real_app
+    
+    def route(self, *args, **kwargs):
+        """Defer route registration until app is created"""
+        def decorator(func):
+            self._deferred_registrations.append(('route', args, kwargs, func))
+            return func
+        return decorator
     
     def __call__(self, environ, start_response):
-        """WSGI callable - creates app on first request"""
-        if self._app is None:
-            self._app = create_app()
-        return self._app(environ, start_response)
+        """WSGI callable"""
+        return self._get_real_app()(environ, start_response)
     
     def __getattr__(self, name):
-        """Proxy attribute access to underlying app"""
-        if self._app is None:
-            self._app = create_app()
-        return getattr(self._app, name)
+        """Proxy all other attributes to real app"""
+        return getattr(self._get_real_app(), name)
 
-# Export lazy app for gunicorn
-app = LazyApp()
+app = _AppProxy()
+
+def get_app():
+    """Get or create Flask app instance"""
+    return app._get_real_app()
 
 async def init_bot():
     """Initialize and start the Telegram bot in polling mode"""
@@ -150,7 +160,6 @@ def add_question():
         if not data:
             return jsonify({"status": "error", "message": "No data provided"}), 400
         
-        # Convert single question to list format for add_questions method
         question_data = [{
             'question': data['question'],
             'options': data['options'],
@@ -174,13 +183,10 @@ def edit_question(question_id):
         quiz_manager.edit_question(question_id, data)
         return jsonify({"status": "success", "message": "Question updated successfully"})
     except ValueError as e:
-        # Validation errors
         return jsonify({"status": "error", "message": str(e)}), 400
     except KeyError as e:
-        # Missing required fields
         return jsonify({"status": "error", "message": f"Missing field: {str(e)}"}), 400
     except Exception as e:
-        # Unexpected errors
         logger.error(f"Error editing question {question_id}: {e}")
         return jsonify({"status": "error", "message": "Internal server error"}), 500
 
@@ -194,4 +200,3 @@ def delete_question(question_id):
     except Exception as e:
         logger.error(f"Error deleting question {question_id}: {e}")
         return jsonify({"status": "error", "message": "Internal server error"}), 500
-
