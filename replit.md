@@ -1,6 +1,6 @@
 # Overview
 
-This project is a Telegram Quiz Bot application providing interactive quiz functionality within Telegram chats and groups. It includes a Flask web interface for administration and a Telegram bot for user interaction, managing quiz questions, tracking user scores and statistics, and offering comprehensive analytics. The goal is to deliver a robust, scalable, and user-friendly quiz experience with advanced administrative capabilities and detailed performance tracking.
+This project is a production-ready Telegram Quiz Bot application deployable anywhere (Render, VPS, Replit, Railway, Heroku). It provides interactive quiz functionality within Telegram chats and groups, includes a Flask web interface for administration, and supports both webhook and polling modes for maximum deployment flexibility. The bot manages quiz questions, tracks user scores and statistics, and offers comprehensive analytics. The goal is to deliver a robust, scalable, and user-friendly quiz experience with advanced administrative capabilities, detailed performance tracking, and seamless deployment on any platform.
 
 # User Preferences
 
@@ -9,21 +9,40 @@ Preferred communication style: Simple, everyday language.
 # System Architecture
 
 ## Application Structure
-The application uses a modular monolithic architecture, separating concerns into distinct components:
-- **Flask Web Application**: Administrative interface for content management.
-- **Telegram Bot Handler**: Manages all Telegram bot interactions.
-- **Developer Commands Module**: Handles developer-specific commands with access control.
-- **Database Manager**: Manages SQLite database operations.
-- **Quiz Manager**: Contains core business logic for quiz operations, scoring, and data management.
-- **Configuration**: Centralized configuration for access control and settings.
-- **Process Management**: Handles application lifecycle, health monitoring, and automatic restarts.
+The application uses a clean, production-ready modular architecture with organized package structure:
+
+**Directory Structure:**
+```
+src/
+├── core/          # Core business logic
+│   ├── config.py       # Configuration and environment variables
+│   ├── database.py     # SQLite database operations
+│   └── quiz.py         # Quiz management logic
+├── bot/           # Telegram bot components
+│   ├── handlers.py     # Bot command handlers and schedulers
+│   └── dev_commands.py # Developer-specific commands
+└── web/           # Flask web application
+    └── app.py          # Web server, API endpoints, webhook support
+main.py            # Entry point for both polling and webhook modes
+```
+
+**Components:**
+- **Flask Web Application** (src/web/): Admin interface, health checks, webhook endpoint
+- **Telegram Bot Handler** (src/bot/): All Telegram bot interactions, schedulers
+- **Developer Commands Module** (src/bot/): Developer-specific commands with access control
+- **Database Manager** (src/core/): SQLite database operations
+- **Quiz Manager** (src/core/): Core business logic for quiz operations and scoring
+- **Configuration** (src/core/): Centralized configuration from environment variables
+- **Dual-Mode Support**: Polling (VPS/local) and Webhook (Render/Heroku/Railway) modes
 
 ## Data Storage
 The system uses a **SQLite database** (`data/quiz_bot.db`) for data persistence, including tables for `questions`, `users`, `developers`, `groups`, `user_daily_activity`, `quiz_history`, `activity_logs`, `performance_metrics`, `quiz_stats`, and `broadcast_logs`.
 
 ## Frontend Architecture
-- **Admin Panel**: Bootstrap-based web interface for question management.
-- **Templating**: Flask's Jinja2 for server-side rendering.
+- **Health Check Endpoint**: GET / returns {"status":"ok"} for platform monitoring
+- **Admin Panel**: GET /admin serves Bootstrap-based web interface for question management
+- **Templating**: Flask's Jinja2 for server-side rendering
+- **API Endpoints**: RESTful API for quiz data management
 
 ## Bot Architecture
 - **Command Handlers**: Structured processing of commands with cooldowns.
@@ -36,15 +55,20 @@ The system uses a **SQLite database** (`data/quiz_bot.db`) for data persistence,
 - **Auto Quiz System**: Automatically sends quizzes in DMs and groups upon specific triggers.
 
 ## System Design Choices
-- **Modular Design**: Separation of concerns for maintainability.
-- **SQLite Integration**: For improved performance and data integrity.
-- **Advanced Broadcasts**: Implementation of a versatile broadcast system supporting diverse content types and dynamic placeholders.
-- **Automated Scheduling**: Quiz scheduling to active groups with persistent scheduling.
-- **Robust Error Handling & Logging**: Comprehensive logging and error recovery mechanisms.
-- **Real-time Tracking System**: Comprehensive activity logging and analytics.
-- **Performance Optimizations**: Database query optimization with indexing, command caching, and concurrent broadcast processing.
-- **Network Resilience**: HTTPXRequest configuration with balanced timeouts (10s connect, 20s read/write, 10s pool, 8 connections) for automatic reconnection on network failures.
-- **Single Instance Enforcement**: PID lockfile mechanism (`data/bot.lock`) prevents multiple bot instances from running simultaneously, eliminating Telegram API conflicts.
+- **Clean Package Structure**: Organized src/ directory with core/, bot/, web/ modules for maintainability
+- **Production-Ready Deployment**: Supports both webhook (Render/Heroku) and polling (VPS) modes
+- **Dual-Mode Architecture**: MODE environment variable switches between polling and webhook seamlessly
+- **Thread-Safe Webhook**: Background daemon thread with persistent asyncio event loop for webhook mode
+- **SQLite Integration**: For improved performance and data integrity
+- **Advanced Broadcasts**: Implementation of a versatile broadcast system supporting diverse content types and dynamic placeholders
+- **Automated Scheduling**: Quiz scheduling to active groups with persistent scheduling
+- **Robust Error Handling & Logging**: Comprehensive logging and error recovery mechanisms
+- **Real-time Tracking System**: Comprehensive activity logging and analytics
+- **Performance Optimizations**: Database query optimization with indexing, command caching, and concurrent broadcast processing
+- **Network Resilience**: HTTPXRequest configuration with balanced timeouts (10s connect, 20s read/write, 10s pool, 8 connections) for automatic reconnection on network failures
+- **Single Instance Enforcement**: PID lockfile mechanism (`data/bot.lock`) prevents multiple bot instances from running simultaneously, eliminating Telegram API conflicts
+- **Platform-Agnostic**: Works on Render, VPS, Replit, Railway, Heroku with minimal configuration
+- **Health Check Compliance**: Simple GET / endpoint for platform health monitoring
 
 # External Dependencies
 
@@ -66,7 +90,20 @@ The project uses a minimal, optimized set of dependencies:
 - **Replit Environment**: Hosting platform with port 5000 configuration.
 
 ## Environment Variables
-- **TELEGRAM_TOKEN**: Essential for Telegram bot authentication.
-- **SESSION_SECRET**: Used for Flask session security.
-- **OWNER_ID**: Required. Telegram user ID of the bot owner (integer). Must be set for the bot to start.
-- **WIFU_ID**: Optional. Telegram user ID of additional authorized user (integer).
+
+**Required:**
+- **TELEGRAM_TOKEN**: Telegram bot authentication token (get from @BotFather)
+- **SESSION_SECRET**: Flask session security key (generate with `python -c "import secrets; print(secrets.token_hex(32))"`)
+- **OWNER_ID**: Telegram user ID of the bot owner (get from @userinfobot)
+
+**Deployment Mode:**
+- **MODE**: Deployment mode - `polling` (default, for VPS/local) or `webhook` (for Render/Heroku/Railway)
+- **WEBHOOK_URL**: Required when MODE=webhook. Your public domain + /webhook (e.g., https://your-app.onrender.com/webhook)
+
+**Optional:**
+- **WIFU_ID**: Telegram user ID of additional authorized user
+
+**Deployment Examples:**
+- **VPS/Local**: `MODE=polling python main.py`
+- **Render/Heroku**: `MODE=webhook WEBHOOK_URL=https://your-app.onrender.com/webhook gunicorn main:app`
+- **Replit**: Uses polling mode by default (webhook not needed)
