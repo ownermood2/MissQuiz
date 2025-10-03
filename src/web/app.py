@@ -145,7 +145,18 @@ def admin_panel():
 @app.route('/webhook', methods=['POST'])
 def webhook():
     """Webhook endpoint to receive Telegram updates"""
+    global telegram_bot, webhook_event_loop
+    
     try:
+        # Auto-initialize if not already done (handles worker initialization)
+        if not telegram_bot or not webhook_event_loop:
+            webhook_url = os.environ.get("WEBHOOK_URL")
+            if webhook_url and os.environ.get("MODE", "").lower() == "webhook":
+                logger.info("Worker auto-initializing bot for webhook endpoint")
+                init_bot_webhook(webhook_url)
+                import time
+                time.sleep(2)  # Wait for initialization
+        
         if not telegram_bot:
             logger.error("Webhook received but bot is not initialized")
             return jsonify({'status': 'error', 'message': 'Bot not initialized'}), 500
