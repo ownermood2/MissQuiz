@@ -1,10 +1,8 @@
 import os
 import logging
-import psutil
 import asyncio
 import threading
 import traceback
-from datetime import datetime
 from flask import Flask, render_template, jsonify, request
 
 # Configure logging
@@ -23,9 +21,6 @@ app = Flask(__name__,
             static_folder=os.path.join(root_dir, 'static'))
 app.secret_key = os.environ.get("SESSION_SECRET")
 
-# Track application start time for uptime monitoring
-start_time = datetime.now()
-
 # Initialize Quiz Manager
 try:
     from src.core.quiz import QuizManager
@@ -35,9 +30,9 @@ except Exception as e:
     logger.error(f"Failed to initialize Quiz Manager: {e}")
     raise
 
-# Setup Telegram Bot handlers
-telegram_bot = None
-webhook_event_loop = None
+# Global bot instances - initialized by main.py or auto-initialized in webhook route
+telegram_bot = None  # TelegramQuizBot instance
+webhook_event_loop = None  # Background asyncio event loop for webhook mode
 _bot_ready_event = threading.Event()  # Signals when bot is fully initialized
 
 async def init_bot():
@@ -89,7 +84,12 @@ async def _init_bot_webhook_async(webhook_url: str):
         raise
 
 def _run_webhook_event_loop(webhook_url: str):
-    """Run the asyncio event loop in a background thread for webhook mode"""
+    """Run the asyncio event loop in a background thread for webhook mode
+    
+    This function runs in a separate daemon thread and maintains a persistent
+    event loop that processes webhook updates submitted via run_coroutine_threadsafe.
+    The loop runs forever until the application exits.
+    """
     global webhook_event_loop
     try:
         # Create new event loop for this thread
@@ -116,16 +116,25 @@ def _run_webhook_event_loop(webhook_url: str):
             logger.info("Webhook event loop closed")
 
 def init_bot_webhook(webhook_url: str):
-    """Initialize the Telegram bot in webhook mode with persistent event loop"""
+    """Initialize the Telegram bot in webhook mode with persistent event loop
+    
+    Creates a background thread with a persistent asyncio event loop that:
+    - Initializes the Telegram bot and sets up webhook
+    - Processes incoming webhook updates via run_coroutine_threadsafe
+    - Runs PTB schedulers and background tasks
+    
+    Args:
+        webhook_url: The public URL where Telegram will send updates
+        
+    Returns:
+        TelegramQuizBot instance
+    """
     logger.info(f"Initializing bot in webhook mode with URL: {webhook_url}")
     
     # Clear the ready event in case of re-initialization
     _bot_ready_event.clear()
     
     # Start the event loop in a background daemon thread
-    # This thread will keep the event loop alive for:
-    # - Processing webhook updates via run_coroutine_threadsafe
-    # - Running PTB schedulers and background tasks
     webhook_thread = threading.Thread(
         target=_run_webhook_event_loop,
         args=(webhook_url,),
@@ -153,21 +162,27 @@ def admin_panel():
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    """Webhook endpoint to receive Telegram updates"""
+    """Webhook endpoint to receive and process Telegram updates
+    
+    This endpoint:
+    1. Auto-initializes the bot if needed (for gunicorn workers)
+    2. Receives JSON updates from Telegram
+    3. Dispatches updates to the background event loop for async processing
+    4. Returns immediate response to Telegram (required within 60 seconds)
+    """
     global telegram_bot, webhook_event_loop
     
     try:
-        # Auto-initialize if not already done (handles worker initialization)
+        # Auto-initialize if not already done (handles gunicorn worker initialization)
         if not telegram_bot or not webhook_event_loop:
-            # Check for RENDER_URL (simplified config)
-            render_url = os.environ.get("RENDER_URL")
-            if render_url:
+            webhook_url = os.environ.get("RENDER_URL") or os.environ.get("WEBHOOK_URL")
+            if webhook_url:
                 logger.info("Worker auto-initializing bot for webhook endpoint")
-                init_bot_webhook(render_url)
-                # Wait for bot to be ready (the init function already waits, but double-check)
+                init_bot_webhook(webhook_url)
                 if not _bot_ready_event.is_set():
                     logger.warning("Bot initialization completed but ready event not set")
         
+        # Validate bot is initialized
         if not telegram_bot:
             logger.error("Webhook received but bot is not initialized")
             return jsonify({'status': 'error', 'message': 'Bot not initialized'}), 500
@@ -176,30 +191,27 @@ def webhook():
             logger.error("Webhook event loop is not running")
             return jsonify({'status': 'error', 'message': 'Event loop not running'}), 500
         
-        # Get the update from Telegram
+        # Parse incoming update from Telegram
         update_data = request.get_json(force=True)
         
         if not update_data:
             logger.warning("Received empty webhook update")
             return jsonify({'status': 'ok'}), 200
         
-        # Log incoming update for debugging
         logger.info(f"Processing webhook update: {update_data.get('update_id', 'unknown')}")
         
-        # Process the update in the background event loop
-        from telegram import Update
-        
-        # Type guards to satisfy LSP
+        # Validate bot application is ready
         if not telegram_bot.application or not telegram_bot.application.bot:
             logger.error("Bot application not properly initialized")
             return jsonify({'status': 'error', 'message': 'Bot not ready'}), 500
         
+        # Convert JSON to Telegram Update object
+        from telegram import Update
         update = Update.de_json(update_data, telegram_bot.application.bot)
         
-        # Use run_coroutine_threadsafe to submit the update to the background event loop
-        # This is the correct way to call async code from a sync Flask route
-        # The future will be processed by the persistent event loop in the background thread
-        future = asyncio.run_coroutine_threadsafe(
+        # Dispatch update to background event loop for async processing
+        # This allows Flask to respond immediately while PTB processes the update
+        asyncio.run_coroutine_threadsafe(
             telegram_bot.application.process_update(update),
             webhook_event_loop
         )
@@ -209,6 +221,7 @@ def webhook():
         
     except Exception as e:
         logger.error(f"Error processing webhook: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/api/questions', methods=['GET'])
@@ -217,15 +230,24 @@ def get_questions():
 
 @app.route('/api/questions', methods=['POST'])
 def add_question():
-    data = request.get_json()
-    # Convert single question to list format for add_questions method
-    question_data = [{
-        'question': data['question'],
-        'options': data['options'],
-        'correct_answer': data['correct_answer']
-    }]
-    result = quiz_manager.add_questions(question_data)
-    return jsonify(result)
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"status": "error", "message": "No data provided"}), 400
+        
+        # Convert single question to list format for add_questions method
+        question_data = [{
+            'question': data['question'],
+            'options': data['options'],
+            'correct_answer': data['correct_answer']
+        }]
+        result = quiz_manager.add_questions(question_data)
+        return jsonify(result)
+    except KeyError as e:
+        return jsonify({"status": "error", "message": f"Missing required field: {str(e)}"}), 400
+    except Exception as e:
+        logger.error(f"Error adding question: {e}")
+        return jsonify({"status": "error", "message": "Internal server error"}), 500
 
 @app.route('/api/questions/<int:question_id>', methods=['PUT'])
 def edit_question(question_id):
@@ -258,47 +280,9 @@ def delete_question(question_id):
         logger.error(f"Error deleting question {question_id}: {e}")
         return jsonify({"status": "error", "message": "Internal server error"}), 500
 
-# Initialize bot in webhook mode if MODE=webhook
-# This runs when gunicorn loads the app
-import atexit
-
-def init_webhook_on_startup():
-    """Initialize bot in webhook mode when loaded by gunicorn"""
-    mode = os.environ.get("MODE", "polling").lower()
-    if mode == "webhook":
-        webhook_url = os.environ.get("WEBHOOK_URL")
-        if not webhook_url:
-            logger.error("WEBHOOK_URL environment variable is required when MODE=webhook")
-            raise ValueError("WEBHOOK_URL environment variable is required when MODE=webhook")
-        
-        # Initialize bot in webhook mode with background event loop
-        init_bot_webhook(webhook_url)
-        logger.info("Bot initialized in webhook mode for gunicorn with persistent event loop")
-        
-        # Register cleanup on exit
-        def cleanup_webhook():
-            """Delete webhook on shutdown"""
-            try:
-                if telegram_bot and telegram_bot.application and webhook_event_loop:
-                    # Submit cleanup to background event loop
-                    future = asyncio.run_coroutine_threadsafe(
-                        telegram_bot.application.bot.delete_webhook(),
-                        webhook_event_loop
-                    )
-                    # Wait for cleanup to complete (with timeout)
-                    future.result(timeout=5)
-                    logger.info("Webhook deleted on shutdown")
-            except Exception as e:
-                logger.error(f"Error deleting webhook on shutdown: {e}")
-        
-        atexit.register(cleanup_webhook)
-
-# Note: Webhook auto-initialization now happens in main.py at module level
-# This prevents double initialization when gunicorn imports the app
-
 if __name__ == "__main__":
+    """Direct execution for local testing - uses polling mode"""
     try:
-        import asyncio
         asyncio.run(init_bot())
         app.run(host="0.0.0.0", port=5000, debug=True)
     except Exception as e:
