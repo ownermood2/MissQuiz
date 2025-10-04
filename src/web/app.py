@@ -141,7 +141,19 @@ def webhook():
             return jsonify({'status': 'ok'}), 200
         
         update = Update.de_json(update_data, telegram_bot.application.bot)
-        telegram_bot.application.update_queue.put_nowait(update)
+        
+        # Process update asynchronously using the bot's event loop
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        # Create task to process update without blocking Flask response
+        asyncio.ensure_future(
+            telegram_bot.application.process_update(update),
+            loop=loop
+        )
         
         return jsonify({'status': 'ok'}), 200
         
