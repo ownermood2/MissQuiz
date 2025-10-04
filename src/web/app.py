@@ -151,11 +151,16 @@ def webhook():
 
 @app.route('/api/questions', methods=['GET'])
 def get_questions():
+    if not quiz_manager:
+        return jsonify({"status": "error", "message": "Quiz manager not initialized"}), 500
     return jsonify(quiz_manager.get_all_questions())
 
 @app.route('/api/questions', methods=['POST'])
 def add_question():
     try:
+        if not quiz_manager:
+            return jsonify({"status": "error", "message": "Quiz manager not initialized"}), 500
+        
         data = request.get_json()
         if not data:
             return jsonify({"status": "error", "message": "No data provided"}), 400
@@ -176,6 +181,9 @@ def add_question():
 @app.route('/api/questions/<int:question_id>', methods=['PUT'])
 def edit_question(question_id):
     try:
+        if not quiz_manager:
+            return jsonify({"status": "error", "message": "Quiz manager not initialized"}), 500
+        
         data = request.get_json()
         if not data:
             return jsonify({"status": "error", "message": "No data provided"}), 400
@@ -193,6 +201,9 @@ def edit_question(question_id):
 @app.route('/api/questions/<int:question_id>', methods=['DELETE'])
 def delete_question(question_id):
     try:
+        if not quiz_manager:
+            return jsonify({"status": "error", "message": "Quiz manager not initialized"}), 500
+        
         quiz_manager.delete_question(question_id)
         return jsonify({"status": "success", "message": "Question deleted successfully"})
     except ValueError as e:

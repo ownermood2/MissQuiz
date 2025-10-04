@@ -86,7 +86,8 @@ async def run_polling_mode(config: Config):
         await asyncio.Event().wait()
     except (KeyboardInterrupt, SystemExit):
         logger.info("Shutdown signal received")
-        await bot.application.stop()
+        if bot.application:
+            await bot.application.stop()
 
 # Initialize config at module level - NO validation at import time
 config = Config.load(validate=False)
