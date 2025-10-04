@@ -42,6 +42,7 @@ class Config:
         render_url (Optional[str]): Render.com deployment URL (takes precedence)
         port (int): Port number for web server
         database_path (str): Path to SQLite database file
+        database_url (Optional[str]): PostgreSQL database URL
     """
     telegram_token: str
     session_secret: str
@@ -51,6 +52,7 @@ class Config:
     render_url: Optional[str]
     port: int
     database_path: str
+    database_url: Optional[str]
     
     @classmethod
     def load(cls, validate: bool = False) -> 'Config':
@@ -88,6 +90,7 @@ class Config:
         render_url = os.environ.get("RENDER_URL")
         port = int(os.environ.get("PORT", "5000"))
         database_path = os.environ.get("DATABASE_PATH", "data/quiz_bot.db")
+        database_url = os.environ.get("DATABASE_URL")
         
         config = cls(
             telegram_token=telegram_token,
@@ -97,7 +100,8 @@ class Config:
             webhook_url=webhook_url,
             render_url=render_url,
             port=port,
-            database_path=database_path
+            database_path=database_path,
+            database_url=database_url
         )
         
         if validate:

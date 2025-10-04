@@ -1,10 +1,10 @@
 """Database Manager for Telegram Quiz Bot.
 
 This module provides comprehensive database management for the quiz bot,
-handling all SQLite database operations including quiz questions, user
-statistics, developer management, group tracking, and activity logging.
-It uses context managers for safe database connections and implements
-WAL mode for improved concurrency.
+handling database operations for both SQLite and PostgreSQL. It supports
+quiz questions, user statistics, developer management, group tracking,
+and activity logging. Auto-detects database type from DATABASE_URL
+environment variable and uses appropriate connection library.
 """
 
 import sqlite3
@@ -17,6 +17,14 @@ from contextlib import contextmanager
 from threading import Lock
 from src.core import config
 from src.core.exceptions import DatabaseError
+
+try:
+    import psycopg2
+    import psycopg2.extras
+    PSYCOPG2_AVAILABLE = True
+except ImportError:
+    PSYCOPG2_AVAILABLE = False
+    psycopg2 = None
 
 logger = logging.getLogger(__name__)
 
@@ -38,17 +46,34 @@ class DatabaseManager:
         """Initialize database manager and set up schema.
         
         Creates database connection, initializes schema if needed, and runs
-        any pending migrations. The database file will be created if it
-        doesn't exist.
+        any pending migrations. Auto-detects database type from DATABASE_URL
+        environment variable. If DATABASE_URL is set and starts with
+        "postgresql://", uses PostgreSQL, otherwise uses SQLite.
         
         Args:
             db_path (str, optional): Path to SQLite database file.
+                                    Only used if DATABASE_URL is not set.
                                     Defaults to config.DATABASE_PATH.
         
         Raises:
             DatabaseError: If database initialization or migration fails
         """
-        self.db_path = db_path or config.DATABASE_PATH
+        cfg = config.Config.load()
+        database_url = cfg.database_url
+        
+        if database_url and database_url.startswith('postgresql://'):
+            if not PSYCOPG2_AVAILABLE:
+                raise DatabaseError("PostgreSQL database URL provided but psycopg2 is not installed. Please install psycopg2-binary.")
+            self.db_type = 'postgresql'
+            self.database_url = database_url
+            self.db_path = None
+            logger.info(f"🐘 Using PostgreSQL database")
+        else:
+            self.db_type = 'sqlite'
+            self.db_path = db_path or config.DATABASE_PATH
+            self.database_url = None
+            logger.info(f"📁 Using SQLite database at {self.db_path}")
+        
         self._conn = None
         self._lock = Lock()
         self._executor = None
@@ -56,31 +81,36 @@ class DatabaseManager:
         try:
             self._create_persistent_connection()
             self.init_database()
-            logger.info(f"Database initialized at {self.db_path} with connection pooling")
+            logger.info(f"✅ Database initialized successfully ({self.db_type})")
         except DatabaseError:
             raise
         except Exception as e:
             logger.error(f"Failed to initialize database: {e}")
             raise DatabaseError(f"Failed to initialize database: {e}") from e
         
-        # Run timestamp migration to fix ISO format timestamps
-        try:
-            migration_result = self.migrate_iso_timestamps_to_space_format()
-            if migration_result['activity_logs'] > 0 or migration_result['performance_metrics'] > 0:
-                logger.info(f"Migrated timestamps: activity_logs={migration_result['activity_logs']}, performance_metrics={migration_result['performance_metrics']}")
-        except DatabaseError:
-            logger.error(f"Timestamp migration failed (non-critical)")
-        except Exception as e:
-            logger.error(f"Timestamp migration failed (non-critical): {e}")
+        if self.db_type == 'sqlite':
+            try:
+                migration_result = self.migrate_iso_timestamps_to_space_format()
+                if migration_result['activity_logs'] > 0 or migration_result['performance_metrics'] > 0:
+                    logger.info(f"Migrated timestamps: activity_logs={migration_result['activity_logs']}, performance_metrics={migration_result['performance_metrics']}")
+            except DatabaseError:
+                logger.error(f"Timestamp migration failed (non-critical)")
+            except Exception as e:
+                logger.error(f"Timestamp migration failed (non-critical): {e}")
     
     def _create_persistent_connection(self):
         """Create a persistent connection for reuse."""
         try:
-            self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
-            self._conn.row_factory = sqlite3.Row
-            self._conn.execute('PRAGMA journal_mode=WAL')
-            logger.debug("Created persistent database connection")
-        except sqlite3.Error as e:
+            if self.db_type == 'postgresql':
+                self._conn = psycopg2.connect(self.database_url)
+                self._conn.autocommit = False
+                logger.debug("Created persistent PostgreSQL connection")
+            else:
+                self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
+                self._conn.row_factory = sqlite3.Row
+                self._conn.execute('PRAGMA journal_mode=WAL')
+                logger.debug("Created persistent SQLite connection")
+        except Exception as e:
             logger.error(f"Failed to create persistent connection: {e}")
             raise DatabaseError(f"Failed to create persistent connection: {e}") from e
     
@@ -90,9 +120,10 @@ class DatabaseManager:
         
         Provides a safe database connection that automatically commits on success
         and rolls back on errors. Uses persistent connection for better performance.
+        Works with both SQLite and PostgreSQL.
         
         Yields:
-            sqlite3.Connection: Database connection with row_factory set to sqlite3.Row
+            Connection: Database connection (sqlite3.Connection or psycopg2.connection)
         
         Raises:
             DatabaseError: If connection fails or transaction errors occur
@@ -105,16 +136,11 @@ class DatabaseManager:
                 yield self._conn
                 if self._conn:
                     self._conn.commit()
-            except sqlite3.Error as e:
+            except Exception as e:
                 if self._conn:
                     self._conn.rollback()
                 logger.error(f"Database operation failed: {e}")
                 raise DatabaseError(f"Database operation failed: {e}") from e
-            except Exception as e:
-                if self._conn:
-                    self._conn.rollback()
-                logger.error(f"Unexpected error during database operation: {e}")
-                raise DatabaseError(f"Unexpected error during database operation: {e}") from e
     
     async def get_connection_async(self):
         """Async wrapper for database operations using executor."""
@@ -124,23 +150,64 @@ class DatabaseManager:
             self._executor = ThreadPoolExecutor(max_workers=4)
         return self._executor
     
+    def _get_placeholder(self):
+        """Get the parameter placeholder for the current database type."""
+        return '%s' if self.db_type == 'postgresql' else '?'
+    
+    def _adapt_sql(self, sql: str) -> str:
+        """Adapt SQL for the current database type."""
+        if self.db_type == 'postgresql':
+            sql = sql.replace('?', '%s')
+            sql = sql.replace('INTEGER PRIMARY KEY AUTOINCREMENT', 'SERIAL PRIMARY KEY')
+            sql = sql.replace('INSERT OR REPLACE', 'INSERT')
+        return sql
+    
+    def _get_cursor(self, conn):
+        """Get a cursor with appropriate settings for the database type."""
+        if self.db_type == 'postgresql':
+            return conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        else:
+            return conn.cursor()
+    
+    def _column_exists(self, cursor, table_name: str, column_name: str) -> bool:
+        """Check if a column exists in a table."""
+        if self.db_type == 'postgresql':
+            self._execute(cursor, """
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = %s AND column_name = %s
+            """, (table_name, column_name))
+            return cursor.fetchone() is not None
+        else:
+            cursor.execute(f"PRAGMA table_info({table_name})")
+            columns = [row[1] if isinstance(row, tuple) else row['name'] for row in cursor.fetchall()]
+            return column_name in columns
+    
+    def _execute(self, cursor, sql: str, params=None):
+        """Execute SQL with automatic adaptation for database type."""
+        adapted_sql = self._adapt_sql(sql)
+        if params:
+            cursor.execute(adapted_sql, params)
+        else:
+            cursor.execute(adapted_sql)
+    
     def init_database(self):
         """Initialize database schema with all required tables and indexes.
         
         Creates all necessary tables for questions, users, developers, groups,
         quiz history, broadcasts, and activity logging. Also creates indexes
         for optimal query performance and runs schema migrations for any
-        missing columns.
+        missing columns. Works with both SQLite and PostgreSQL.
         
         Raises:
             DatabaseError: If schema creation or migration fails
         """
         with self.get_connection() as conn:
             assert conn is not None
-            cursor = conn.cursor()
+            cursor = self._get_cursor(conn)
             assert cursor is not None
             
-            cursor.execute('''
+            cursor.execute(self._adapt_sql('''
                 CREATE TABLE IF NOT EXISTS questions (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     question TEXT NOT NULL,
@@ -149,16 +216,13 @@ class DatabaseManager:
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
-            ''')
+            '''))
             
-            # Migration: Add category column if it doesn't exist
-            cursor.execute("PRAGMA table_info(questions)")
-            question_columns = [column[1] for column in cursor.fetchall()]
-            if 'category' not in question_columns:
+            if not self._column_exists(cursor, 'questions', 'category'):
                 cursor.execute('ALTER TABLE questions ADD COLUMN category TEXT')
                 logger.info("Added category column to questions table")
             
-            cursor.execute('''
+            cursor.execute(self._adapt_sql('''
                 CREATE TABLE IF NOT EXISTS users (
                     user_id INTEGER PRIMARY KEY,
                     username TEXT,
@@ -174,21 +238,17 @@ class DatabaseManager:
                     joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
-            ''')
+            '''))
             
-            # Migration: Add has_pm_access column if it doesn't exist
-            cursor.execute("PRAGMA table_info(users)")
-            columns = [column[1] for column in cursor.fetchall()]
-            if 'has_pm_access' not in columns:
+            if not self._column_exists(cursor, 'users', 'has_pm_access'):
                 cursor.execute('ALTER TABLE users ADD COLUMN has_pm_access INTEGER DEFAULT 0')
                 logger.info("Added has_pm_access column to users table")
             
-            # Migration: Add last_quiz_message_id column if it doesn't exist
-            if 'last_quiz_message_id' not in columns:
+            if not self._column_exists(cursor, 'users', 'last_quiz_message_id'):
                 cursor.execute('ALTER TABLE users ADD COLUMN last_quiz_message_id INTEGER')
                 logger.info("Added last_quiz_message_id column to users table")
             
-            cursor.execute('''
+            cursor.execute(self._adapt_sql('''
                 CREATE TABLE IF NOT EXISTS developers (
                     user_id INTEGER PRIMARY KEY,
                     username TEXT,
@@ -197,9 +257,9 @@ class DatabaseManager:
                     added_by INTEGER,
                     added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
-            ''')
+            '''))
             
-            cursor.execute('''
+            cursor.execute(self._adapt_sql('''
                 CREATE TABLE IF NOT EXISTS groups (
                     chat_id INTEGER PRIMARY KEY,
                     chat_title TEXT,
@@ -211,15 +271,13 @@ class DatabaseManager:
                     joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
-            ''')
+            '''))
             
-            cursor.execute("PRAGMA table_info(groups)")
-            group_columns = [column[1] for column in cursor.fetchall()]
-            if 'last_quiz_message_id' not in group_columns:
+            if not self._column_exists(cursor, 'groups', 'last_quiz_message_id'):
                 cursor.execute('ALTER TABLE groups ADD COLUMN last_quiz_message_id INTEGER')
                 logger.info("Added last_quiz_message_id column to groups table")
             
-            cursor.execute('''
+            cursor.execute(self._adapt_sql('''
                 CREATE TABLE IF NOT EXISTS user_daily_activity (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id INTEGER NOT NULL,
@@ -230,9 +288,9 @@ class DatabaseManager:
                     FOREIGN KEY (user_id) REFERENCES users (user_id),
                     UNIQUE(user_id, activity_date)
                 )
-            ''')
+            '''))
             
-            cursor.execute('''
+            cursor.execute(self._adapt_sql('''
                 CREATE TABLE IF NOT EXISTS quiz_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id INTEGER NOT NULL,
@@ -246,9 +304,9 @@ class DatabaseManager:
                     FOREIGN KEY (user_id) REFERENCES users (user_id),
                     FOREIGN KEY (question_id) REFERENCES questions (id)
                 )
-            ''')
+            '''))
             
-            cursor.execute('''
+            cursor.execute(self._adapt_sql('''
                 CREATE TABLE IF NOT EXISTS broadcasts (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     broadcast_id TEXT UNIQUE NOT NULL,
@@ -256,9 +314,9 @@ class DatabaseManager:
                     message_data TEXT NOT NULL,
                     sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
-            ''')
+            '''))
             
-            cursor.execute('''
+            cursor.execute(self._adapt_sql('''
                 CREATE TABLE IF NOT EXISTS quiz_stats (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     date TEXT NOT NULL,
@@ -266,9 +324,9 @@ class DatabaseManager:
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(date)
                 )
-            ''')
+            '''))
             
-            cursor.execute('''
+            cursor.execute(self._adapt_sql('''
                 CREATE TABLE IF NOT EXISTS broadcast_logs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     admin_id INTEGER NOT NULL,
@@ -279,19 +337,19 @@ class DatabaseManager:
                     skipped_count INTEGER DEFAULT 0,
                     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
-            ''')
+            '''))
             
-            cursor.execute('''
+            cursor.execute(self._adapt_sql('''
                 CREATE INDEX IF NOT EXISTS idx_user_activity_date 
                 ON user_daily_activity(user_id, activity_date)
-            ''')
+            '''))
             
-            cursor.execute('''
+            cursor.execute(self._adapt_sql('''
                 CREATE INDEX IF NOT EXISTS idx_quiz_history_user 
                 ON quiz_history(user_id, answered_at)
-            ''')
+            '''))
             
-            cursor.execute('''
+            cursor.execute(self._adapt_sql('''
                 CREATE TABLE IF NOT EXISTS activity_logs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     timestamp TEXT NOT NULL,
@@ -305,29 +363,29 @@ class DatabaseManager:
                     success INTEGER DEFAULT 1,
                     response_time_ms INTEGER
                 )
-            ''')
+            '''))
             
-            cursor.execute('''
+            cursor.execute(self._adapt_sql('''
                 CREATE INDEX IF NOT EXISTS idx_activity_logs_timestamp 
                 ON activity_logs(timestamp DESC)
-            ''')
+            '''))
             
-            cursor.execute('''
+            cursor.execute(self._adapt_sql('''
                 CREATE INDEX IF NOT EXISTS idx_activity_logs_type 
                 ON activity_logs(activity_type, timestamp DESC)
-            ''')
+            '''))
             
-            cursor.execute('''
+            cursor.execute(self._adapt_sql('''
                 CREATE INDEX IF NOT EXISTS idx_activity_logs_user 
                 ON activity_logs(user_id, timestamp DESC)
-            ''')
+            '''))
             
-            cursor.execute('''
+            cursor.execute(self._adapt_sql('''
                 CREATE INDEX IF NOT EXISTS idx_activity_logs_chat 
                 ON activity_logs(chat_id, timestamp DESC)
-            ''')
+            '''))
             
-            cursor.execute('''
+            cursor.execute(self._adapt_sql('''
                 CREATE TABLE IF NOT EXISTS performance_metrics (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     timestamp TEXT NOT NULL,
@@ -337,43 +395,42 @@ class DatabaseManager:
                     unit TEXT,
                     details TEXT
                 )
-            ''')
+            '''))
             
-            cursor.execute('''
+            cursor.execute(self._adapt_sql('''
                 CREATE INDEX IF NOT EXISTS idx_performance_metrics_timestamp 
                 ON performance_metrics(timestamp DESC)
-            ''')
+            '''))
             
-            cursor.execute('''
+            cursor.execute(self._adapt_sql('''
                 CREATE INDEX IF NOT EXISTS idx_performance_metrics_type 
                 ON performance_metrics(metric_type, timestamp DESC)
-            ''')
+            '''))
             
-            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_activity_logs_type_time 
-                ON activity_logs(activity_type, timestamp)''')
-            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_activity_logs_command 
-                ON activity_logs(command)''')
-            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_activity_logs_user_time 
-                ON activity_logs(user_id, timestamp)''')
+            cursor.execute(self._adapt_sql('''CREATE INDEX IF NOT EXISTS idx_activity_logs_type_time 
+                ON activity_logs(activity_type, timestamp)'''))
+            cursor.execute(self._adapt_sql('''CREATE INDEX IF NOT EXISTS idx_activity_logs_command 
+                ON activity_logs(command)'''))
+            cursor.execute(self._adapt_sql('''CREATE INDEX IF NOT EXISTS idx_activity_logs_user_time 
+                ON activity_logs(user_id, timestamp)'''))
             
-            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_performance_metrics_type_time 
-                ON performance_metrics(metric_type, timestamp)''')
+            cursor.execute(self._adapt_sql('''CREATE INDEX IF NOT EXISTS idx_performance_metrics_type_time 
+                ON performance_metrics(metric_type, timestamp)'''))
             
-            # Additional performance-critical indexes
-            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_quiz_stats_date 
-                ON quiz_stats(date)''')
-            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_broadcast_logs_admin 
-                ON broadcast_logs(admin_id, timestamp DESC)''')
-            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_broadcast_logs_timestamp 
-                ON broadcast_logs(timestamp DESC)''')
-            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_users_activity 
-                ON users(last_activity_date, total_quizzes)''')
-            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_groups_activity 
-                ON groups(is_active, last_activity_date)''')
-            cursor.execute('''CREATE INDEX IF NOT EXISTS idx_quiz_history_chat 
-                ON quiz_history(chat_id, answered_at DESC)''')
+            cursor.execute(self._adapt_sql('''CREATE INDEX IF NOT EXISTS idx_quiz_stats_date 
+                ON quiz_stats(date)'''))
+            cursor.execute(self._adapt_sql('''CREATE INDEX IF NOT EXISTS idx_broadcast_logs_admin 
+                ON broadcast_logs(admin_id, timestamp DESC)'''))
+            cursor.execute(self._adapt_sql('''CREATE INDEX IF NOT EXISTS idx_broadcast_logs_timestamp 
+                ON broadcast_logs(timestamp DESC)'''))
+            cursor.execute(self._adapt_sql('''CREATE INDEX IF NOT EXISTS idx_users_activity 
+                ON users(last_activity_date, total_quizzes)'''))
+            cursor.execute(self._adapt_sql('''CREATE INDEX IF NOT EXISTS idx_groups_activity 
+                ON groups(is_active, last_activity_date)'''))
+            cursor.execute(self._adapt_sql('''CREATE INDEX IF NOT EXISTS idx_quiz_history_chat 
+                ON quiz_history(chat_id, answered_at DESC)'''))
             
-            logger.info("Database schema initialized successfully with optimized indexes")
+            logger.info(f"Database schema initialized successfully with optimized indexes ({self.db_type})")
     
     def add_question(self, question: str, options: List[str], correct_answer: int) -> int:
         """Add a new quiz question to the database.
@@ -391,10 +448,10 @@ class DatabaseManager:
         """
         with self.get_connection() as conn:
             assert conn is not None
-            cursor = conn.cursor()
+            cursor = self._get_cursor(conn)
             assert cursor is not None
             options_json = json.dumps(options)
-            cursor.execute('''
+            self._execute(cursor, '''
                 INSERT INTO questions (question, options, correct_answer)
                 VALUES (?, ?, ?)
             ''', (question, options_json, correct_answer))
@@ -413,7 +470,7 @@ class DatabaseManager:
         """
         with self.get_connection() as conn:
             assert conn is not None
-            cursor = conn.cursor()
+            cursor = self._get_cursor(conn)
             assert cursor is not None
             cursor.execute('SELECT * FROM questions ORDER BY id')
             rows = cursor.fetchall()
@@ -441,9 +498,9 @@ class DatabaseManager:
         """
         with self.get_connection() as conn:
             assert conn is not None
-            cursor = conn.cursor()
+            cursor = self._get_cursor(conn)
             assert cursor is not None
-            cursor.execute('SELECT * FROM questions WHERE category = ? ORDER BY id', (category,))
+            self._execute(cursor, 'SELECT * FROM questions WHERE category = ? ORDER BY id', (category,))
             rows = cursor.fetchall()
             return [
                 {
@@ -470,9 +527,9 @@ class DatabaseManager:
         """
         with self.get_connection() as conn:
             assert conn is not None
-            cursor = conn.cursor()
+            cursor = self._get_cursor(conn)
             assert cursor is not None
-            cursor.execute('DELETE FROM questions WHERE id = ?', (question_id,))
+            self._execute(cursor, 'DELETE FROM questions WHERE id = ?', (question_id,))
             return cursor.rowcount > 0
     
     def update_question(self, question_id: int, question: str, options: List[str], correct_answer: int) -> bool:
@@ -492,10 +549,10 @@ class DatabaseManager:
         """
         with self.get_connection() as conn:
             assert conn is not None
-            cursor = conn.cursor()
+            cursor = self._get_cursor(conn)
             assert cursor is not None
             options_json = json.dumps(options)
-            cursor.execute('''
+            self._execute(cursor, '''
                 UPDATE questions 
                 SET question = ?, options = ?, correct_answer = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
@@ -518,9 +575,9 @@ class DatabaseManager:
         """
         with self.get_connection() as conn:
             assert conn is not None
-            cursor = conn.cursor()
+            cursor = self._get_cursor(conn)
             assert cursor is not None
-            cursor.execute('''
+            self._execute(cursor, '''
                 INSERT INTO users (user_id, username, first_name, last_name)
                 VALUES (?, ?, ?, ?)
                 ON CONFLICT(user_id) DO UPDATE SET
@@ -550,11 +607,11 @@ class DatabaseManager:
         
         with self.get_connection() as conn:
             assert conn is not None
-            cursor = conn.cursor()
+            cursor = self._get_cursor(conn)
             assert cursor is not None
             
             if is_correct:
-                cursor.execute('''
+                self._execute(cursor, '''
                     UPDATE users 
                     SET current_score = current_score + 1,
                         total_quizzes = total_quizzes + 1,
@@ -564,7 +621,7 @@ class DatabaseManager:
                     WHERE user_id = ?
                 ''', (activity_date, user_id))
             else:
-                cursor.execute('''
+                self._execute(cursor, '''
                     UPDATE users 
                     SET current_score = CASE WHEN current_score > 0 THEN current_score - 1 ELSE 0 END,
                         total_quizzes = total_quizzes + 1,
@@ -574,7 +631,7 @@ class DatabaseManager:
                     WHERE user_id = ?
                 ''', (activity_date, user_id))
             
-            cursor.execute('''
+            self._execute(cursor, '''
                 UPDATE users 
                 SET success_rate = CASE 
                     WHEN total_quizzes > 0 THEN (correct_answers * 100.0 / total_quizzes)
@@ -583,7 +640,7 @@ class DatabaseManager:
                 WHERE user_id = ?
             ''', (user_id,))
             
-            cursor.execute('''
+            self._execute(cursor, '''
                 INSERT INTO user_daily_activity (user_id, activity_date, attempts, correct, wrong)
                 VALUES (?, ?, 1, ?, ?)
                 ON CONFLICT(user_id, activity_date) DO UPDATE SET
@@ -608,9 +665,9 @@ class DatabaseManager:
         """
         with self.get_connection() as conn:
             assert conn is not None
-            cursor = conn.cursor()
+            cursor = self._get_cursor(conn)
             assert cursor is not None
-            cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,))
+            self._execute(cursor, 'SELECT * FROM users WHERE user_id = ?', (user_id,))
             row = cursor.fetchone()
             if row:
                 return dict(row)
@@ -627,7 +684,7 @@ class DatabaseManager:
         """
         with self.get_connection() as conn:
             assert conn is not None
-            cursor = conn.cursor()
+            cursor = self._get_cursor(conn)
             assert cursor is not None
             cursor.execute('SELECT * FROM users ORDER BY current_score DESC')
             return [dict(row) for row in cursor.fetchall()]
@@ -645,7 +702,7 @@ class DatabaseManager:
         """
         with self.get_connection() as conn:
             assert conn is not None
-            cursor = conn.cursor()
+            cursor = self._get_cursor(conn)
             assert cursor is not None
             cursor.execute('SELECT * FROM users WHERE total_quizzes > 0 ORDER BY current_score DESC')
             return [dict(row) for row in cursor.fetchall()]
@@ -661,7 +718,7 @@ class DatabaseManager:
         """
         with self.get_connection() as conn:
             assert conn is not None
-            cursor = conn.cursor()
+            cursor = self._get_cursor(conn)
             assert cursor is not None
             cursor.execute('SELECT * FROM users WHERE has_pm_access = 1 ORDER BY current_score DESC')
             return [dict(row) for row in cursor.fetchall()]
@@ -678,9 +735,9 @@ class DatabaseManager:
         """
         with self.get_connection() as conn:
             assert conn is not None
-            cursor = conn.cursor()
+            cursor = self._get_cursor(conn)
             assert cursor is not None
-            cursor.execute('''
+            self._execute(cursor, '''
                 UPDATE users 
                 SET has_pm_access = ?
                 WHERE user_id = ?
@@ -702,9 +759,9 @@ class DatabaseManager:
         """
         with self.get_connection() as conn:
             assert conn is not None
-            cursor = conn.cursor()
+            cursor = self._get_cursor(conn)
             assert cursor is not None
-            cursor.execute('''
+            self._execute(cursor, '''
                 INSERT OR REPLACE INTO developers (user_id, username, first_name, last_name, added_by)
                 VALUES (?, ?, ?, ?, ?)
             ''', (user_id, username, first_name, last_name, added_by))
@@ -723,9 +780,9 @@ class DatabaseManager:
         """
         with self.get_connection() as conn:
             assert conn is not None
-            cursor = conn.cursor()
+            cursor = self._get_cursor(conn)
             assert cursor is not None
-            cursor.execute('DELETE FROM developers WHERE user_id = ?', (user_id,))
+            self._execute(cursor, 'DELETE FROM developers WHERE user_id = ?', (user_id,))
             return cursor.rowcount > 0
     
     def get_all_developers(self) -> List[Dict]:
@@ -739,7 +796,7 @@ class DatabaseManager:
         """
         with self.get_connection() as conn:
             assert conn is not None
-            cursor = conn.cursor()
+            cursor = self._get_cursor(conn)
             assert cursor is not None
             cursor.execute('SELECT * FROM developers ORDER BY added_at')
             return [dict(row) for row in cursor.fetchall()]
@@ -763,9 +820,9 @@ class DatabaseManager:
         
         with self.get_connection() as conn:
             assert conn is not None
-            cursor = conn.cursor()
+            cursor = self._get_cursor(conn)
             assert cursor is not None
-            cursor.execute('SELECT 1 FROM developers WHERE user_id = ?', (user_id,))
+            self._execute(cursor, 'SELECT 1 FROM developers WHERE user_id = ?', (user_id,))
             return cursor.fetchone() is not None
     
     async def is_developer_async(self, user_id: int) -> bool:
@@ -792,9 +849,9 @@ class DatabaseManager:
         activity_date = datetime.now().strftime('%Y-%m-%d')
         with self.get_connection() as conn:
             assert conn is not None
-            cursor = conn.cursor()
+            cursor = self._get_cursor(conn)
             assert cursor is not None
-            cursor.execute('''
+            self._execute(cursor, '''
                 INSERT INTO groups (chat_id, chat_title, chat_type, last_activity_date)
                 VALUES (?, ?, ?, ?)
                 ON CONFLICT(chat_id) DO UPDATE SET
@@ -820,7 +877,7 @@ class DatabaseManager:
         """
         with self.get_connection() as conn:
             assert conn is not None
-            cursor = conn.cursor()
+            cursor = self._get_cursor(conn)
             assert cursor is not None
             if active_only:
                 cursor.execute('SELECT * FROM groups WHERE is_active = 1 ORDER BY last_activity_date DESC')
@@ -839,9 +896,9 @@ class DatabaseManager:
         """
         with self.get_connection() as conn:
             assert conn is not None
-            cursor = conn.cursor()
+            cursor = self._get_cursor(conn)
             assert cursor is not None
-            cursor.execute('''
+            self._execute(cursor, '''
                 UPDATE groups 
                 SET total_quizzes_sent = total_quizzes_sent + 1,
                     updated_at = CURRENT_TIMESTAMP
@@ -866,9 +923,9 @@ class DatabaseManager:
         is_correct = 1 if user_answer == correct_answer else 0
         with self.get_connection() as conn:
             assert conn is not None
-            cursor = conn.cursor()
+            cursor = self._get_cursor(conn)
             assert cursor is not None
-            cursor.execute('''
+            self._execute(cursor, '''
                 INSERT INTO quiz_history (user_id, chat_id, question_id, question_text, 
                                         user_answer, correct_answer, is_correct)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -878,7 +935,7 @@ class DatabaseManager:
         """Get comprehensive statistics summary - OPTIMIZED: reduced 11 queries to 3 queries"""
         with self.get_connection() as conn:
             assert conn is not None
-            cursor = conn.cursor()
+            cursor = self._get_cursor(conn)
             assert cursor is not None
             
             today = datetime.now().strftime('%Y-%m-%d')
@@ -898,7 +955,7 @@ class DatabaseManager:
             counts = cursor.fetchone()
             
             # Query 2: Get activity data in one query with aggregation
-            cursor.execute('''
+            self._execute(cursor, '''
                 SELECT 
                     SUM(CASE WHEN activity_date = ? THEN attempts ELSE 0 END) as quizzes_today,
                     SUM(CASE WHEN activity_date >= ? THEN attempts ELSE 0 END) as quizzes_week,
@@ -951,7 +1008,7 @@ class DatabaseManager:
                                 assert conn is not None
                                 cursor = conn.cursor()
                                 assert cursor is not None
-                                cursor.execute('''
+                                self._execute(cursor, '''
                                     INSERT OR REPLACE INTO users 
                                     (user_id, current_score, total_quizzes, correct_answers, 
                                      wrong_answers, success_rate, last_activity_date)
@@ -1009,7 +1066,7 @@ class DatabaseManager:
                 assert conn is not None
                 cursor = conn.cursor()
                 assert cursor is not None
-                cursor.execute('''
+                self._execute(cursor, '''
                     INSERT INTO broadcasts (broadcast_id, sender_id, message_data)
                     VALUES (?, ?, ?)
                 ''', (broadcast_id, sender_id, json.dumps(message_data)))
@@ -1068,7 +1125,7 @@ class DatabaseManager:
                 assert conn is not None
                 cursor = conn.cursor()
                 assert cursor is not None
-                cursor.execute('DELETE FROM broadcasts WHERE broadcast_id = ?', (broadcast_id,))
+                self._execute(cursor, 'DELETE FROM broadcasts WHERE broadcast_id = ?', (broadcast_id,))
                 return cursor.rowcount > 0
         except Exception as e:
             logger.error(f"Error deleting broadcast: {e}")
@@ -1093,7 +1150,7 @@ class DatabaseManager:
                 assert conn is not None
                 cursor = conn.cursor()
                 assert cursor is not None
-                cursor.execute('DELETE FROM users WHERE user_id = ?', (user_id,))
+                self._execute(cursor, 'DELETE FROM users WHERE user_id = ?', (user_id,))
                 success = cursor.rowcount > 0
                 if success:
                     logger.info(f"Removed inactive user {user_id} from database")
@@ -1121,7 +1178,7 @@ class DatabaseManager:
                 assert conn is not None
                 cursor = conn.cursor()
                 assert cursor is not None
-                cursor.execute('DELETE FROM groups WHERE chat_id = ?', (chat_id,))
+                self._execute(cursor, 'DELETE FROM groups WHERE chat_id = ?', (chat_id,))
                 success = cursor.rowcount > 0
                 if success:
                     logger.info(f"Removed inactive group {chat_id} from database")
@@ -1149,13 +1206,13 @@ class DatabaseManager:
                 assert cursor is not None
                 
                 if chat_id > 0:
-                    cursor.execute('''
+                    self._execute(cursor, '''
                         UPDATE users 
                         SET last_quiz_message_id = ?
                         WHERE user_id = ?
                     ''', (message_id, chat_id))
                 else:
-                    cursor.execute('''
+                    self._execute(cursor, '''
                         UPDATE groups 
                         SET last_quiz_message_id = ?
                         WHERE chat_id = ?
@@ -1186,9 +1243,9 @@ class DatabaseManager:
                 assert cursor is not None
                 
                 if chat_id > 0:
-                    cursor.execute('SELECT last_quiz_message_id FROM users WHERE user_id = ?', (chat_id,))
+                    self._execute(cursor, 'SELECT last_quiz_message_id FROM users WHERE user_id = ?', (chat_id,))
                 else:
-                    cursor.execute('SELECT last_quiz_message_id FROM groups WHERE chat_id = ?', (chat_id,))
+                    self._execute(cursor, 'SELECT last_quiz_message_id FROM groups WHERE chat_id = ?', (chat_id,))
                 
                 row = cursor.fetchone()
                 if row and row[0]:
@@ -1215,7 +1272,7 @@ class DatabaseManager:
                 assert conn is not None
                 cursor = conn.cursor()
                 assert cursor is not None
-                cursor.execute('''
+                self._execute(cursor, '''
                     INSERT INTO quiz_stats (date, quizzes_sent_count)
                     VALUES (?, 1)
                     ON CONFLICT(date) DO UPDATE SET
@@ -1240,7 +1297,7 @@ class DatabaseManager:
                 assert conn is not None
                 cursor = conn.cursor()
                 assert cursor is not None
-                cursor.execute('SELECT quizzes_sent_count FROM quiz_stats WHERE date = ?', (today,))
+                self._execute(cursor, 'SELECT quizzes_sent_count FROM quiz_stats WHERE date = ?', (today,))
                 row = cursor.fetchone()
                 return row[0] if row else 0
         except Exception as e:
@@ -1265,7 +1322,7 @@ class DatabaseManager:
                 assert conn is not None
                 cursor = conn.cursor()
                 assert cursor is not None
-                cursor.execute('''
+                self._execute(cursor, '''
                     SELECT SUM(quizzes_sent_count) 
                     FROM quiz_stats 
                     WHERE date >= ?
@@ -1292,7 +1349,7 @@ class DatabaseManager:
                 assert conn is not None
                 cursor = conn.cursor()
                 assert cursor is not None
-                cursor.execute('''
+                self._execute(cursor, '''
                     SELECT SUM(quizzes_sent_count) 
                     FROM quiz_stats 
                     WHERE date >= ?
@@ -1357,7 +1414,7 @@ class DatabaseManager:
                 assert conn is not None
                 cursor = conn.cursor()
                 assert cursor is not None
-                cursor.execute('''
+                self._execute(cursor, '''
                     INSERT INTO broadcast_logs 
                     (admin_id, message_text, total_targets, sent_count, failed_count, skipped_count)
                     VALUES (?, ?, ?, ?, ?, ?)
@@ -1395,7 +1452,7 @@ class DatabaseManager:
                 assert conn is not None
                 cursor = conn.cursor()
                 assert cursor is not None
-                cursor.execute('''
+                self._execute(cursor, '''
                     INSERT INTO activity_logs 
                     (timestamp, activity_type, user_id, chat_id, username, chat_title, 
                      command, details, success, response_time_ms)
@@ -1437,14 +1494,14 @@ class DatabaseManager:
                 assert cursor is not None
                 
                 if activity_type:
-                    cursor.execute('''
+                    self._execute(cursor, '''
                         SELECT * FROM activity_logs 
                         WHERE activity_type = ?
                         ORDER BY timestamp DESC 
                         LIMIT ?
                     ''', (activity_type, limit))
                 else:
-                    cursor.execute('''
+                    self._execute(cursor, '''
                         SELECT * FROM activity_logs 
                         ORDER BY timestamp DESC 
                         LIMIT ?
@@ -1483,7 +1540,7 @@ class DatabaseManager:
                 assert conn is not None
                 cursor = conn.cursor()
                 assert cursor is not None
-                cursor.execute('''
+                self._execute(cursor, '''
                     SELECT * FROM activity_logs 
                     WHERE user_id = ?
                     ORDER BY timestamp DESC 
@@ -1523,7 +1580,7 @@ class DatabaseManager:
                 assert conn is not None
                 cursor = conn.cursor()
                 assert cursor is not None
-                cursor.execute('''
+                self._execute(cursor, '''
                     SELECT * FROM activity_logs 
                     WHERE chat_id = ?
                     ORDER BY timestamp DESC 
@@ -1563,7 +1620,7 @@ class DatabaseManager:
                 assert conn is not None
                 cursor = conn.cursor()
                 assert cursor is not None
-                cursor.execute('''
+                self._execute(cursor, '''
                     SELECT COUNT(*) as count 
                     FROM activity_logs 
                     WHERE timestamp >= ? AND timestamp <= ?
@@ -1602,14 +1659,14 @@ class DatabaseManager:
                 cursor = conn.cursor()
                 assert cursor is not None
                 
-                cursor.execute('''
+                self._execute(cursor, '''
                     SELECT COUNT(*) as total 
                     FROM activity_logs 
                     WHERE timestamp >= ?
                 ''', (start_timestamp,))
                 total_activities = cursor.fetchone()['total']
                 
-                cursor.execute('''
+                self._execute(cursor, '''
                     SELECT activity_type, COUNT(*) as count 
                     FROM activity_logs 
                     WHERE timestamp >= ?
@@ -1627,7 +1684,7 @@ class DatabaseManager:
                 ''', (start_timestamp,))
                 activities_by_day = {row['date']: row['count'] for row in cursor.fetchall()}
                 
-                cursor.execute('''
+                self._execute(cursor, '''
                     SELECT 
                         COUNT(*) as total,
                         SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successful
@@ -1639,7 +1696,7 @@ class DatabaseManager:
                 successful = row['successful']
                 success_rate = round((successful / max(total, 1)) * 100, 2)
                 
-                cursor.execute('''
+                self._execute(cursor, '''
                     SELECT AVG(response_time_ms) as avg_time 
                     FROM activity_logs 
                     WHERE timestamp >= ? AND response_time_ms IS NOT NULL
@@ -1690,7 +1747,7 @@ class DatabaseManager:
                 assert conn is not None
                 cursor = conn.cursor()
                 assert cursor is not None
-                cursor.execute('''
+                self._execute(cursor, '''
                     DELETE FROM activity_logs 
                     WHERE timestamp < ?
                 ''', (cutoff_timestamp,))
@@ -1723,7 +1780,7 @@ class DatabaseManager:
                 assert conn is not None
                 cursor = conn.cursor()
                 assert cursor is not None
-                cursor.execute('''
+                self._execute(cursor, '''
                     SELECT command, COUNT(*) as count 
                     FROM activity_logs 
                     WHERE command IS NOT NULL 
@@ -1776,7 +1833,7 @@ class DatabaseManager:
                 ''', (start_timestamp,))
                 total_sent = cursor.fetchone()['count'] or 0
                 
-                cursor.execute('''
+                self._execute(cursor, '''
                     SELECT COUNT(*) as total,
                            SUM(CASE WHEN is_correct = 1 THEN 1 ELSE 0 END) as correct
                     FROM quiz_history
@@ -1851,7 +1908,7 @@ class DatabaseManager:
                 cursor.execute('SELECT COUNT(*) as count FROM users')
                 total_users = cursor.fetchone()['count']
                 
-                cursor.execute('''
+                self._execute(cursor, '''
                     SELECT COUNT(DISTINCT user_id) as count 
                     FROM activity_logs 
                     WHERE user_id IS NOT NULL 
@@ -1859,7 +1916,7 @@ class DatabaseManager:
                 ''', (today_start, today_end))
                 active_today = cursor.fetchone()['count']
                 
-                cursor.execute('''
+                self._execute(cursor, '''
                     SELECT COUNT(DISTINCT user_id) as count 
                     FROM activity_logs 
                     WHERE user_id IS NOT NULL 
@@ -1867,7 +1924,7 @@ class DatabaseManager:
                 ''', (week_start,))
                 active_week = cursor.fetchone()['count']
                 
-                cursor.execute('''
+                self._execute(cursor, '''
                     SELECT COUNT(DISTINCT user_id) as count 
                     FROM activity_logs 
                     WHERE user_id IS NOT NULL 
@@ -1960,7 +2017,7 @@ class DatabaseManager:
                 cursor = conn.cursor()
                 assert cursor is not None
                 
-                cursor.execute('''
+                self._execute(cursor, '''
                     SELECT 
                         COUNT(*) as total,
                         SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as errors
@@ -1972,7 +2029,7 @@ class DatabaseManager:
                 total_errors = row['errors'] or 0
                 error_rate = round((total_errors / max(total_activities, 1)) * 100, 2)
                 
-                cursor.execute('''
+                self._execute(cursor, '''
                     SELECT activity_type, COUNT(*) as count
                     FROM activity_logs 
                     WHERE success = 0 
@@ -2092,7 +2149,7 @@ class DatabaseManager:
                 assert conn is not None
                 cursor = conn.cursor()
                 assert cursor is not None
-                cursor.execute('''
+                self._execute(cursor, '''
                     SELECT 
                         command, 
                         AVG(response_time_ms) as avg_time,
@@ -2148,7 +2205,7 @@ class DatabaseManager:
                 cursor = conn.cursor()
                 assert cursor is not None
                 
-                cursor.execute('''
+                self._execute(cursor, '''
                     SELECT 
                         current_score,
                         total_quizzes,
@@ -2164,7 +2221,7 @@ class DatabaseManager:
                     return None
                 
                 # Use timestamp range query for better index usage
-                cursor.execute('''
+                self._execute(cursor, '''
                     SELECT COUNT(*) as count
                     FROM quiz_history
                     WHERE user_id = ? 
@@ -2174,7 +2231,7 @@ class DatabaseManager:
                 today_quizzes = cursor.fetchone()['count']
                 
                 # Use timestamp range query for week
-                cursor.execute('''
+                self._execute(cursor, '''
                     SELECT COUNT(*) as count
                     FROM quiz_history
                     WHERE user_id = ? 
@@ -2182,7 +2239,7 @@ class DatabaseManager:
                 ''', (user_id, week_start))
                 week_quizzes = cursor.fetchone()['count']
                 
-                cursor.execute('''
+                self._execute(cursor, '''
                     SELECT is_correct, answered_at
                     FROM quiz_history
                     WHERE user_id = ?
@@ -2268,7 +2325,7 @@ class DatabaseManager:
                     total_count = cursor.fetchone()[0]
                 
                 # Get the paginated leaderboard data - RANKED BY CORRECT ANSWERS
-                cursor.execute('''
+                self._execute(cursor, '''
                     SELECT 
                         u.user_id,
                         u.username,
@@ -2328,7 +2385,7 @@ class DatabaseManager:
                 assert conn is not None
                 cursor = conn.cursor()
                 assert cursor is not None
-                cursor.execute('''
+                self._execute(cursor, '''
                     INSERT INTO performance_metrics (timestamp, metric_type, metric_name, value, unit, details)
                     VALUES (?, ?, ?, ?, ?, ?)
                 ''', (timestamp, metric_type, metric_name, value, unit, details_json))
@@ -2575,7 +2632,7 @@ class DatabaseManager:
                 assert conn is not None
                 cursor = conn.cursor()
                 assert cursor is not None
-                cursor.execute('''
+                self._execute(cursor, '''
                     DELETE FROM performance_metrics 
                     WHERE timestamp < ?
                 ''', (cutoff_timestamp,))
@@ -2666,7 +2723,7 @@ class DatabaseManager:
                 assert conn is not None
                 cursor = conn.cursor()
                 assert cursor is not None
-                cursor.execute('''
+                self._execute(cursor, '''
                     SELECT COUNT(DISTINCT user_id) as count
                     FROM activity_logs
                     WHERE user_id IS NOT NULL
@@ -2700,7 +2757,7 @@ class DatabaseManager:
                 assert conn is not None
                 cursor = conn.cursor()
                 assert cursor is not None
-                cursor.execute('''
+                self._execute(cursor, '''
                     SELECT * FROM users
                     WHERE joined_at >= ?
                     ORDER BY joined_at DESC
@@ -2733,7 +2790,7 @@ class DatabaseManager:
                 assert conn is not None
                 cursor = conn.cursor()
                 assert cursor is not None
-                cursor.execute('''
+                self._execute(cursor, '''
                     SELECT 
                         u.user_id,
                         u.username,
