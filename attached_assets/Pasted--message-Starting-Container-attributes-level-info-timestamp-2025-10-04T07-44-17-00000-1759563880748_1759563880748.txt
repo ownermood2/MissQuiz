@@ -1,0 +1,52 @@
+{"message":"Starting Container","attributes":{"level":"info"},"timestamp":"2025-10-04T07:44:17.000000000Z"}
+{"message":"[2025-10-04 07:44:17 +0000] [1] [INFO] Starting gunicorn 21.2.0","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:17.994716014Z"}
+{"message":"[2025-10-04 07:44:17 +0000] [1] [INFO] Listening at: http://0.0.0.0:8080 (1)","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:17.994724035Z"}
+{"message":"[2025-10-04 07:44:17 +0000] [1] [INFO] Using worker: sync","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:17.994730575Z"}
+{"message":"[2025-10-04 07:44:17 +0000] [2] [INFO] Booting worker with pid: 2","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:17.994736455Z"}
+{"message":"2025-10-04 07:44:18,180 - src.web.wsgi - INFO - Initializing application for WSGI server...","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.198127402Z"}
+{"message":"2025-10-04 07:44:18,180 - src.web.wsgi - INFO - Detected mode: webhook","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.198134213Z"}
+{"message":"2025-10-04 07:44:18,180 - src.web.wsgi - INFO - Initializing webhook bot with URL: https://super.railway.app/webhook","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.198140786Z"}
+{"message":"2025-10-04 07:44:18,351 - src.core.database - INFO - Added category column to questions table","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.363005285Z"}
+{"message":"2025-10-04 07:44:18,353 - src.core.database - INFO - Added last_quiz_message_id column to users table","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.363010054Z"}
+{"message":"2025-10-04 07:44:18,374 - src.core.database - INFO - Database schema initialized successfully with optimized indexes","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.381290499Z"}
+{"message":"2025-10-04 07:44:18,376 - src.core.database - INFO - Database initialized at data/quiz_bot.db","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.381296447Z"}
+{"message":"2025-10-04 07:44:18,376 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.381302334Z"}
+{"message":"2025-10-04 07:44:18,377 - src.core.quiz - INFO - Database connection initialized in QuizManager","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.381307916Z"}
+{"message":"2025-10-04 07:44:18,377 - src.core.quiz - INFO - Saved 0 questions to file","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.381312381Z"}
+{"message":"2025-10-04 07:44:18,377 - src.core.quiz - INFO - All data saved successfully. Questions count: 0","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.381316577Z"}
+{"message":"2025-10-04 07:44:18,377 - src.core.quiz - INFO - Successfully loaded and cleaned 0 questions","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.381321078Z"}
+{"message":"2025-10-04 07:44:18,377 - src.core.quiz - INFO - Active chats: 0","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.381326120Z"}
+{"message":"2025-10-04 07:44:18,378 - src.core.quiz - INFO - Active users with stats: 0","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.381330787Z"}
+{"message":"2025-10-04 07:44:18,378 - src.core.quiz - INFO - Users with scores: 0","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.381335055Z"}
+{"message":"2025-10-04 07:44:18,378 - src.web.app - INFO - Quiz Manager initialized for webhook mode","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.381344466Z"}
+{"message":"2025-10-04 07:44:18,378 - src.core.database - INFO - Database schema initialized successfully with optimized indexes","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.381348740Z"}
+{"message":"2025-10-04 07:44:18,379 - src.core.database - INFO - Database initialized at data/quiz_bot.db","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.381352958Z"}
+{"message":"2025-10-04 07:44:18,379 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.381357640Z"}
+{"message":"2025-10-04 07:44:18,379 - src.bot.dev_commands - INFO - Developer commands module initialized","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.381361709Z"}
+{"message":"2025-10-04 07:44:18,379 - src.bot.handlers - INFO - TelegramQuizBot initialized with database and developer commands","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.381365509Z"}
+{"message":"2025-10-04 07:44:18,397 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.399467986Z"}
+{"message":"2025-10-04 07:44:18,397 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.399475087Z"}
+{"message":"2025-10-04 07:44:18,397 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.399481324Z"}
+{"message":"2025-10-04 07:44:18,397 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.399487391Z"}
+{"message":"2025-10-04 07:44:18,397 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.399493820Z"}
+{"message":"2025-10-04 07:44:18,397 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.399499860Z"}
+{"message":"2025-10-04 07:44:18,399 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:18.402625454Z"}
+{"message":"2025-10-04 07:44:22,670 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAGnRiZb6Pxt-0OPTAWZqsUD8e6gg6T6p58/getMe \"HTTP/1.1 200 OK\"","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:22.675146998Z"}
+{"message":"2025-10-04 07:44:22,671 - apscheduler.scheduler - INFO - Added job \"send_automated_quiz\" to job store \"default\"","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:22.675154540Z"}
+{"message":"2025-10-04 07:44:22,671 - apscheduler.scheduler - INFO - Added job \"scheduled_cleanup\" to job store \"default\"","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:22.675160392Z"}
+{"message":"2025-10-04 07:44:22,671 - apscheduler.scheduler - INFO - Added job \"cleanup_old_polls\" to job store \"default\"","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:22.675165781Z"}
+{"message":"2025-10-04 07:44:22,671 - apscheduler.scheduler - INFO - Added job \"cleanup_questions_wrapper\" to job store \"default\"","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:22.675172669Z"}
+{"message":"2025-10-04 07:44:22,671 - apscheduler.scheduler - INFO - Added job \"track_memory_usage\" to job store \"default\"","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:22.675177597Z"}
+{"message":"2025-10-04 07:44:22,671 - apscheduler.scheduler - INFO - Added job \"cleanup_performance_metrics\" to job store \"default\"","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:22.675183103Z"}
+{"message":"2025-10-04 07:44:22,671 - apscheduler.scheduler - INFO - Added job \"cleanup_old_activities\" to job store \"default\"","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:22.675192490Z"}
+{"message":"2025-10-04 07:44:22,671 - apscheduler.scheduler - INFO - Scheduler started","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:22.675199728Z"}
+{"message":"2025-10-04 07:44:22,672 - telegram.ext.Application - INFO - Application started","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:22.675207183Z"}
+{"message":"2025-10-04 07:44:22,672 - src.bot.handlers - INFO - Backfilling 0 groups from active_chats to database","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:22.675214037Z"}
+{"message":"2025-10-04 07:44:22,672 - src.bot.handlers - INFO - Successfully backfilled 0/0 groups to database","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:22.675221543Z"}
+{"message":"2025-10-04 07:44:22,840 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAGnRiZb6Pxt-0OPTAWZqsUD8e6gg6T6p58/setWebhook \"HTTP/1.1 200 OK\"","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:22.868673675Z"}
+{"message":"2025-10-04 07:44:22,841 - src.bot.handlers - INFO - Webhook set successfully: https://super.railway.app/webhook","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:22.868678710Z"}
+{"message":"2025-10-04 07:44:22,841 - telegram.ext.Application - WARNING - Fetching updates got a asyncio.CancelledError. Ignoring as this task may onlybe closed via `Application.stop`.","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:22.868685599Z"}
+{"message":"2025-10-04 07:44:28,402 - apscheduler.executors.default - INFO - Running job \"send_automated_quiz (trigger: interval[0:30:00], next run at: 2025-10-04 08:14:28 UTC)\" (scheduled at 2025-10-04 07:44:28.396556+00:00)","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:28.408902642Z"}
+{"message":"2025-10-04 07:44:28,403 - src.bot.handlers - INFO - Starting automated quiz broadcast to 0 active chats","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:28.408911399Z"}
+{"message":"2025-10-04 07:44:28,403 - src.bot.handlers - INFO - Completed automated quiz broadcast cycle","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:28.408916999Z"}
+{"message":"2025-10-04 07:44:28,403 - apscheduler.executors.default - INFO - Job \"send_automated_quiz (trigger: interval[0:30:00], next run at: 2025-10-04 08:14:28 UTC)\" executed successfully","attributes":{"level":"error"},"timestamp":"2025-10-04T07:44:28.408921620Z"}

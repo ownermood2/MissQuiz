@@ -56,9 +56,14 @@ docs/
 logs/
 
 # Database (build-time - will use volume at runtime)
-data/
-*.db
-*.db-journal
+# Exclude database files but KEEP questions.json for deployment
+data/*.db
+data/*.db-journal
+data/bot.lock
+data/scores.json
+data/active_chats.json
+data/user_stats.json
+# questions.json is NOT excluded - it's source data that must be deployed!
 
 # Testing
 .pytest_cache/
