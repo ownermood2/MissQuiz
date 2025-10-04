@@ -629,6 +629,7 @@ class TelegramQuizBot:
             self.application = (
                 Application.builder()
                 .token(token)
+                .updater(None)  # Disable polling/updater for webhook mode
                 .request(request)
                 .post_shutdown(self._flush_activity_queue)
                 .build()
