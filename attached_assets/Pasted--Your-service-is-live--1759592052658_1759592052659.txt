@@ -1,0 +1,227 @@
+ Your service is live 🎉
+     ==> 
+     ==> ///////////////////////////////////////////////////////////
+     ==> 
+     ==> Available at your primary URL https://missquiz.onrender.com
+     ==> 
+     ==> ///////////////////////////////////////////////////////////
+2025-10-04 15:30:06,435 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 15:30:06] "GET / HTTP/1.1" 200 -
+2025-10-04 15:30:08,803 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 15:30:08] "POST / HTTP/1.1" 405 -
+2025-10-04 15:30:25,018 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 15:30:25] "POST / HTTP/1.1" 405 -
+2025-10-04 15:30:57,218 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 15:30:57] "POST / HTTP/1.1" 405 -
+2025-10-04 15:31:58,739 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 15:31:58] "POST / HTTP/1.1" 405 -
+2025-10-04 15:32:55,937 - __main__ - WARNING - ⚠️ WEBHOOK MODE DETECTED
+2025-10-04 15:32:55,938 - __main__ - WARNING - ⚠️ For production, use: gunicorn src.web.wsgi:app --bind 0.0.0.0:$PORT
+2025-10-04 15:32:55,939 - __main__ - WARNING - ⚠️ For development, set MODE=polling or remove WEBHOOK_URL
+2025-10-04 15:32:55,939 - __main__ - INFO - Starting Flask dev server for testing...
+2025-10-04 15:32:59,838 - src.core.database - INFO - Added category column to questions table
+2025-10-04 15:32:59,842 - src.core.database - INFO - Added last_quiz_message_id column to users table
+2025-10-04 15:32:59,895 - src.core.database - INFO - Database schema initialized successfully with optimized indexes
+2025-10-04 15:32:59,895 - src.core.database - INFO - Database initialized at data/quiz_bot.db with connection pooling
+2025-10-04 15:32:59,895 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+2025-10-04 15:32:59,895 - src.core.quiz - INFO - Database connection initialized in QuizManager
+2025-10-04 15:32:59,896 - src.core.quiz - INFO - Successfully loaded and cleaned 235 questions
+2025-10-04 15:32:59,896 - src.core.quiz - INFO - Active chats: 0
+2025-10-04 15:32:59,897 - src.core.quiz - INFO - Active users with stats: 0
+2025-10-04 15:32:59,897 - src.core.quiz - INFO - Users with scores: 0
+2025-10-04 15:32:59,897 - src.web.app - INFO - Quiz Manager initialized for webhook mode
+2025-10-04 15:32:59,898 - src.core.database - INFO - Database schema initialized successfully with optimized indexes
+2025-10-04 15:32:59,898 - src.core.database - INFO - Database initialized at data/quiz_bot.db with connection pooling
+2025-10-04 15:32:59,898 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+2025-10-04 15:32:59,898 - src.bot.dev_commands - INFO - Developer commands module initialized
+2025-10-04 15:32:59,898 - src.bot.handlers - INFO - TelegramQuizBot initialized with performance optimizations: user cache, activity batching, leaderboard cache
+2025-10-04 15:33:00,326 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 15:33:00,326 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 15:33:00,326 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 15:33:00,327 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 15:33:00,327 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 15:33:00,327 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 15:33:00,329 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 15:33:00,827 - apscheduler.scheduler - INFO - Added job "send_automated_quiz" to job store "default"
+2025-10-04 15:33:00,827 - apscheduler.scheduler - INFO - Added job "scheduled_cleanup" to job store "default"
+2025-10-04 15:33:00,827 - apscheduler.scheduler - INFO - Added job "cleanup_old_polls" to job store "default"
+2025-10-04 15:33:00,827 - apscheduler.scheduler - INFO - Added job "cleanup_questions_wrapper" to job store "default"
+2025-10-04 15:33:00,827 - apscheduler.scheduler - INFO - Added job "track_memory_usage" to job store "default"
+2025-10-04 15:33:00,827 - apscheduler.scheduler - INFO - Added job "cleanup_performance_metrics" to job store "default"
+2025-10-04 15:33:00,828 - apscheduler.scheduler - INFO - Added job "cleanup_old_activities" to job store "default"
+2025-10-04 15:33:00,828 - apscheduler.scheduler - INFO - Scheduler started
+2025-10-04 15:33:00,828 - telegram.ext.Application - INFO - Application started
+2025-10-04 15:33:00,828 - src.bot.handlers - INFO - Backfilling 0 groups from active_chats to database
+2025-10-04 15:33:00,828 - src.bot.handlers - INFO - Successfully backfilled 0/0 groups to database
+2025-10-04 15:33:00,989 - src.bot.handlers - INFO - Webhook set successfully: https://missquiz.onrender.com
+2025-10-04 15:33:00,991 - src.web.app - INFO - Webhook bot initialized with URL: https://missquiz.onrender.com
+2025-10-04 15:33:00,995 - src.web.app - INFO - Flask app created and routes registered
+ * Serving Flask app 'src.web.app'
+ * Debug mode: off
+2025-10-04 15:33:00,997 - werkzeug - INFO - WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:10000
+ * Running on http://10.229.136.41:10000
+2025-10-04 15:33:00,997 - werkzeug - INFO - Press CTRL+C to quit
+     ==> Deploying...
+2025-10-04 15:33:21,413 - __main__ - WARNING - ⚠️ WEBHOOK MODE DETECTED
+2025-10-04 15:33:21,414 - __main__ - WARNING - ⚠️ For production, use: gunicorn src.web.wsgi:app --bind 0.0.0.0:$PORT
+2025-10-04 15:33:21,414 - __main__ - WARNING - ⚠️ For development, set MODE=polling or remove WEBHOOK_URL
+2025-10-04 15:33:21,414 - __main__ - INFO - Starting Flask dev server for testing...
+2025-10-04 15:33:25,238 - src.core.database - INFO - Added category column to questions table
+2025-10-04 15:33:25,244 - src.core.database - INFO - Added last_quiz_message_id column to users table
+2025-10-04 15:33:25,362 - src.core.database - INFO - Database schema initialized successfully with optimized indexes
+2025-10-04 15:33:25,362 - src.core.database - INFO - Database initialized at data/quiz_bot.db with connection pooling
+2025-10-04 15:33:25,362 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+2025-10-04 15:33:25,363 - src.core.quiz - INFO - Database connection initialized in QuizManager
+2025-10-04 15:33:25,364 - src.core.quiz - INFO - Successfully loaded and cleaned 235 questions
+2025-10-04 15:33:25,364 - src.core.quiz - INFO - Active chats: 0
+2025-10-04 15:33:25,364 - src.core.quiz - INFO - Active users with stats: 0
+2025-10-04 15:33:25,364 - src.core.quiz - INFO - Users with scores: 0
+2025-10-04 15:33:25,364 - src.web.app - INFO - Quiz Manager initialized for webhook mode
+2025-10-04 15:33:25,366 - src.core.database - INFO - Database schema initialized successfully with optimized indexes
+2025-10-04 15:33:25,366 - src.core.database - INFO - Database initialized at data/quiz_bot.db with connection pooling
+2025-10-04 15:33:25,366 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+2025-10-04 15:33:25,366 - src.bot.dev_commands - INFO - Developer commands module initialized
+2025-10-04 15:33:25,366 - src.bot.handlers - INFO - TelegramQuizBot initialized with performance optimizations: user cache, activity batching, leaderboard cache
+2025-10-04 15:33:25,911 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 15:33:25,911 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 15:33:25,911 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 15:33:25,912 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 15:33:25,912 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 15:33:25,912 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 15:33:25,917 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 15:33:26,509 - apscheduler.scheduler - INFO - Added job "send_automated_quiz" to job store "default"
+2025-10-04 15:33:26,509 - apscheduler.scheduler - INFO - Added job "scheduled_cleanup" to job store "default"
+2025-10-04 15:33:26,509 - apscheduler.scheduler - INFO - Added job "cleanup_old_polls" to job store "default"
+2025-10-04 15:33:26,509 - apscheduler.scheduler - INFO - Added job "cleanup_questions_wrapper" to job store "default"
+2025-10-04 15:33:26,509 - apscheduler.scheduler - INFO - Added job "track_memory_usage" to job store "default"
+2025-10-04 15:33:26,509 - apscheduler.scheduler - INFO - Added job "cleanup_performance_metrics" to job store "default"
+2025-10-04 15:33:26,509 - apscheduler.scheduler - INFO - Added job "cleanup_old_activities" to job store "default"
+2025-10-04 15:33:26,509 - apscheduler.scheduler - INFO - Scheduler started
+2025-10-04 15:33:26,510 - telegram.ext.Application - INFO - Application started
+2025-10-04 15:33:26,510 - src.bot.handlers - INFO - Backfilling 0 groups from active_chats to database
+2025-10-04 15:33:26,510 - src.bot.handlers - INFO - Successfully backfilled 0/0 groups to database
+2025-10-04 15:33:26,671 - src.bot.handlers - INFO - Webhook set successfully: https://missquiz.onrender.com/webhook
+2025-10-04 15:33:26,672 - src.web.app - INFO - Webhook bot initialized with URL: https://missquiz.onrender.com/webhook
+2025-10-04 15:33:26,676 - src.web.app - INFO - Flask app created and routes registered
+ * Serving Flask app 'src.web.app'
+ * Debug mode: off
+2025-10-04 15:33:26,677 - werkzeug - INFO - WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:10000
+ * Running on http://10.229.3.195:10000
+2025-10-04 15:33:26,677 - werkzeug - INFO - Press CTRL+C to quit
+2025-10-04 15:33:27,642 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 15:33:27] "HEAD / HTTP/1.1" 200 -
+2025-10-04 15:33:26,716 - src.bot.dev_commands - WARNING - Unauthorized access attempt by user 8376823449
+2025-10-04 15:33:26,720 - src.bot.dev_commands - ERROR - Error in dev command: Unknown error in HTTP implementation: RuntimeError('Event loop is closed')
+Traceback (most recent call last):
+  File "/root/.local/lib/python3.11/site-packages/telegram/request/_baserequest.py", line 305, in _request_wrapper
+    code, payload = await self.do_request(
+                    ^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/.local/lib/python3.11/site-packages/telegram/request/_httpxrequest.py", line 279, in do_request
+    res = await self._client.request(
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/.local/lib/python3.11/site-packages/httpx/_client.py", line 1540, in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/.local/lib/python3.11/site-packages/httpx/_client.py", line 1629, in send
+    response = await self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/.local/lib/python3.11/site-packages/httpx/_client.py", line 1657, in _send_handling_auth
+    response = await self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/.local/lib/python3.11/site-packages/httpx/_client.py", line 1694, in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/.local/lib/python3.11/site-packages/httpx/_client.py", line 1730, in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/.local/lib/python3.11/site-packages/httpx/_transports/default.py", line 394, in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/.local/lib/python3.11/site-packages/httpcore/_async/connection_pool.py", line 256, in handle_async_request
+    raise exc from None
+  File "/root/.local/lib/python3.11/site-packages/httpcore/_async/connection_pool.py", line 229, in handle_async_request
+    await self._close_connections(closing)
+  File "/root/.local/lib/python3.11/site-packages/httpcore/_async/connection_pool.py", line 345, in _close_connections
+    await connection.aclose()
+  File "/root/.local/lib/python3.11/site-packages/httpcore/_async/connection.py", line 173, in aclose
+    await self._connection.aclose()
+  File "/root/.local/lib/python3.11/site-packages/httpcore/_async/http11.py", line 258, in aclose
+    await self._network_stream.aclose()
+  File "/root/.local/lib/python3.11/site-packages/httpcore/_backends/anyio.py", line 53, in aclose
+    await self._stream.aclose()
+  File "/root/.local/lib/python3.11/site-packages/anyio/streams/tls.py", line 234, in aclose
+    await self.transport_stream.aclose()
+  File "/root/.local/lib/python3.11/site-packages/anyio/_backends/_asyncio.py", line 1323, in aclose
+    self._transport.close()
+  File "/usr/local/lib/python3.11/asyncio/selector_events.py", line 864, in close
+    self._loop.call_soon(self._call_connection_lost, None)
+  File "/usr/local/lib/python3.11/asyncio/base_events.py", line 762, in call_soon
+    self._check_closed()
+  File "/usr/local/lib/python3.11/asyncio/base_events.py", line 520, in _check_closed
+    raise RuntimeError('Event loop is closed')
+RuntimeError: Event loop is closed
+The above exception was the direct cause of the following exception:
+Traceback (most recent call last):
+  File "/app/src/bot/dev_commands.py", line 559, in dev
+    await self.send_unauthorized_message(update)
+  File "/app/src/bot/dev_commands.py", line 54, in send_unauthorized_message
+    message = await update.effective_message.reply_text(config.UNAUTHORIZED_MESSAGE)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/.local/lib/python3.11/site-packages/telegram/_message.py", line 2060, in reply_text
+    return await self.get_bot().send_message(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/.local/lib/python3.11/site-packages/telegram/ext/_extbot.py", line 3107, in send_message
+    return await super().send_message(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/.local/lib/python3.11/site-packages/telegram/_bot.py", line 1118, in send_message
+    return await self._send_message(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/.local/lib/python3.11/site-packages/telegram/ext/_extbot.py", line 634, in _send_message
+    result = await super()._send_message(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/.local/lib/python3.11/site-packages/telegram/_bot.py", line 819, in _send_message
+    result = await self._post(
+             ^^^^^^^^^^^^^^^^^
+  File "/root/.local/lib/python3.11/site-packages/telegram/_bot.py", line 703, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/root/.local/lib/python3.11/site-packages/telegram/ext/_extbot.py", line 372, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/.local/lib/python3.11/site-packages/telegram/_bot.py", line 732, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+  File "/root/.local/lib/python3.11/site-packages/telegram/request/_baserequest.py", line 198, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/.local/lib/python3.11/site-packages/telegram/request/_baserequest.py", line 317, in _request_wrapper
+    raise NetworkError(f"Unknown error in HTTP implementation: {exc!r}") from exc
+telegram.error.NetworkError: Unknown error in HTTP implementation: RuntimeError('Event loop is closed')
+2025-10-04 15:33:27,714 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 15:33:27] "POST /webhook HTTP/1.1" 200 -
+2025-10-04 15:33:27,933 - src.bot.handlers - INFO - 📥 /start command received from user 8376823449 in chat -1003103932608 (type: supergroup)
+2025-10-04 15:33:27,935 - src.bot.handlers - INFO - ✅ GROUP TRACKED: Group -1003103932608 (Bot testing)
+2025-10-04 15:33:27,936 - src.core.quiz - INFO - Initialized question pool for chat -1003103932608 with 235 questions
+2025-10-04 15:33:27,939 - src.core.quiz - INFO - Saved 235 questions to file
+2025-10-04 15:33:27,939 - src.core.quiz - INFO - All data saved successfully. Questions count: 235
+2025-10-04 15:33:27,939 - src.core.quiz - INFO - Added chat -1003103932608 to active chats with initialization
+2025-10-04 15:33:27,939 - src.bot.handlers - INFO - ✅ Chat -1003103932608 added to active chats
+2025-10-04 15:33:27,943 - src.bot.handlers - ERROR - Error sending welcome message: Unknown error in HTTP implementation: RuntimeError('Event loop is closed')
+2025-10-04 15:33:27,944 - src.bot.handlers - INFO - /start completed in 11ms for user 8376823449
+2025-10-04 15:33:27,946 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 15:33:27] "POST /webhook HTTP/1.1" 200 -
+2025-10-04 15:33:28,137 - src.bot.handlers - INFO - 📥 /start command received from user 8376823449 in chat -1003103932608 (type: supergroup)
+2025-10-04 15:33:29,322 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 15:33:29] "POST /webhook HTTP/1.1" 200 -
+2025-10-04 15:33:29,884 - src.bot.handlers - INFO - 📥 /start command received from user 8376823449 in chat -1003103932608 (type: supergroup)
+2025-10-04 15:33:29,886 - src.bot.handlers - ERROR - Error in start command: Unknown error in HTTP implementation: RuntimeError('Event loop is closed')
+2025-10-04 15:33:30,918 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 15:33:30] "POST /webhook HTTP/1.1" 200 -
+2025-10-04 15:33:31,132 - src.bot.handlers - INFO - 📥 /start command received from user 8376823449 in chat -1003103932608 (type: supergroup)
+2025-10-04 15:33:31,134 - src.bot.handlers - ERROR - Error in start command: Unknown error in HTTP implementation: RuntimeError('Event loop is closed')
+2025-10-04 15:33:35,358 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 15:33:35] "POST /webhook HTTP/1.1" 200 -
+     ==> Your service is live 🎉
+     ==> 
+     ==> ///////////////////////////////////////////////////////////
+     ==> 
+     ==> Available at your primary URL https://missquiz.onrender.com
+     ==> 
+     ==> ///////////////////////////////////////////////////////////
+2025-10-04 15:33:37,582 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 15:33:37] "GET / HTTP/1.1" 200 -
+2025-10-04 15:33:45,959 - src.bot.handlers - INFO - 📥 /help command received from user 8376823449 in chat -1003103932608
+2025-10-04 15:33:45,965 - src.bot.handlers - ERROR - Error in help command: Unknown error in HTTP implementation: RuntimeError('Event loop is closed')
+2025-10-04 15:33:47,010 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 15:33:47] "POST /webhook HTTP/1.1" 200 -

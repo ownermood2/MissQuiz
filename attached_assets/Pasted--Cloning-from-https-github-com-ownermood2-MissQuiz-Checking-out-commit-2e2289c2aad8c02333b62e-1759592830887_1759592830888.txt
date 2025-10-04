@@ -1,0 +1,156 @@
+ Cloning from https://github.com/ownermood2/MissQuiz
+==> Checking out commit 2e2289c2aad8c02333b62e7753cb1fab591b5218 in branch main
+==> Installing Python version 3.13.4...
+==> Using Python version 3.13.4 (default)
+==> Docs on specifying a Python version: https://render.com/docs/python-version
+==> Using Poetry version 2.1.3 (default)
+==> Docs on specifying a Poetry version: https://render.com/docs/poetry-version
+==> Running build command 'pip install -r requirements.txt'...
+Collecting Flask>=3.1.2 (from -r requirements.txt (line 1))
+  Downloading flask-3.1.2-py3-none-any.whl.metadata (3.2 kB)
+Collecting python-telegram-bot>=22.5 (from -r requirements.txt (line 2))
+  Downloading python_telegram_bot-22.5-py3-none-any.whl.metadata (17 kB)
+Collecting gunicorn>=23.0.0 (from -r requirements.txt (line 3))
+  Downloading gunicorn-23.0.0-py3-none-any.whl.metadata (4.4 kB)
+Collecting httpx>=0.28.0 (from -r requirements.txt (line 4))
+  Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+Collecting APScheduler>=3.10.4 (from -r requirements.txt (line 5))
+  Downloading APScheduler-3.11.0-py3-none-any.whl.metadata (6.4 kB)
+Collecting psutil>=5.9.6 (from -r requirements.txt (line 6))
+  Downloading psutil-7.1.0-cp36-abi3-manylinux_2_12_x86_64.manylinux2010_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (23 kB)
+Collecting python-dotenv>=1.0.0 (from -r requirements.txt (line 7))
+  Downloading python_dotenv-1.1.1-py3-none-any.whl.metadata (24 kB)
+Collecting blinker>=1.9.0 (from Flask>=3.1.2->-r requirements.txt (line 1))
+  Downloading blinker-1.9.0-py3-none-any.whl.metadata (1.6 kB)
+Collecting click>=8.1.3 (from Flask>=3.1.2->-r requirements.txt (line 1))
+  Downloading click-8.3.0-py3-none-any.whl.metadata (2.6 kB)
+Collecting itsdangerous>=2.2.0 (from Flask>=3.1.2->-r requirements.txt (line 1))
+  Downloading itsdangerous-2.2.0-py3-none-any.whl.metadata (1.9 kB)
+Collecting jinja2>=3.1.2 (from Flask>=3.1.2->-r requirements.txt (line 1))
+  Downloading jinja2-3.1.6-py3-none-any.whl.metadata (2.9 kB)
+Collecting markupsafe>=2.1.1 (from Flask>=3.1.2->-r requirements.txt (line 1))
+  Downloading markupsafe-3.0.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.7 kB)
+Collecting werkzeug>=3.1.0 (from Flask>=3.1.2->-r requirements.txt (line 1))
+  Downloading werkzeug-3.1.3-py3-none-any.whl.metadata (3.7 kB)
+Collecting anyio (from httpx>=0.28.0->-r requirements.txt (line 4))
+  Downloading anyio-4.11.0-py3-none-any.whl.metadata (4.1 kB)
+Collecting certifi (from httpx>=0.28.0->-r requirements.txt (line 4))
+  Downloading certifi-2025.8.3-py3-none-any.whl.metadata (2.4 kB)
+Collecting httpcore==1.* (from httpx>=0.28.0->-r requirements.txt (line 4))
+  Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+Collecting idna (from httpx>=0.28.0->-r requirements.txt (line 4))
+  Downloading idna-3.10-py3-none-any.whl.metadata (10 kB)
+Collecting h11>=0.16 (from httpcore==1.*->httpx>=0.28.0->-r requirements.txt (line 4))
+  Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+Collecting packaging (from gunicorn>=23.0.0->-r requirements.txt (line 3))
+  Downloading packaging-25.0-py3-none-any.whl.metadata (3.3 kB)
+Collecting tzlocal>=3.0 (from APScheduler>=3.10.4->-r requirements.txt (line 5))
+  Downloading tzlocal-5.3.1-py3-none-any.whl.metadata (7.6 kB)
+Collecting sniffio>=1.1 (from anyio->httpx>=0.28.0->-r requirements.txt (line 4))
+  Downloading sniffio-1.3.1-py3-none-any.whl.metadata (3.9 kB)
+Downloading flask-3.1.2-py3-none-any.whl (103 kB)
+Downloading python_telegram_bot-22.5-py3-none-any.whl (730 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 731.0/731.0 kB 22.1 MB/s eta 0:00:00
+Downloading httpx-0.28.1-py3-none-any.whl (73 kB)
+Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)
+Downloading gunicorn-23.0.0-py3-none-any.whl (85 kB)
+Downloading APScheduler-3.11.0-py3-none-any.whl (64 kB)
+Downloading psutil-7.1.0-cp36-abi3-manylinux_2_12_x86_64.manylinux2010_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl (291 kB)
+Downloading python_dotenv-1.1.1-py3-none-any.whl (20 kB)
+Downloading blinker-1.9.0-py3-none-any.whl (8.5 kB)
+Downloading click-8.3.0-py3-none-any.whl (107 kB)
+Downloading h11-0.16.0-py3-none-any.whl (37 kB)
+Downloading itsdangerous-2.2.0-py3-none-any.whl (16 kB)
+Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)
+Downloading markupsafe-3.0.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (22 kB)
+Downloading tzlocal-5.3.1-py3-none-any.whl (18 kB)
+Downloading werkzeug-3.1.3-py3-none-any.whl (224 kB)
+Downloading anyio-4.11.0-py3-none-any.whl (109 kB)
+Downloading idna-3.10-py3-none-any.whl (70 kB)
+Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)
+Downloading certifi-2025.8.3-py3-none-any.whl (161 kB)
+Downloading packaging-25.0-py3-none-any.whl (66 kB)
+Installing collected packages: tzlocal, sniffio, python-dotenv, psutil, packaging, markupsafe, itsdangerous, idna, h11, click, certifi, blinker, werkzeug, jinja2, httpcore, gunicorn, APScheduler, anyio, httpx, Flask, python-telegram-bot
+Successfully installed APScheduler-3.11.0 Flask-3.1.2 anyio-4.11.0 blinker-1.9.0 certifi-2025.8.3 click-8.3.0 gunicorn-23.0.0 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 idna-3.10 itsdangerous-2.2.0 jinja2-3.1.6 markupsafe-3.0.3 packaging-25.0 psutil-7.1.0 python-dotenv-1.1.1 python-telegram-bot-22.5 sniffio-1.3.1 tzlocal-5.3.1 werkzeug-3.1.3
+[notice] A new release of pip is available: 25.1.1 -> 25.2
+[notice] To update, run: pip install --upgrade pip
+==> Uploading build...
+==> Uploaded in 9.7s. Compression took 2.9s
+==> Build successful 🎉
+==> Deploying...
+==> Running 'gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 src.web.wsgi:app'
+2025-10-04 15:45:11,804 - src.web.wsgi - INFO - Initializing application for WSGI server...
+2025-10-04 15:45:11,804 - src.core.config - WARNING - ⚠️ OWNER_ID not set - bot will work but admin features disabled
+2025-10-04 15:45:11,804 - src.web.wsgi - INFO - Detected mode: webhook
+2025-10-04 15:45:11,804 - src.web.wsgi - INFO - Initializing webhook bot with URL: https://missquiz.onrender.com/webhook
+2025-10-04 15:45:14,317 - src.core.database - INFO - Added category column to questions table
+2025-10-04 15:45:14,413 - src.core.database - INFO - Added last_quiz_message_id column to users table
+2025-10-04 15:45:15,359 - src.core.database - INFO - Database schema initialized successfully with optimized indexes
+2025-10-04 15:45:15,359 - src.core.database - INFO - Database initialized at data/quiz_bot.db with connection pooling
+2025-10-04 15:45:15,360 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+2025-10-04 15:45:15,360 - src.core.quiz - INFO - Database connection initialized in QuizManager
+2025-10-04 15:45:15,362 - src.core.quiz - INFO - Successfully loaded and cleaned 235 questions
+2025-10-04 15:45:15,362 - src.core.quiz - INFO - Active chats: 0
+2025-10-04 15:45:15,362 - src.core.quiz - INFO - Active users with stats: 0
+2025-10-04 15:45:15,362 - src.core.quiz - INFO - Users with scores: 0
+2025-10-04 15:45:15,362 - src.web.app - INFO - Quiz Manager initialized for webhook mode
+2025-10-04 15:45:15,363 - src.core.database - INFO - Database schema initialized successfully with optimized indexes
+2025-10-04 15:45:15,363 - src.core.database - INFO - Database initialized at data/quiz_bot.db with connection pooling
+2025-10-04 15:45:15,363 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+2025-10-04 15:45:15,363 - src.bot.dev_commands - INFO - Developer commands module initialized
+2025-10-04 15:45:15,364 - src.bot.handlers - INFO - TelegramQuizBot initialized with performance optimizations: user cache, activity batching, leaderboard cache
+2025-10-04 15:45:16,298 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 15:45:16,298 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 15:45:16,298 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 15:45:16,298 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 15:45:16,298 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 15:45:16,298 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 15:45:16,301 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 15:45:16,794 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/getMe "HTTP/1.1 200 OK"
+2025-10-04 15:45:16,795 - apscheduler.scheduler - INFO - Added job "send_automated_quiz" to job store "default"
+2025-10-04 15:45:16,795 - apscheduler.scheduler - INFO - Added job "scheduled_cleanup" to job store "default"
+2025-10-04 15:45:16,795 - apscheduler.scheduler - INFO - Added job "cleanup_old_polls" to job store "default"
+2025-10-04 15:45:16,795 - apscheduler.scheduler - INFO - Added job "cleanup_questions_wrapper" to job store "default"
+2025-10-04 15:45:16,795 - apscheduler.scheduler - INFO - Added job "track_memory_usage" to job store "default"
+2025-10-04 15:45:16,795 - apscheduler.scheduler - INFO - Added job "cleanup_performance_metrics" to job store "default"
+2025-10-04 15:45:16,795 - apscheduler.scheduler - INFO - Added job "cleanup_old_activities" to job store "default"
+2025-10-04 15:45:16,796 - apscheduler.scheduler - INFO - Scheduler started
+2025-10-04 15:45:16,796 - telegram.ext.Application - INFO - Application started
+2025-10-04 15:45:16,796 - src.bot.handlers - INFO - Backfilling 0 groups from active_chats to database
+2025-10-04 15:45:16,796 - src.bot.handlers - INFO - Successfully backfilled 0/0 groups to database
+2025-10-04 15:45:16,955 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/setWebhook "HTTP/1.1 200 OK"
+2025-10-04 15:45:16,956 - src.bot.handlers - INFO - Webhook set successfully: https://missquiz.onrender.com/webhook
+2025-10-04 15:45:16,957 - src.web.app - INFO - Webhook bot initialized with URL: https://missquiz.onrender.com/webhook
+2025-10-04 15:45:16,957 - src.web.wsgi - INFO - ✅ Webhook bot initialized successfully
+2025-10-04 15:45:16,961 - src.web.app - INFO - Flask app created and routes registered
+2025-10-04 15:45:16,961 - src.web.wsgi - INFO - ✅ Flask application created and ready on port 10000
+[2025-10-04 15:45:16 +0000] [56] [INFO] Starting gunicorn 23.0.0
+[2025-10-04 15:45:16 +0000] [56] [INFO] Listening at: http://0.0.0.0:10000 (56)
+[2025-10-04 15:45:16 +0000] [56] [INFO] Using worker: gthread
+[2025-10-04 15:45:16 +0000] [60] [INFO] Booting worker with pid: 60
+127.0.0.1 - - [04/Oct/2025:15:45:17 +0000] "HEAD / HTTP/1.1" 200 0 "-" "Go-http-client/1.1"
+==> Your service is live 🎉
+==> 
+==> ///////////////////////////////////////////////////////////
+==> 
+==> Available at your primary URL https://missquiz.onrender.com
+==> 
+==> ///////////////////////////////////////////////////////////
+127.0.0.1 - - [04/Oct/2025:15:45:20 +0000] "GET / HTTP/1.1" 200 16 "-" "Go-http-client/2.0"
+2025-10-04 15:45:35,836 - src.bot.handlers - INFO - 📥 /start command received from user 8376823449 in chat -1003103932608 (type: supergroup)
+2025-10-04 15:45:35,840 - src.bot.handlers - INFO - ✅ GROUP TRACKED: Group -1003103932608 (Bot testing)
+2025-10-04 15:45:35,841 - src.core.quiz - INFO - Initialized question pool for chat -1003103932608 with 235 questions
+2025-10-04 15:45:35,845 - src.core.quiz - INFO - Saved 235 questions to file
+2025-10-04 15:45:35,845 - src.core.quiz - INFO - All data saved successfully. Questions count: 235
+2025-10-04 15:45:35,845 - src.core.quiz - INFO - Added chat -1003103932608 to active chats with initialization
+2025-10-04 15:45:35,845 - src.bot.handlers - INFO - ✅ Chat -1003103932608 added to active chats
+2025-10-04 15:45:35,852 - src.bot.handlers - ERROR - Error sending welcome message: Unknown error in HTTP implementation: RuntimeError('Event loop is closed')
+2025-10-04 15:45:35,852 - src.bot.handlers - INFO - /start completed in 15ms for user 8376823449
+127.0.0.1 - - [04/Oct/2025:15:45:35 +0000] "POST /webhook HTTP/1.1" 200 16 "-" "-"
+2025-10-04 15:46:22,792 - src.bot.handlers - INFO - 📥 /help command received from user 8376823449 in chat -1003103932608
+2025-10-04 15:46:24,071 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/sendMessage "HTTP/1.1 200 OK"
+2025-10-04 15:46:24,072 - src.bot.handlers - INFO - Help message sent to user 8376823449 in 1280ms
+127.0.0.1 - - [04/Oct/2025:15:46:24 +0000] "POST /webhook HTTP/1.1" 200 16 "-" "-"
+2025-10-04 15:46:29,117 - src.bot.handlers - ERROR - Error showing categories: Unknown error in HTTP implementation: RuntimeError('Event loop is closed')
+2025-10-04 15:46:30,096 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/sendMessage "HTTP/1.1 200 OK"
+127.0.0.1 - - [04/Oct/2025:15:46:30 +0000] "POST /webhook HTTP/1.1" 200 16 "-" "-"

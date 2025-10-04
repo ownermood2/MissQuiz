@@ -1,0 +1,34 @@
+ Your service is live 🎉
+     ==> 
+     ==> ///////////////////////////////////////////////////////////
+     ==> 
+     ==> Available at your primary URL https://missquiz.onrender.com
+     ==> 
+     ==> ///////////////////////////////////////////////////////////
+127.0.0.1 - - [04/Oct/2025:15:51:10 +0000] "GET / HTTP/1.1" 200 16 "-" "Go-http-client/2.0"
+2025-10-04 15:51:44,433 - src.bot.handlers - ERROR - Error showing categories: Unknown error in HTTP implementation: RuntimeError('Event loop is closed')
+2025-10-04 15:51:45,545 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/sendMessage "HTTP/1.1 200 OK"
+127.0.0.1 - - [04/Oct/2025:15:51:45 +0000] "POST /webhook HTTP/1.1" 200 16 "-" "-"
+2025-10-04 15:51:48,686 - src.bot.handlers - INFO - 📥 /start command received from user 8376823449 in chat -1003103932608 (type: supergroup)
+2025-10-04 15:51:48,690 - src.bot.handlers - INFO - ✅ GROUP TRACKED: Group -1003103932608 (Bot testing)
+2025-10-04 15:51:48,690 - src.core.quiz - INFO - Initialized question pool for chat -1003103932608 with 235 questions
+2025-10-04 15:51:48,694 - src.core.quiz - INFO - Saved 235 questions to file
+2025-10-04 15:51:48,695 - src.core.quiz - INFO - All data saved successfully. Questions count: 235
+2025-10-04 15:51:48,695 - src.core.quiz - INFO - Added chat -1003103932608 to active chats with initialization
+2025-10-04 15:51:48,695 - src.bot.handlers - INFO - ✅ Chat -1003103932608 added to active chats
+2025-10-04 15:51:48,700 - src.bot.handlers - ERROR - Error sending welcome message: Unknown error in HTTP implementation: RuntimeError('Event loop is closed')
+2025-10-04 15:51:48,700 - src.bot.handlers - INFO - /start completed in 14ms for user 8376823449
+127.0.0.1 - - [04/Oct/2025:15:51:48 +0000] "POST /webhook HTTP/1.1" 200 16 "-" "-"
+2025-10-04 15:51:52,672 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/sendMessage "HTTP/1.1 200 OK"
+127.0.0.1 - - [04/Oct/2025:15:51:52 +0000] "POST /webhook HTTP/1.1" 200 16 "-" "-"
+2025-10-04 15:51:54,257 - src.bot.handlers - INFO - 📥 /help command received from user 8376823449 in chat -1003103932608
+2025-10-04 15:51:54,264 - src.bot.handlers - ERROR - Error in help command: Unknown error in HTTP implementation: RuntimeError('Event loop is closed')
+2025-10-04 15:51:55,702 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/sendMessage "HTTP/1.1 200 OK"
+127.0.0.1 - - [04/Oct/2025:15:51:55 +0000] "POST /webhook HTTP/1.1" 200 16 "-" "-"
+2025-10-04 15:52:02,084 - src.bot.handlers - INFO - 📥 /quiz command received from user 8376823449 in chat -1003103932608
+2025-10-04 15:52:02,101 - src.bot.handlers - ERROR - Error in quiz command: Unknown error in HTTP implementation: RuntimeError('Event loop is closed')
+2025-10-04 15:52:03,121 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/sendMessage "HTTP/1.1 200 OK"
+127.0.0.1 - - [04/Oct/2025:15:52:03 +0000] "POST /webhook HTTP/1.1" 200 16 "-" "-"
+[2025-10-04 15:52:09 +0000] [38] [INFO] Handling signal: term
+[2025-10-04 15:52:09 +0000] [41] [INFO] Worker exiting (pid: 41)
+[2025-10-04 15:52:10 +0000] [38] [INFO] Shutting down: Master
