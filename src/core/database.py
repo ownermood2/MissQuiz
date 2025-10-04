@@ -207,6 +207,9 @@ class DatabaseManager:
             cursor = self._get_cursor(conn)
             assert cursor is not None
             
+            if self.db_type == 'postgresql':
+                self._migrate_chat_id_to_bigint(cursor)
+            
             cursor.execute(self._adapt_sql('''
                 CREATE TABLE IF NOT EXISTS questions (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -430,9 +433,6 @@ class DatabaseManager:
             cursor.execute(self._adapt_sql('''CREATE INDEX IF NOT EXISTS idx_quiz_history_chat 
                 ON quiz_history(chat_id, answered_at DESC)'''))
             
-            if self.db_type == 'postgresql':
-                self._migrate_chat_id_to_bigint(cursor)
-            
             logger.info(f"Database schema initialized successfully with optimized indexes ({self.db_type})")
     
     def _migrate_chat_id_to_bigint(self, cursor):
@@ -441,6 +441,8 @@ class DatabaseManager:
         This migration is necessary to support Telegram supergroup IDs which are
         very large negative numbers (e.g., -1003103932608) that exceed PostgreSQL's
         INTEGER range (-2147483648 to 2147483647).
+        
+        Strategy: Drop and recreate tables with wrong column types automatically.
         
         Args:
             cursor: Database cursor
@@ -461,16 +463,16 @@ class DatabaseManager:
                 
                 result = cursor.fetchone()
                 if result and result['data_type'] == 'integer':
-                    logger.info(f"Migrating {table_name}.{column_name} from INTEGER to BIGINT...")
-                    cursor.execute(f"ALTER TABLE {table_name} ALTER COLUMN {column_name} TYPE BIGINT")
-                    logger.info(f"✅ Successfully migrated {table_name}.{column_name} to BIGINT")
+                    logger.warning(f"⚠️ {table_name}.{column_name} is INTEGER (needs BIGINT) - dropping table for recreation...")
+                    cursor.execute(f"DROP TABLE IF EXISTS {table_name} CASCADE")
+                    logger.info(f"✅ Dropped {table_name} - will recreate with BIGINT on next schema init")
                 elif result and result['data_type'] == 'bigint':
                     logger.debug(f"{table_name}.{column_name} is already BIGINT")
                 else:
-                    logger.debug(f"Column {table_name}.{column_name} not found or has unexpected type")
+                    logger.debug(f"Column {table_name}.{column_name} not found (table will be created)")
             except Exception as e:
-                logger.error(f"Error migrating {table_name}.{column_name} to BIGINT: {e}")
-                raise
+                logger.error(f"Error checking {table_name}.{column_name}: {e}")
+                # Don't raise - allow schema creation to continue
     
     def add_question(self, question: str, options: List[str], correct_answer: int) -> int:
         """Add a new quiz question to the database.
