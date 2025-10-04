@@ -442,37 +442,42 @@ class DatabaseManager:
         very large negative numbers (e.g., -1003103932608) that exceed PostgreSQL's
         INTEGER range (-2147483648 to 2147483647).
         
-        Strategy: Drop and recreate tables with wrong column types automatically.
+        Strategy: Check if table exists, if it has INTEGER chat_id, DROP it completely.
+        Then CREATE TABLE will recreate it fresh with BIGINT.
         
         Args:
             cursor: Database cursor
         """
-        tables_to_migrate = [
-            ('groups', 'chat_id'),
-            ('quiz_history', 'chat_id'),
-            ('activity_logs', 'chat_id')
-        ]
+        tables_to_check = ['groups', 'quiz_history', 'activity_logs']
         
-        for table_name, column_name in tables_to_migrate:
+        for table_name in tables_to_check:
             try:
+                # Check if table exists and what type chat_id column has
                 cursor.execute("""
-                    SELECT data_type 
+                    SELECT table_name, column_name, data_type 
                     FROM information_schema.columns 
-                    WHERE table_name = %s AND column_name = %s
-                """, (table_name, column_name))
+                    WHERE table_name = %s AND column_name = 'chat_id'
+                """, (table_name,))
                 
                 result = cursor.fetchone()
-                if result and result['data_type'] == 'integer':
-                    logger.warning(f"⚠️ {table_name}.{column_name} is INTEGER (needs BIGINT) - dropping table for recreation...")
-                    cursor.execute(f"DROP TABLE IF EXISTS {table_name} CASCADE")
-                    logger.info(f"✅ Dropped {table_name} - will recreate with BIGINT on next schema init")
-                elif result and result['data_type'] == 'bigint':
-                    logger.debug(f"{table_name}.{column_name} is already BIGINT")
+                if result:
+                    if result['data_type'] == 'integer':
+                        logger.warning(f"⚠️ Found {table_name}.chat_id with INTEGER type - DROPPING table for BIGINT recreation...")
+                        cursor.execute(f"DROP TABLE IF EXISTS {table_name} CASCADE")
+                        cursor.connection.commit()  # Commit the DROP immediately
+                        logger.info(f"✅ Dropped {table_name} - will recreate with BIGINT")
+                    elif result['data_type'] == 'bigint':
+                        logger.info(f"✓ {table_name}.chat_id already uses BIGINT - no migration needed")
                 else:
-                    logger.debug(f"Column {table_name}.{column_name} not found (table will be created)")
+                    logger.debug(f"Table {table_name} not found - will be created fresh with BIGINT")
             except Exception as e:
-                logger.error(f"Error checking {table_name}.{column_name}: {e}")
-                # Don't raise - allow schema creation to continue
+                logger.warning(f"Could not check {table_name}: {e} - will attempt fresh creation")
+                try:
+                    cursor.execute(f"DROP TABLE IF EXISTS {table_name} CASCADE")
+                    cursor.connection.commit()
+                    logger.info(f"Dropped {table_name} to ensure clean recreation")
+                except:
+                    pass  # If drop fails, CREATE TABLE will handle it
     
     def add_question(self, question: str, options: List[str], correct_answer: int) -> int:
         """Add a new quiz question to the database.

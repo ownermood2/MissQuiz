@@ -1,0 +1,72 @@
+Your service is live 🎉
+     ==> 
+     ==> ///////////////////////////////////////////////////////////
+     ==> 
+2025-10-04 20:20:07,723 - src.core.database - INFO - 🐘 Using PostgreSQL database
+2025-10-04 20:20:08,051 - src.core.database - INFO - Database schema initialized successfully with optimized indexes (postgresql)
+2025-10-04 20:20:08,052 - src.core.database - INFO - ✅ Database initialized successfully (postgresql)
+2025-10-04 20:20:08,052 - src.core.quiz - INFO - Database connection initialized in QuizManager
+2025-10-04 20:20:08,057 - src.core.quiz - INFO - Successfully loaded and cleaned 235 questions
+2025-10-04 20:20:08,057 - src.core.quiz - INFO - Active chats: 0
+2025-10-04 20:20:08,057 - src.core.quiz - INFO - Active users with stats: 0
+2025-10-04 20:20:08,057 - src.core.quiz - INFO - Users with scores: 0
+2025-10-04 20:20:08,057 - src.web.app - INFO - Quiz Manager initialized for webhook mode
+2025-10-04 20:20:08,057 - src.web.app - INFO - Started persistent event loop in background thread
+2025-10-04 20:20:08,058 - src.core.database - INFO - 🐘 Using PostgreSQL database
+2025-10-04 20:20:08,355 - src.core.database - INFO - Database schema initialized successfully with optimized indexes (postgresql)
+2025-10-04 20:20:08,356 - src.core.database - INFO - ✅ Database initialized successfully (postgresql)
+2025-10-04 20:20:08,356 - src.bot.dev_commands - INFO - Developer commands module initialized
+2025-10-04 20:20:08,356 - src.bot.handlers - INFO - TelegramQuizBot initialized with performance optimizations: user cache, activity batching, leaderboard cache
+     ==> Available at your primary URL https://missquiz.onrender.com
+     ==> 
+     ==> ///////////////////////////////////////////////////////////
+2025-10-04 20:20:08,824 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 20:20:08,824 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 20:20:08,824 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 20:20:08,825 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 20:20:08,825 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 20:20:08,825 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 20:20:08,828 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 20:20:09,335 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/getMe "HTTP/1.1 200 OK"
+2025-10-04 20:20:09,336 - apscheduler.scheduler - INFO - Added job "send_automated_quiz" to job store "default"
+2025-10-04 20:20:09,336 - apscheduler.scheduler - INFO - Added job "scheduled_cleanup" to job store "default"
+2025-10-04 20:20:09,336 - apscheduler.scheduler - INFO - Added job "cleanup_old_polls" to job store "default"
+2025-10-04 20:20:09,336 - apscheduler.scheduler - INFO - Added job "cleanup_questions_wrapper" to job store "default"
+2025-10-04 20:20:09,336 - apscheduler.scheduler - INFO - Added job "track_memory_usage" to job store "default"
+2025-10-04 20:20:09,336 - apscheduler.scheduler - INFO - Added job "cleanup_performance_metrics" to job store "default"
+2025-10-04 20:20:09,337 - apscheduler.scheduler - INFO - Added job "cleanup_old_activities" to job store "default"
+2025-10-04 20:20:09,337 - apscheduler.scheduler - INFO - Scheduler started
+2025-10-04 20:20:09,337 - src.bot.handlers - INFO - Backfilling 0 groups from active_chats to database
+2025-10-04 20:20:09,337 - src.bot.handlers - INFO - Successfully backfilled 0/0 groups to database
+2025-10-04 20:20:09,500 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/setWebhook "HTTP/1.1 200 OK"
+2025-10-04 20:20:09,500 - src.bot.handlers - INFO - Webhook set successfully: https://missquiz.onrender.com/webhook
+2025-10-04 20:20:09,501 - src.web.app - INFO - Webhook bot initialized with URL: https://missquiz.onrender.com/webhook
+2025-10-04 20:20:09,501 - src.web.wsgi - INFO - ✅ Webhook bot initialized successfully
+2025-10-04 20:20:09,503 - src.web.app - INFO - Flask app created and routes registered
+2025-10-04 20:20:09,504 - src.web.wsgi - INFO - ✅ Flask application created and ready on port 10000
+[2025-10-04 20:20:08 +0000] [1] [INFO] Handling signal: term
+[2025-10-04 20:20:08 +0000] [24] [INFO] Worker exiting (pid: 24)
+[2025-10-04 20:20:09 +0000] [1] [INFO] Shutting down: Master
+2025-10-04 20:20:18,085 - src.web.app - INFO - Webhook received POST request
+2025-10-04 20:20:18,085 - src.web.app - INFO - Parsed update object: update_id=13160347
+2025-10-04 20:20:18,085 - src.web.app - INFO - Update submitted to event loop successfully
+2025-10-04 20:20:18,085 - src.web.app - INFO - Successfully queued update 13160347 for processing
+2025-10-04 20:20:18,086 - src.bot.handlers - INFO - 📥 /start command received from user 8376823449 in chat -1003103932608 (type: supergroup)
+2025-10-04 20:20:18,089 - src.core.database - ERROR - Database operation failed: integer out of range
+2025-10-04 20:20:18,089 - src.bot.handlers - ERROR - Error in start command: Database operation failed: integer out of range
+2025-10-04 20:20:18,825 - apscheduler.executors.default - INFO - Running job "send_automated_quiz (trigger: interval[0:30:00], next run at: 2025-10-04 20:50:18 UTC)" (scheduled at 2025-10-04 20:20:18.824056+00:00)
+2025-10-04 20:20:18,825 - src.bot.handlers - INFO - Starting automated quiz broadcast to 0 active chats
+2025-10-04 20:20:18,825 - src.bot.handlers - INFO - Completed automated quiz broadcast cycle
+2025-10-04 20:20:18,825 - apscheduler.executors.default - INFO - Job "send_automated_quiz (trigger: interval[0:30:00], next run at: 2025-10-04 20:50:18 UTC)" executed successfully
+2025-10-04 20:20:19,066 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/sendMessage "HTTP/1.1 200 OK"
+2025-10-04 20:20:19,067 - src.web.app - INFO - Update processed successfully: None
+2025-10-04 20:20:24,391 - src.web.app - INFO - Webhook received POST request
+2025-10-04 20:20:24,391 - src.web.app - INFO - Parsed update object: update_id=13160348
+2025-10-04 20:20:24,391 - src.web.app - INFO - Update submitted to event loop successfully
+2025-10-04 20:20:24,391 - src.web.app - INFO - Successfully queued update 13160348 for processing
+2025-10-04 20:20:24,392 - src.bot.handlers - INFO - 📥 /help command received from user 8376823449 in chat -1003103932608
+2025-10-04 20:20:24,398 - src.core.database - ERROR - Database operation failed: integer out of range
+2025-10-04 20:20:24,398 - src.core.database - ERROR - Error logging activity: Database operation failed: integer out of range
+2025-10-04 20:20:25,717 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/sendMessage "HTTP/1.1 200 OK"
+2025-10-04 20:20:25,717 - src.bot.handlers - INFO - Help message sent to user 8376823449 in 1325ms
+2025-10-04 20:20:25,718 - src.web.app - INFO - Update processed successfully: None
