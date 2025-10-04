@@ -38,15 +38,113 @@ class TelegramQuizBot:
         
         self._stats_cache = None
         self._stats_cache_time = None
-        self._stats_cache_duration = timedelta(seconds=10)
+        self._stats_cache_duration = timedelta(seconds=30)
         
         self._developer_cache = {}
         self._developer_cache_time = {}
         self._developer_cache_duration = timedelta(seconds=10)
         
+        self._user_info_cache = {}
+        self._user_info_cache_time = {}
+        self._user_info_cache_duration = timedelta(seconds=300)
+        
+        self._leaderboard_cache = None
+        self._leaderboard_cache_time = None
+        self._leaderboard_cache_duration = timedelta(seconds=60)
+        
+        self._activity_queue = []
+        self._batch_task = None
+        
         self.db = db_manager if db_manager else DatabaseManager()
         self.dev_commands = DeveloperCommands(self.db, quiz_manager)
-        logger.info("TelegramQuizBot initialized with shared database manager and developer commands")
+        logger.info("TelegramQuizBot initialized with performance optimizations: user cache, activity batching, leaderboard cache")
+
+    def _add_or_update_user_cached(self, user_id: int, username: str = None, first_name: str = None, last_name: str = None):
+        """OPTIMIZATION 1: Cached user info update - reduces redundant DB writes"""
+        current_time = datetime.now()
+        user_key = f"{user_id}_{username}_{first_name}_{last_name}"
+        
+        if user_id in self._user_info_cache:
+            cached_key, cache_time = self._user_info_cache[user_id]
+            if cached_key == user_key and current_time - cache_time < self._user_info_cache_duration:
+                logger.debug(f"Using cached user info for {user_id} (optimization)")
+                return
+        
+        self.db.add_or_update_user(user_id, username, first_name, last_name)
+        self._user_info_cache[user_id] = (user_key, current_time)
+        logger.debug(f"Updated and cached user info for {user_id}")
+    
+    def _queue_activity_log(self, activity_type: str, user_id: int = None, chat_id: int = None, 
+                           username: str = None, chat_title: str = None, command: str = None, 
+                           details: dict = None, success: bool = True, response_time_ms: int = None):
+        """OPTIMIZATION 2: Queue activity for batch logging"""
+        self._activity_queue.append({
+            'activity_type': activity_type,
+            'user_id': user_id,
+            'chat_id': chat_id,
+            'username': username,
+            'chat_title': chat_title,
+            'command': command,
+            'details': details,
+            'success': success,
+            'response_time_ms': response_time_ms
+        })
+        
+        if len(self._activity_queue) >= 10:
+            asyncio.create_task(self._batch_log_activities())
+    
+    async def _batch_log_activities(self):
+        """OPTIMIZATION 2: Batch write queued activities every 2 seconds"""
+        if not self._activity_queue:
+            return
+        
+        activities_to_log = self._activity_queue.copy()
+        self._activity_queue.clear()
+        
+        for activity in activities_to_log:
+            try:
+                self.db.log_activity(**activity)
+            except Exception as e:
+                logger.error(f"Error logging activity: {e}")
+    
+    async def _start_batch_logging_task(self):
+        """Start the periodic batch logging task"""
+        while True:
+            await asyncio.sleep(2)
+            if self._activity_queue:
+                await self._batch_log_activities()
+    
+    async def _flush_activity_queue(self):
+        """Flush all remaining queued activities on shutdown"""
+        if self._activity_queue:
+            logger.info(f"Flushing {len(self._activity_queue)} queued activities on shutdown")
+            await self._batch_log_activities()
+            logger.info("Activity queue flushed successfully")
+    
+    def _get_leaderboard_cached(self, limit: int = 1000, offset: int = 0):
+        """OPTIMIZATION 3: Get cached leaderboard data"""
+        current_time = datetime.now()
+        cache_valid = (self._leaderboard_cache is not None and 
+                      self._leaderboard_cache_time is not None and 
+                      current_time - self._leaderboard_cache_time < self._leaderboard_cache_duration)
+        
+        if cache_valid:
+            logger.debug("Using cached leaderboard (optimization)")
+            return self._leaderboard_cache
+        
+        leaderboard, total = self.db.get_leaderboard_realtime(limit=limit, offset=offset)
+        self._leaderboard_cache = (leaderboard, total)
+        self._leaderboard_cache_time = current_time
+        logger.debug(f"Fetched and cached leaderboard with {len(leaderboard)} users")
+        return leaderboard, total
+    
+    async def _preload_leaderboard(self):
+        """OPTIMIZATION 3: Pre-load leaderboard on startup"""
+        try:
+            self._get_leaderboard_cached(limit=1000, offset=0)
+            logger.info("Leaderboard pre-loaded successfully")
+        except Exception as e:
+            logger.error(f"Error pre-loading leaderboard: {e}")
 
     def check_user_command_cooldown(self, user_id: int, command: str, chat_type: str) -> tuple[bool, int]:
         """Check if user command is on cooldown (only in groups)
@@ -185,7 +283,7 @@ class TelegramQuizBot:
                     logger.info(f"Deleted old quiz message {last_quiz_msg_id} in chat {chat_id}")
                     
                     # Log auto-delete activity
-                    self.db.log_activity(
+                    self._queue_activity_log(
                         activity_type='quiz_deleted',
                         chat_id=chat_id,
                         details={
@@ -265,7 +363,7 @@ class TelegramQuizBot:
                     chat_title = None
                 
                 # Log comprehensive quiz_sent activity
-                self.db.log_activity(
+                self._queue_activity_log(
                     activity_type='quiz_sent',
                     user_id=None,  # No specific user for quiz sending
                     chat_id=chat_id,
@@ -386,6 +484,7 @@ class TelegramQuizBot:
                 Application.builder()
                 .token(token)
                 .request(request)
+                .post_shutdown(self._flush_activity_queue)
                 .build()
             )
 
@@ -488,6 +587,13 @@ class TelegramQuizBot:
             await self.application.initialize()
             await self.application.start()
             
+            # OPTIMIZATION 3: Pre-load leaderboard cache on startup
+            await self._preload_leaderboard()
+            
+            # OPTIMIZATION 2: Start batch logging background task
+            asyncio.create_task(self._start_batch_logging_task())
+            logger.info("Started batch activity logging task (2-second intervals)")
+            
             # Backfill groups from active_chats to database
             # Use bot directly instead of context for startup backfill
             await self.backfill_groups_startup()
@@ -519,6 +625,7 @@ class TelegramQuizBot:
                 Application.builder()
                 .token(token)
                 .request(request)
+                .post_shutdown(self._flush_activity_queue)
                 .build()
             )
 
@@ -883,7 +990,7 @@ class TelegramQuizBot:
                     logger.debug(f"Could not calculate response time: {e}")
             
             # Log comprehensive quiz answer activity
-            self.db.log_activity(
+            self._queue_activity_log(
                 activity_type='quiz_answered',
                 user_id=answer.user.id,
                 chat_id=chat_id,
@@ -970,7 +1077,7 @@ We're here to help! 🌟"""
             logger.info(f"📥 /quiz command received from user {user.id} in chat {chat.id}")
             
             # Log command immediately
-            self.db.log_activity(
+            self._queue_activity_log(
                 activity_type='command',
                 user_id=update.effective_user.id,
                 chat_id=update.effective_chat.id,
@@ -1005,7 +1112,7 @@ We're here to help! 🌟"""
         except Exception as e:
             response_time = int((time.time() - start_time) * 1000)
             self.track_error('/quiz_error')
-            self.db.log_activity(
+            self._queue_activity_log(
                 activity_type='error',
                 user_id=update.effective_user.id,
                 chat_id=update.effective_chat.id,
@@ -1032,16 +1139,16 @@ We're here to help! 🌟"""
                 await update.message.reply_text(f"⏰ Please wait {remaining} seconds before using this command again")
                 return
             
-            # Update user information in database with current username
-            self.db.add_or_update_user(
+            # OPTIMIZATION 1: Use cached user info update
+            self._add_or_update_user_cached(
                 user_id=user.id,
                 username=user.username,
                 first_name=user.first_name,
                 last_name=user.last_name
             )
             
-            # Log command immediately
-            self.db.log_activity(
+            # OPTIMIZATION 2: Queue activity log for batch write
+            self._queue_activity_log(
                 activity_type='user_join' if chat.type == 'private' else 'group_join',
                 user_id=user.id,
                 chat_id=chat.id,
@@ -1129,7 +1236,7 @@ We're here to help! 🌟"""
             
         except Exception as e:
             response_time = int((time.time() - start_time) * 1000)
-            self.db.log_activity(
+            self._queue_activity_log(
                 activity_type='error',
                 user_id=update.effective_user.id if update.effective_user else None,
                 chat_id=update.effective_chat.id if update.effective_chat else None,
@@ -1304,7 +1411,7 @@ Here's your complete command guide:
                 return
             
             # Log command immediately
-            self.db.log_activity(
+            self._queue_activity_log(
                 activity_type='command',
                 user_id=update.effective_user.id,
                 chat_id=update.effective_chat.id,
@@ -1363,7 +1470,7 @@ Here's your complete command guide:
             
         except Exception as e:
             response_time = int((time.time() - start_time) * 1000)
-            self.db.log_activity(
+            self._queue_activity_log(
                 activity_type='error',
                 user_id=update.effective_user.id,
                 chat_id=update.effective_chat.id,
@@ -1394,16 +1501,16 @@ Here's your complete command guide:
                 await update.message.reply_text(f"⏰ Please wait {remaining} seconds before using this command again")
                 return
 
-            # Update user information in database with current username
-            self.db.add_or_update_user(
+            # OPTIMIZATION 1: Use cached user info update
+            self._add_or_update_user_cached(
                 user_id=user.id,
                 username=user.username,
                 first_name=user.first_name,
                 last_name=user.last_name
             )
 
-            # Log command immediately
-            self.db.log_activity(
+            # OPTIMIZATION 2: Queue activity log for batch write
+            self._queue_activity_log(
                 activity_type='command',
                 user_id=user.id,
                 chat_id=update.effective_chat.id,
@@ -1434,8 +1541,8 @@ Ready to begin? Try /quiz now! 🚀"""
                     await loading_msg.edit_text(welcome_text, parse_mode=ParseMode.MARKDOWN)
                     return
 
-                # Get user rank
-                leaderboard, _ = self.db.get_leaderboard_realtime(limit=1000, offset=0)
+                # OPTIMIZATION 3: Use cached leaderboard
+                leaderboard, _ = self._get_leaderboard_cached(limit=1000, offset=0)
                 user_rank = next((i+1 for i, u in enumerate(leaderboard) if u['user_id'] == user.id), 'N/A')
                 
                 # Get username display as clickable Telegram profile link
@@ -1487,7 +1594,7 @@ Ready to begin? Try /quiz now! 🚀"""
 
         except Exception as e:
             response_time = int((time.time() - start_time) * 1000)
-            self.db.log_activity(
+            self._queue_activity_log(
                 activity_type='error',
                 user_id=update.effective_user.id if update.effective_user else None,
                 chat_id=update.effective_chat.id,
@@ -1513,7 +1620,7 @@ Ready to begin? Try /quiz now! 🚀"""
                 return
 
             # Log command immediately
-            self.db.log_activity(
+            self._queue_activity_log(
                 activity_type='command',
                 user_id=update.effective_user.id,
                 chat_id=update.effective_chat.id,
@@ -1620,7 +1727,7 @@ Ready to begin? Try /quiz now! 🚀"""
 
         except Exception as e:
             response_time = int((time.time() - start_time) * 1000)
-            self.db.log_activity(
+            self._queue_activity_log(
                 activity_type='error',
                 user_id=update.effective_user.id,
                 chat_id=update.effective_chat.id,
@@ -1642,7 +1749,7 @@ Ready to begin? Try /quiz now! 🚀"""
                 return
 
             # Log command immediately
-            self.db.log_activity(
+            self._queue_activity_log(
                 activity_type='command',
                 user_id=update.effective_user.id,
                 chat_id=update.effective_chat.id,
@@ -1776,7 +1883,7 @@ To delete this quiz:
 
         except Exception as e:
             response_time = int((time.time() - start_time) * 1000)
-            self.db.log_activity(
+            self._queue_activity_log(
                 activity_type='error',
                 user_id=update.effective_user.id,
                 chat_id=update.effective_chat.id,
@@ -2198,7 +2305,7 @@ Failed to delete quiz. Please try again.
                 return
 
             # Log command immediately
-            self.db.log_activity(
+            self._queue_activity_log(
                 activity_type='command',
                 user_id=update.effective_user.id,
                 chat_id=update.effective_chat.id,
@@ -2225,7 +2332,7 @@ Use/help to see all commands."""
 
         except Exception as e:
             response_time = int((time.time() - start_time) * 1000)
-            self.db.log_activity(
+            self._queue_activity_log(
                 activity_type='error',
                 user_id=update.effective_user.id,
                 chat_id=update.effective_chat.id,
@@ -2314,7 +2421,7 @@ Please reply to a quiz message or use:
         try:
             loading_msg = await update.message.reply_text("📊 Loading dashboard...")
             
-            # OPTIMIZATION: Use cached stats if available and recent (reduces 8-10 DB queries to 0)
+            # OPTIMIZATION 4: Use cached stats if available and recent (cache duration increased to 30s)
             current_time = datetime.now()
             cache_valid = (self._stats_cache is not None and 
                           self._stats_cache_time is not None and 
@@ -2322,8 +2429,11 @@ Please reply to a quiz message or use:
             
             if cache_valid:
                 stats_data = self._stats_cache
-                logger.debug("Using cached stats data (performance optimization)")
+                logger.debug("Using cached stats data (30s cache - performance optimization)")
             else:
+                # OPTIMIZATION 4: Use combined query to fetch all quiz stats at once (reduces 4 queries to 1)
+                combined_quiz_stats = self.db.get_all_quiz_stats_combined()
+                
                 # Fetch fresh data from database
                 all_users = self.db.get_all_users_stats()
                 pm_users = sum(1 for user in all_users if user.get('has_pm_access') == 1)
@@ -2336,10 +2446,10 @@ Please reply to a quiz message or use:
                     'total_groups': len(self.db.get_all_groups()),
                     'active_today': self.db.get_active_users_count('today'),
                     'active_week': self.db.get_active_users_count('week'),
-                    'quiz_today': self.db.get_quiz_stats_by_period('today'),
-                    'quiz_week': self.db.get_quiz_stats_by_period('week'),
-                    'quiz_month': self.db.get_quiz_stats_by_period('month'),
-                    'quiz_all': self.db.get_quiz_stats_by_period('all'),
+                    'quiz_today': combined_quiz_stats['quiz_today'],
+                    'quiz_week': combined_quiz_stats['quiz_week'],
+                    'quiz_month': combined_quiz_stats['quiz_month'],
+                    'quiz_all': combined_quiz_stats['quiz_all'],
                     'perf_metrics': self.db.get_performance_summary(24),
                     'trending': self.db.get_trending_commands(7, 5),
                     'recent_activities': self.db.get_recent_activities(10)
@@ -2347,7 +2457,7 @@ Please reply to a quiz message or use:
                 # Cache the results
                 self._stats_cache = stats_data
                 self._stats_cache_time = current_time
-                logger.debug("Stats data fetched and cached")
+                logger.debug("Stats data fetched with combined query and cached (30s)")
             
             # Extract data from cache
             total_users = stats_data['total_users']

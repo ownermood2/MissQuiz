@@ -2719,6 +2719,96 @@ class DatabaseManager:
                 'period': period
             }
     
+    def get_all_quiz_stats_combined(self) -> Dict:
+        """
+        Get quiz statistics for all periods in a single optimized query.
+        OPTIMIZATION: Reduces 4 separate queries to 1 combined query.
+        
+        Returns:
+            Dictionary with quiz statistics for today, week, month, and all time
+        """
+        try:
+            from datetime import timedelta
+            
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                now = datetime.now()
+                
+                # Calculate timestamps for all periods
+                today_start = datetime(now.year, now.month, now.day, 0, 0, 0).strftime('%Y-%m-%d %H:%M:%S')
+                week_start = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d %H:%M:%S')
+                month_start = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S')
+                
+                # Single query to get all stats at once
+                cursor.execute('''
+                    SELECT 
+                        COUNT(*) as total_sent,
+                        SUM(CASE WHEN activity_type IN ('quiz_answered', 'quiz_answer') THEN 1 ELSE 0 END) as total_answered,
+                        SUM(CASE WHEN timestamp >= ? THEN 1 ELSE 0 END) as today_sent,
+                        SUM(CASE WHEN timestamp >= ? AND activity_type IN ('quiz_answered', 'quiz_answer') THEN 1 ELSE 0 END) as today_answered,
+                        SUM(CASE WHEN timestamp >= ? THEN 1 ELSE 0 END) as week_sent,
+                        SUM(CASE WHEN timestamp >= ? AND activity_type IN ('quiz_answered', 'quiz_answer') THEN 1 ELSE 0 END) as week_answered,
+                        SUM(CASE WHEN timestamp >= ? THEN 1 ELSE 0 END) as month_sent,
+                        SUM(CASE WHEN timestamp >= ? AND activity_type IN ('quiz_answered', 'quiz_answer') THEN 1 ELSE 0 END) as month_answered
+                    FROM activity_logs
+                    WHERE activity_type IN ('quiz_sent', 'quiz_answered', 'quiz_answer')
+                ''', (today_start, today_start, week_start, week_start, month_start, month_start))
+                
+                row = cursor.fetchone()
+                
+                # Get success rate (only needs to be calculated once for all periods)
+                cursor.execute('''
+                    SELECT 
+                        SUM(correct_answers) as total_correct,
+                        SUM(total_quizzes) as total_attempts
+                    FROM users
+                ''')
+                
+                user_row = cursor.fetchone()
+                total_correct = user_row['total_correct'] if user_row and user_row['total_correct'] else 0
+                total_attempts = user_row['total_attempts'] if user_row and user_row['total_attempts'] else 1
+                success_rate = round((total_correct / max(total_attempts, 1)) * 100, 2)
+                
+                stats = {
+                    'quiz_today': {
+                        'quizzes_sent': row['today_sent'] or 0,
+                        'quizzes_answered': row['today_answered'] or 0,
+                        'success_rate': success_rate,
+                        'period': 'today'
+                    },
+                    'quiz_week': {
+                        'quizzes_sent': row['week_sent'] or 0,
+                        'quizzes_answered': row['week_answered'] or 0,
+                        'success_rate': success_rate,
+                        'period': 'week'
+                    },
+                    'quiz_month': {
+                        'quizzes_sent': row['month_sent'] or 0,
+                        'quizzes_answered': row['month_answered'] or 0,
+                        'success_rate': success_rate,
+                        'period': 'month'
+                    },
+                    'quiz_all': {
+                        'quizzes_sent': row['total_sent'] or 0,
+                        'quizzes_answered': row['total_answered'] or 0,
+                        'success_rate': success_rate,
+                        'period': 'all'
+                    }
+                }
+                
+                logger.debug(f"Combined quiz stats fetched in single query")
+                return stats
+        except Exception as e:
+            logger.error(f"Error getting combined quiz stats: {e}")
+            # Return empty stats for all periods on error
+            empty_stats = {'quizzes_sent': 0, 'quizzes_answered': 0, 'success_rate': 0}
+            return {
+                'quiz_today': {**empty_stats, 'period': 'today'},
+                'quiz_week': {**empty_stats, 'period': 'week'},
+                'quiz_month': {**empty_stats, 'period': 'month'},
+                'quiz_all': {**empty_stats, 'period': 'all'}
+            }
+    
     def migrate_iso_timestamps_to_space_format(self) -> Dict[str, int]:
         """
         Migrate timestamps from ISO format (with 'T') to space-separated format
