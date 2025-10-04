@@ -1,0 +1,104 @@
+ Your service is live 🎉
+     ==> 
+     ==> ///////////////////////////////////////////////////////////
+     ==> 
+     ==> Available at your primary URL https://missquiz.onrender.com
+     ==> 
+     ==> ///////////////////////////////////////////////////////////
+2025-10-04 17:52:29,650 - src.bot.handlers - INFO - Completed automated quiz broadcast cycle
+2025-10-04 17:52:29,651 - apscheduler.executors.default - INFO - Job "send_automated_quiz (trigger: interval[0:30:00], next run at: 2025-10-04 18:22:29 UTC)" executed successfully
+127.0.0.1 - - [04/Oct/2025:17:53:06 +0000] "POST /webhook HTTP/1.1" 200 16 "-" "-"
+2025-10-04 17:53:19,655 - apscheduler.executors.default - INFO - Running job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-04 17:58:19 UTC)" (scheduled at 2025-10-04 17:53:19.641299+00:00)
+2025-10-04 17:53:19,663 - apscheduler.executors.default - INFO - Job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-04 17:58:19 UTC)" executed successfully
+[2025-10-04 17:53:22 +0000] [57] [INFO] Handling signal: term
+[2025-10-04 17:53:23 +0000] [60] [INFO] Worker exiting (pid: 60)
+[2025-10-04 17:53:24 +0000] [57] [INFO] Shutting down: Master
+2025-10-04 17:57:19,741 - apscheduler.executors.default - INFO - Running job "scheduled_cleanup (trigger: interval[1:00:00], next run at: 2025-10-04 18:57:19 UTC)" (scheduled at 2025-10-04 17:57:19.640822+00:00)
+2025-10-04 17:57:19,741 - apscheduler.executors.default - INFO - Running job "cleanup_old_polls (trigger: interval[1:00:00], next run at: 2025-10-04 18:57:19 UTC)" (scheduled at 2025-10-04 17:57:19.641008+00:00)
+2025-10-04 17:57:19,741 - src.bot.handlers - INFO - Cleaned up 0 old poll entries
+2025-10-04 17:57:19,741 - apscheduler.executors.default - INFO - Job "scheduled_cleanup (trigger: interval[1:00:00], next run at: 2025-10-04 18:57:19 UTC)" executed successfully
+2025-10-04 17:57:19,741 - apscheduler.executors.default - INFO - Job "cleanup_old_polls (trigger: interval[1:00:00], next run at: 2025-10-04 18:57:19 UTC)" executed successfully
+     ==> Detected service running on port 10000
+     ==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+2025-10-04 17:58:19,702 - apscheduler.executors.default - INFO - Running job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-04 18:03:19 UTC)" (scheduled at 2025-10-04 17:58:19.641299+00:00)
+2025-10-04 17:58:19,706 - apscheduler.executors.default - INFO - Job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-04 18:03:19 UTC)" executed successfully
+127.0.0.1 - - [04/Oct/2025:17:58:47 +0000] "POST /webhook HTTP/1.1" 200 16 "-" "-"
+127.0.0.1 - - [04/Oct/2025:17:59:08 +0000] "POST /webhook HTTP/1.1" 200 16 "-" "-"
+127.0.0.1 - - [04/Oct/2025:17:59:08 +0000] "POST /webhook HTTP/1.1" 200 16 "-" "-"
+2025-10-04 18:02:19,741 - apscheduler.executors.default - INFO - Running job "cleanup_questions_wrapper (trigger: interval[1 day, 0:00:00], next run at: 2025-10-05 18:02:19 UTC)" (scheduled at 2025-10-04 18:02:19.641160+00:00)
+2025-10-04 18:02:19,741 - src.core.quiz - INFO - Completed cleanup of old questions history
+2025-10-04 18:02:19,742 - apscheduler.executors.default - INFO - Job "cleanup_questions_wrapper (trigger: interval[1 day, 0:00:00], next run at: 2025-10-05 18:02:19 UTC)" executed successfully
+2025-10-04 18:03:19,702 - apscheduler.executors.default - INFO - Running job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-04 18:08:19 UTC)" (scheduled at 2025-10-04 18:03:19.641299+00:00)
+2025-10-04 18:03:19,707 - apscheduler.executors.default - INFO - Job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-04 18:08:19 UTC)" executed successfully
+2025-10-04 18:08:19,741 - apscheduler.executors.default - INFO - Running job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-04 18:13:19 UTC)" (scheduled at 2025-10-04 18:08:19.641299+00:00)
+2025-10-04 18:08:19,746 - apscheduler.executors.default - INFO - Job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-04 18:13:19 UTC)" executed successfully
+127.0.0.1 - - [04/Oct/2025:18:10:47 +0000] "POST /webhook HTTP/1.1" 200 16 "-" "-"
+127.0.0.1 - - [04/Oct/2025:18:11:26 +0000] "POST /webhook HTTP/1.1" 200 16 "-" "-"
+==> Running 'gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 src.web.wsgi:app'
+2025-10-04 18:11:41,580 - src.web.wsgi - INFO - Initializing application for WSGI server...
+2025-10-04 18:11:41,581 - src.web.wsgi - INFO - Detected mode: webhook
+2025-10-04 18:11:41,581 - src.web.wsgi - INFO - Initializing webhook bot with URL: https://missquiz.onrender.com/webhook
+2025-10-04 18:11:43,391 - src.core.database - INFO - Added category column to questions table
+2025-10-04 18:11:43,394 - src.core.database - INFO - Added last_quiz_message_id column to users table
+2025-10-04 18:11:43,434 - src.core.database - INFO - Database schema initialized successfully with optimized indexes
+2025-10-04 18:11:43,435 - src.core.database - INFO - Database initialized at data/quiz_bot.db with connection pooling
+2025-10-04 18:11:43,435 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+2025-10-04 18:11:43,435 - src.core.quiz - INFO - Database connection initialized in QuizManager
+2025-10-04 18:11:43,484 - src.core.quiz - INFO - Successfully loaded and cleaned 235 questions
+2025-10-04 18:11:43,484 - src.core.quiz - INFO - Active chats: 0
+2025-10-04 18:11:43,484 - src.core.quiz - INFO - Active users with stats: 0
+2025-10-04 18:11:43,484 - src.core.quiz - INFO - Users with scores: 0
+2025-10-04 18:11:43,484 - src.web.app - INFO - Quiz Manager initialized for webhook mode
+2025-10-04 18:11:43,485 - src.web.app - INFO - Started persistent event loop in background thread
+2025-10-04 18:11:43,486 - src.core.database - INFO - Database schema initialized successfully with optimized indexes
+2025-10-04 18:11:43,486 - src.core.database - INFO - Database initialized at data/quiz_bot.db with connection pooling
+2025-10-04 18:11:43,486 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+2025-10-04 18:11:43,486 - src.bot.dev_commands - INFO - Developer commands module initialized
+2025-10-04 18:11:43,486 - src.bot.handlers - INFO - TelegramQuizBot initialized with performance optimizations: user cache, activity batching, leaderboard cache
+2025-10-04 18:11:44,587 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 18:11:44,587 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 18:11:44,588 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 18:11:44,588 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 18:11:44,588 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 18:11:44,588 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 18:11:44,591 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 18:11:45,171 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/getMe "HTTP/1.1 200 OK"
+2025-10-04 18:11:45,173 - apscheduler.scheduler - INFO - Added job "send_automated_quiz" to job store "default"
+2025-10-04 18:11:45,173 - apscheduler.scheduler - INFO - Added job "scheduled_cleanup" to job store "default"
+2025-10-04 18:11:45,173 - apscheduler.scheduler - INFO - Added job "cleanup_old_polls" to job store "default"
+2025-10-04 18:11:45,173 - apscheduler.scheduler - INFO - Added job "cleanup_questions_wrapper" to job store "default"
+2025-10-04 18:11:45,173 - apscheduler.scheduler - INFO - Added job "track_memory_usage" to job store "default"
+2025-10-04 18:11:45,174 - apscheduler.scheduler - INFO - Added job "cleanup_performance_metrics" to job store "default"
+2025-10-04 18:11:45,174 - apscheduler.scheduler - INFO - Added job "cleanup_old_activities" to job store "default"
+2025-10-04 18:11:45,174 - apscheduler.scheduler - INFO - Scheduler started
+2025-10-04 18:11:45,174 - src.bot.handlers - INFO - Backfilling 0 groups from active_chats to database
+2025-10-04 18:11:45,174 - src.bot.handlers - INFO - Successfully backfilled 0/0 groups to database
+2025-10-04 18:11:45,336 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/setWebhook "HTTP/1.1 200 OK"
+2025-10-04 18:11:45,337 - src.bot.handlers - INFO - Webhook set successfully: https://missquiz.onrender.com/webhook
+2025-10-04 18:11:45,337 - src.web.app - INFO - Webhook bot initialized with URL: https://missquiz.onrender.com/webhook
+2025-10-04 18:11:45,337 - src.web.wsgi - INFO - ✅ Webhook bot initialized successfully
+2025-10-04 18:11:45,341 - src.web.app - INFO - Flask app created and routes registered
+2025-10-04 18:11:45,341 - src.web.wsgi - INFO - ✅ Flask application created and ready on port 10000
+[2025-10-04 18:11:45 +0000] [38] [INFO] Starting gunicorn 23.0.0
+[2025-10-04 18:11:45 +0000] [38] [INFO] Listening at: http://0.0.0.0:10000 (38)
+[2025-10-04 18:11:45 +0000] [38] [INFO] Using worker: gthread
+[2025-10-04 18:11:45 +0000] [41] [INFO] Booting worker with pid: 41
+2025-10-04 18:11:54,597 - apscheduler.executors.default - INFO - Running job "send_automated_quiz (trigger: interval[0:30:00], next run at: 2025-10-04 18:41:54 UTC)" (scheduled at 2025-10-04 18:11:54.586849+00:00)
+2025-10-04 18:11:54,597 - src.bot.handlers - INFO - Starting automated quiz broadcast to 0 active chats
+2025-10-04 18:11:54,597 - src.bot.handlers - INFO - Completed automated quiz broadcast cycle
+2025-10-04 18:11:54,598 - apscheduler.executors.default - INFO - Job "send_automated_quiz (trigger: interval[0:30:00], next run at: 2025-10-04 18:41:54 UTC)" executed successfully
+2025-10-04 18:12:44,639 - apscheduler.executors.default - INFO - Running job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-04 18:17:44 UTC)" (scheduled at 2025-10-04 18:12:44.588443+00:00)
+2025-10-04 18:12:44,649 - apscheduler.executors.default - INFO - Job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-04 18:17:44 UTC)" executed successfully
+[2025-10-04 18:12:49 +0000] [56] [INFO] Handling signal: term
+[2025-10-04 18:12:50 +0000] [61] [INFO] Worker exiting (pid: 61)
+[2025-10-04 18:12:51 +0000] [56] [INFO] Shutting down: Master
+2025-10-04 18:16:44,689 - apscheduler.executors.default - INFO - Running job "scheduled_cleanup (trigger: interval[1:00:00], next run at: 2025-10-04 19:16:44 UTC)" (scheduled at 2025-10-04 18:16:44.587719+00:00)
+2025-10-04 18:16:44,689 - apscheduler.executors.default - INFO - Running job "cleanup_old_polls (trigger: interval[1:00:00], next run at: 2025-10-04 19:16:44 UTC)" (scheduled at 2025-10-04 18:16:44.588034+00:00)
+2025-10-04 18:16:44,689 - src.bot.handlers - INFO - Cleaned up 0 old poll entries
+2025-10-04 18:16:44,689 - apscheduler.executors.default - INFO - Job "scheduled_cleanup (trigger: interval[1:00:00], next run at: 2025-10-04 19:16:44 UTC)" executed successfully
+2025-10-04 18:16:44,689 - apscheduler.executors.default - INFO - Job "cleanup_old_polls (trigger: interval[1:00:00], next run at: 2025-10-04 19:16:44 UTC)" executed successfully
+2025-10-04 18:17:44,648 - apscheduler.executors.default - INFO - Running job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-04 18:22:44 UTC)" (scheduled at 2025-10-04 18:17:44.588443+00:00)
+2025-10-04 18:17:44,652 - apscheduler.executors.default - INFO - Job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-04 18:22:44 UTC)" executed successfully
+2025-10-04 18:21:44,688 - apscheduler.executors.default - INFO - Running job "cleanup_questions_wrapper (trigger: interval[1 day, 0:00:00], next run at: 2025-10-05 18:21:44 UTC)" (scheduled at 2025-10-04 18:21:44.588216+00:00)
+2025-10-04 18:21:44,688 - src.core.quiz - INFO - Completed cleanup of old questions history
+2025-10-04 18:21:44,688 - apscheduler.executors.default - INFO - Job "cleanup_questions_wrapper (trigger: interval[1 day, 0:00:00], next run at: 2025-10-05 18:21:44 UTC)" executed successfully

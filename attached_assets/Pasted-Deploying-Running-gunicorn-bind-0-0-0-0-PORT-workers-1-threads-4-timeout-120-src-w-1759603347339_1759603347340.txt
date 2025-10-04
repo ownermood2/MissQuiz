@@ -1,0 +1,276 @@
+Deploying...
+==> Running 'gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 src.web.wsgi:app'
+2025-10-04 18:39:42,140 - src.web.wsgi - INFO - Initializing application for WSGI server...
+2025-10-04 18:39:42,140 - src.web.wsgi - INFO - Detected mode: webhook
+2025-10-04 18:39:42,141 - src.web.wsgi - INFO - Initializing webhook bot with URL: https://missquiz.railway.app/webhook
+2025-10-04 18:39:43,059 - src.core.database - INFO - Added category column to questions table
+2025-10-04 18:39:43,062 - src.core.database - INFO - Added last_quiz_message_id column to users table
+2025-10-04 18:39:43,170 - src.core.database - INFO - Database schema initialized successfully with optimized indexes
+2025-10-04 18:39:43,171 - src.core.database - INFO - Database initialized at data/quiz_bot.db with connection pooling
+2025-10-04 18:39:43,171 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+2025-10-04 18:39:43,171 - src.core.quiz - INFO - Database connection initialized in QuizManager
+2025-10-04 18:39:43,172 - src.core.quiz - INFO - Successfully loaded and cleaned 235 questions
+2025-10-04 18:39:43,172 - src.core.quiz - INFO - Active chats: 0
+2025-10-04 18:39:43,172 - src.core.quiz - INFO - Active users with stats: 0
+2025-10-04 18:39:43,172 - src.core.quiz - INFO - Users with scores: 0
+2025-10-04 18:39:43,172 - src.web.app - INFO - Quiz Manager initialized for webhook mode
+2025-10-04 18:39:43,173 - src.web.app - INFO - Started persistent event loop in background thread
+2025-10-04 18:39:43,174 - src.core.database - INFO - Database schema initialized successfully with optimized indexes
+2025-10-04 18:39:43,174 - src.core.database - INFO - Database initialized at data/quiz_bot.db with connection pooling
+2025-10-04 18:39:43,174 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+2025-10-04 18:39:43,174 - src.bot.dev_commands - INFO - Developer commands module initialized
+2025-10-04 18:39:43,174 - src.bot.handlers - INFO - TelegramQuizBot initialized with performance optimizations: user cache, activity batching, leaderboard cache
+2025-10-04 18:39:44,347 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 18:39:44,347 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 18:39:44,347 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 18:39:44,347 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 18:39:44,347 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 18:39:44,347 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 18:39:44,349 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 18:39:46,559 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAGnRiZb6Pxt-0OPTAWZqsUD8e6gg6T6p58/getMe "HTTP/1.1 401 Unauthorized"
+2025-10-04 18:39:46,560 - src.bot.handlers - ERROR - Failed to initialize bot in webhook mode: The token `8399888603:AAGnRiZb6Pxt-0OPTAWZqsUD8e6gg6T6p58` was rejected by the server.
+2025-10-04 18:39:46,560 - src.web.app - ERROR - Failed to initialize webhook bot: The token `8399888603:AAGnRiZb6Pxt-0OPTAWZqsUD8e6gg6T6p58` was rejected by the server.
+2025-10-04 18:39:46,560 - src.web.wsgi - ERROR - ❌ Failed to initialize webhook bot: The token `8399888603:AAGnRiZb6Pxt-0OPTAWZqsUD8e6gg6T6p58` was rejected by the server.
+Traceback (most recent call last):
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/_bot.py", line 854, in initialize
+    await self.get_me()
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/ext/_extbot.py", line 1999, in get_me
+    return await super().get_me(
+           ^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/_bot.py", line 985, in get_me
+    result = await self._post(
+             ^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/_bot.py", line 703, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/ext/_extbot.py", line 372, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/_bot.py", line 732, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/request/_baserequest.py", line 198, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/request/_baserequest.py", line 375, in _request_wrapper
+    raise exception
+telegram.error.InvalidToken: Unauthorized
+The above exception was the direct cause of the following exception:
+Traceback (most recent call last):
+  File "/opt/render/project/src/.venv/bin/gunicorn", line 8, in <module>
+    sys.exit(run())
+             ~~~^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/wsgiapp.py", line 66, in run
+    WSGIApplication("%(prog)s [OPTIONS] [APP_MODULE]", prog=prog).run()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/base.py", line 235, in run
+    super().run()
+    ~~~~~~~~~~~^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/base.py", line 71, in run
+    Arbiter(self).run()
+    ~~~~~~~^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/arbiter.py", line 57, in __init__
+    self.setup(app)
+    ~~~~~~~~~~^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/arbiter.py", line 117, in setup
+    self.app.wsgi()
+    ~~~~~~~~~~~~~^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/base.py", line 66, in wsgi
+    self.callable = self.load()
+                    ~~~~~~~~~^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+    return self.load_wsgiapp()
+           ~~~~~~~~~~~~~~~~~^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+    return util.import_app(self.app_uri)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/util.py", line 370, in import_app
+    mod = importlib.import_module(module)
+  File "/opt/render/project/python/Python-3.13.4/lib/python3.13/importlib/__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/opt/render/project/src/src/web/wsgi.py", line 50, in <module>
+    app = create_application()
+  File "/opt/render/project/src/src/web/wsgi.py", line 37, in create_application
+    init_bot_webhook(webhook_url)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/opt/render/project/src/src/web/app.py", line 139, in init_bot_webhook
+    future.result(timeout=30)  # Wait for initialization to complete
+    ~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/opt/render/project/python/Python-3.13.4/lib/python3.13/concurrent/futures/_base.py", line 456, in result
+    return self.__get_result()
+           ~~~~~~~~~~~~~~~~~^^
+  File "/opt/render/project/python/Python-3.13.4/lib/python3.13/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/opt/render/project/src/src/bot/handlers.py", line 747, in initialize_webhook
+    await self.application.initialize()
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/ext/_application.py", line 489, in initialize
+    await self.bot.initialize()
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/ext/_extbot.py", line 318, in initialize
+    await super().initialize()
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/_bot.py", line 856, in initialize
+    raise InvalidToken(f"The token `{self._token}` was rejected by the server.") from exc
+telegram.error.InvalidToken: The token `8399888603:AAGnRiZb6Pxt-0OPTAWZqsUD8e6gg6T6p58` was rejected by the server.
+==> Exited with status 1
+==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
+==> Running 'gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 src.web.wsgi:app'
+2025-10-04 18:39:59,714 - src.web.wsgi - INFO - Initializing application for WSGI server...
+2025-10-04 18:39:59,714 - src.web.wsgi - INFO - Detected mode: webhook
+2025-10-04 18:39:59,714 - src.web.wsgi - INFO - Initializing webhook bot with URL: https://missquiz.railway.app/webhook
+2025-10-04 18:40:00,814 - src.core.database - INFO - Added category column to questions table
+2025-10-04 18:40:00,821 - src.core.database - INFO - Added last_quiz_message_id column to users table
+2025-10-04 18:40:00,908 - src.core.database - INFO - Database schema initialized successfully with optimized indexes
+2025-10-04 18:40:00,908 - src.core.database - INFO - Database initialized at data/quiz_bot.db with connection pooling
+2025-10-04 18:40:00,908 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+2025-10-04 18:40:00,908 - src.core.quiz - INFO - Database connection initialized in QuizManager
+2025-10-04 18:40:00,910 - src.core.quiz - INFO - Successfully loaded and cleaned 235 questions
+2025-10-04 18:40:00,910 - src.core.quiz - INFO - Active chats: 0
+2025-10-04 18:40:00,910 - src.core.quiz - INFO - Active users with stats: 0
+2025-10-04 18:40:00,910 - src.core.quiz - INFO - Users with scores: 0
+2025-10-04 18:40:00,910 - src.web.app - INFO - Quiz Manager initialized for webhook mode
+2025-10-04 18:40:00,910 - src.web.app - INFO - Started persistent event loop in background thread
+2025-10-04 18:40:00,911 - src.core.database - INFO - Database schema initialized successfully with optimized indexes
+2025-10-04 18:40:00,911 - src.core.database - INFO - Database initialized at data/quiz_bot.db with connection pooling
+2025-10-04 18:40:00,912 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+2025-10-04 18:40:00,912 - src.bot.dev_commands - INFO - Developer commands module initialized
+2025-10-04 18:40:00,912 - src.bot.handlers - INFO - TelegramQuizBot initialized with performance optimizations: user cache, activity batching, leaderboard cache
+2025-10-04 18:40:02,113 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 18:40:02,113 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 18:40:02,114 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 18:40:02,114 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 18:40:02,114 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 18:40:02,114 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 18:40:02,116 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 18:40:02,696 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAGnRiZb6Pxt-0OPTAWZqsUD8e6gg6T6p58/getMe "HTTP/1.1 401 Unauthorized"
+2025-10-04 18:40:02,697 - src.bot.handlers - ERROR - Failed to initialize bot in webhook mode: The token `8399888603:AAGnRiZb6Pxt-0OPTAWZqsUD8e6gg6T6p58` was rejected by the server.
+2025-10-04 18:40:02,697 - src.web.app - ERROR - Failed to initialize webhook bot: The token `8399888603:AAGnRiZb6Pxt-0OPTAWZqsUD8e6gg6T6p58` was rejected by the server.
+2025-10-04 18:40:02,697 - src.web.wsgi - ERROR - ❌ Failed to initialize webhook bot: The token `8399888603:AAGnRiZb6Pxt-0OPTAWZqsUD8e6gg6T6p58` was rejected by the server.
+Traceback (most recent call last):
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/_bot.py", line 854, in initialize
+    await self.get_me()
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/ext/_extbot.py", line 1999, in get_me
+    return await super().get_me(
+           ^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/_bot.py", line 985, in get_me
+    result = await self._post(
+             ^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/_bot.py", line 703, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/ext/_extbot.py", line 372, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/_bot.py", line 732, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/request/_baserequest.py", line 198, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/request/_baserequest.py", line 375, in _request_wrapper
+    raise exception
+telegram.error.InvalidToken: Unauthorized
+The above exception was the direct cause of the following exception:
+Traceback (most recent call last):
+  File "/opt/render/project/src/.venv/bin/gunicorn", line 8, in <module>
+    sys.exit(run())
+             ~~~^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/wsgiapp.py", line 66, in run
+    WSGIApplication("%(prog)s [OPTIONS] [APP_MODULE]", prog=prog).run()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/base.py", line 235, in run
+    super().run()
+    ~~~~~~~~~~~^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/base.py", line 71, in run
+    Arbiter(self).run()
+    ~~~~~~~^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/arbiter.py", line 57, in __init__
+    self.setup(app)
+    ~~~~~~~~~~^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/arbiter.py", line 117, in setup
+    self.app.wsgi()
+    ~~~~~~~~~~~~~^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/base.py", line 66, in wsgi
+    self.callable = self.load()
+                    ~~~~~~~~~^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+    return self.load_wsgiapp()
+           ~~~~~~~~~~~~~~~~~^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+    return util.import_app(self.app_uri)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/util.py", line 370, in import_app
+    mod = importlib.import_module(module)
+  File "/opt/render/project/python/Python-3.13.4/lib/python3.13/importlib/__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/opt/render/project/src/src/web/wsgi.py", line 50, in <module>
+    app = create_application()
+  File "/opt/render/project/src/src/web/wsgi.py", line 37, in create_application
+    init_bot_webhook(webhook_url)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/opt/render/project/src/src/web/app.py", line 139, in init_bot_webhook
+    future.result(timeout=30)  # Wait for initialization to complete
+    ~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/opt/render/project/python/Python-3.13.4/lib/python3.13/concurrent/futures/_base.py", line 456, in result
+    return self.__get_result()
+           ~~~~~~~~~~~~~~~~~^^
+  File "/opt/render/project/python/Python-3.13.4/lib/python3.13/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/opt/render/project/src/src/bot/handlers.py", line 747, in initialize_webhook
+    await self.application.initialize()
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/ext/_application.py", line 489, in initialize
+    await self.bot.initialize()
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/ext/_extbot.py", line 318, in initialize
+    await super().initialize()
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/_bot.py", line 856, in initialize
+    raise InvalidToken(f"The token `{self._token}` was rejected by the server.") from exc
+telegram.error.InvalidToken: The token `8399888603:AAGnRiZb6Pxt-0OPTAWZqsUD8e6gg6T6p58` was rejected by the server.
+Need better ways to work with logs? Try theRender CLI, 

@@ -1,0 +1,27 @@
+Your service is live 🎉
+     ==> 
+     ==> ///////////////////////////////////////////////////////////
+     ==> 
+     ==> Available at your primary URL https://missquiz.onrender.com
+     ==> 
+     ==> ///////////////////////////////////////////////////////////
+2025-10-04 17:52:29,650 - apscheduler.executors.default - INFO - Running job "send_automated_quiz (trigger: interval[0:30:00], next run at: 2025-10-04 18:22:29 UTC)" (scheduled at 2025-10-04 17:52:29.640142+00:00)
+2025-10-04 17:52:29,650 - src.bot.handlers - INFO - Starting automated quiz broadcast to 0 active chats
+2025-10-04 17:52:29,650 - src.bot.handlers - INFO - Completed automated quiz broadcast cycle
+2025-10-04 17:52:29,651 - apscheduler.executors.default - INFO - Job "send_automated_quiz (trigger: interval[0:30:00], next run at: 2025-10-04 18:22:29 UTC)" executed successfully
+127.0.0.1 - - [04/Oct/2025:17:53:06 +0000] "POST /webhook HTTP/1.1" 200 16 "-" "-"
+2025-10-04 17:53:19,655 - apscheduler.executors.default - INFO - Running job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-04 17:58:19 UTC)" (scheduled at 2025-10-04 17:53:19.641299+00:00)
+2025-10-04 17:53:19,663 - apscheduler.executors.default - INFO - Job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-04 17:58:19 UTC)" executed successfully
+[2025-10-04 17:53:22 +0000] [57] [INFO] Handling signal: term
+[2025-10-04 17:53:23 +0000] [60] [INFO] Worker exiting (pid: 60)
+[2025-10-04 17:53:24 +0000] [57] [INFO] Shutting down: Master
+2025-10-04 17:57:19,741 - apscheduler.executors.default - INFO - Running job "scheduled_cleanup (trigger: interval[1:00:00], next run at: 2025-10-04 18:57:19 UTC)" (scheduled at 2025-10-04 17:57:19.640822+00:00)
+2025-10-04 17:57:19,741 - apscheduler.executors.default - INFO - Running job "cleanup_old_polls (trigger: interval[1:00:00], next run at: 2025-10-04 18:57:19 UTC)" (scheduled at 2025-10-04 17:57:19.641008+00:00)
+2025-10-04 17:57:19,741 - src.bot.handlers - INFO - Cleaned up 0 old poll entries
+2025-10-04 17:57:19,741 - apscheduler.executors.default - INFO - Job "scheduled_cleanup (trigger: interval[1:00:00], next run at: 2025-10-04 18:57:19 UTC)" executed successfully
+2025-10-04 17:57:19,741 - apscheduler.executors.default - INFO - Job "cleanup_old_polls (trigger: interval[1:00:00], next run at: 2025-10-04 18:57:19 UTC)" executed successfully
+     ==> Detected service running on port 10000
+     ==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+2025-10-04 17:58:19,702 - apscheduler.executors.default - INFO - Running job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-04 18:03:19 UTC)" (scheduled at 2025-10-04 17:58:19.641299+00:00)
+2025-10-04 17:58:19,706 - apscheduler.executors.default - INFO - Job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-04 18:03:19 UTC)" executed successfully
+127.0.0.1 - - [04/Oct/2025:17:58:47 +0000] "POST /webhook HTTP/1.1" 200 16 "-" "-"
