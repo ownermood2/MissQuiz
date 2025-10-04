@@ -1,0 +1,158 @@
+ Your service is live 🎉
+     ==> 
+     ==> ///////////////////////////////////////////////////////////
+     ==> 
+     ==> Available at your primary URL https://missquiz.onrender.com
+     ==> 
+     ==> ///////////////////////////////////////////////////////////
+127.0.0.1 - - [04/Oct/2025:17:14:12 +0000] "GET / HTTP/1.1" 200 16 "-" "Go-http-client/2.0"
+==> Running 'gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 src.web.wsgi:app'
+2025-10-04 17:14:41,745 - src.web.wsgi - INFO - Initializing application for WSGI server...
+2025-10-04 17:14:41,745 - src.web.wsgi - INFO - Detected mode: webhook
+2025-10-04 17:14:41,745 - src.web.wsgi - INFO - Initializing webhook bot with URL: https://missquiz.onrender.com/webhook
+2025-10-04 17:14:43,657 - src.core.database - INFO - Added category column to questions table
+2025-10-04 17:14:43,660 - src.core.database - INFO - Added last_quiz_message_id column to users table
+2025-10-04 17:14:43,752 - src.core.database - INFO - Database schema initialized successfully with optimized indexes
+2025-10-04 17:14:43,752 - src.core.database - INFO - Database initialized at data/quiz_bot.db with connection pooling
+2025-10-04 17:14:43,752 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+2025-10-04 17:14:43,752 - src.core.quiz - INFO - Database connection initialized in QuizManager
+2025-10-04 17:14:43,760 - src.core.quiz - INFO - Successfully loaded and cleaned 235 questions
+2025-10-04 17:14:43,760 - src.core.quiz - INFO - Active chats: 0
+2025-10-04 17:14:43,760 - src.core.quiz - INFO - Active users with stats: 0
+2025-10-04 17:14:43,760 - src.core.quiz - INFO - Users with scores: 0
+2025-10-04 17:14:43,760 - src.web.app - INFO - Quiz Manager initialized for webhook mode
+2025-10-04 17:14:43,762 - src.core.database - INFO - Database schema initialized successfully with optimized indexes
+2025-10-04 17:14:43,762 - src.core.database - INFO - Database initialized at data/quiz_bot.db with connection pooling
+2025-10-04 17:14:43,762 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+2025-10-04 17:14:43,762 - src.bot.dev_commands - INFO - Developer commands module initialized
+2025-10-04 17:14:43,762 - src.bot.handlers - INFO - TelegramQuizBot initialized with performance optimizations: user cache, activity batching, leaderboard cache
+2025-10-04 17:14:44,548 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 17:14:44,548 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 17:14:44,549 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 17:14:44,549 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 17:14:44,549 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 17:14:44,549 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 17:14:44,552 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 17:14:45,145 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/getMe "HTTP/1.1 200 OK"
+2025-10-04 17:14:45,146 - apscheduler.scheduler - INFO - Added job "send_automated_quiz" to job store "default"
+2025-10-04 17:14:45,146 - apscheduler.scheduler - INFO - Added job "scheduled_cleanup" to job store "default"
+2025-10-04 17:14:45,146 - apscheduler.scheduler - INFO - Added job "cleanup_old_polls" to job store "default"
+2025-10-04 17:14:45,146 - apscheduler.scheduler - INFO - Added job "cleanup_questions_wrapper" to job store "default"
+2025-10-04 17:14:45,147 - apscheduler.scheduler - INFO - Added job "track_memory_usage" to job store "default"
+2025-10-04 17:14:45,147 - apscheduler.scheduler - INFO - Added job "cleanup_performance_metrics" to job store "default"
+2025-10-04 17:14:45,147 - apscheduler.scheduler - INFO - Added job "cleanup_old_activities" to job store "default"
+2025-10-04 17:14:45,147 - apscheduler.scheduler - INFO - Scheduler started
+2025-10-04 17:14:45,147 - src.bot.handlers - INFO - Backfilling 0 groups from active_chats to database
+2025-10-04 17:14:45,147 - src.bot.handlers - INFO - Successfully backfilled 0/0 groups to database
+2025-10-04 17:14:45,311 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/setWebhook "HTTP/1.1 200 OK"
+2025-10-04 17:14:45,311 - src.bot.handlers - INFO - Webhook set successfully: https://missquiz.onrender.com/webhook
+2025-10-04 17:14:45,312 - src.web.app - INFO - Webhook bot initialized with URL: https://missquiz.onrender.com/webhook
+2025-10-04 17:14:45,312 - src.web.wsgi - INFO - ✅ Webhook bot initialized successfully
+2025-10-04 17:14:45,316 - src.web.app - INFO - Flask app created and routes registered
+2025-10-04 17:14:45,316 - src.web.wsgi - INFO - ✅ Flask application created and ready on port 10000
+[2025-10-04 17:14:45 +0000] [56] [INFO] Starting gunicorn 23.0.0
+[2025-10-04 17:14:45 +0000] [56] [INFO] Listening at: http://0.0.0.0:10000 (56)
+[2025-10-04 17:14:45 +0000] [56] [INFO] Using worker: gthread
+[2025-10-04 17:14:45 +0000] [59] [INFO] Booting worker with pid: 59
+127.0.0.1 - - [04/Oct/2025:17:14:45 +0000] "HEAD / HTTP/1.1" 200 0 "-" "Go-http-client/1.1"
+[2025-10-04 17:15:08 +0000] [38] [INFO] Handling signal: term
+[2025-10-04 17:15:09 +0000] [41] [INFO] Worker exiting (pid: 41)
+2025-10-04 17:15:09,242 - asyncio - ERROR - Task was destroyed but it is pending!
+task: <Task pending name='Task-6' coro=<Application.process_update() running at /opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/ext/_application.py:1248>>
+/opt/render/project/python/Python-3.13.4/lib/python3.13/asyncio/base_events.py:750: RuntimeWarning: coroutine 'Application.process_update' was never awaited
+  self._ready.clear()
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+2025-10-04 17:15:09,330 - asyncio - ERROR - Task was destroyed but it is pending!
+task: <Task pending name='Task-7' coro=<Application.process_update() running at /opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/ext/_application.py:1248>>
+2025-10-04 17:15:09,331 - asyncio - ERROR - Task was destroyed but it is pending!
+task: <Task pending name='Task-8' coro=<Application.process_update() running at /opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/ext/_application.py:1248>>
+2025-10-04 17:15:09,331 - asyncio - ERROR - Task was destroyed but it is pending!
+task: <Task pending name='Task-9' coro=<Application.process_update() running at /opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/ext/_application.py:1248>>
+2025-10-04 17:15:09,331 - asyncio - ERROR - Task was destroyed but it is pending!
+task: <Task pending name='Task-10' coro=<Application.process_update() running at /opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/ext/_application.py:1248>>
+2025-10-04 17:15:09,331 - asyncio - ERROR - Task was destroyed but it is pending!
+task: <Task pending name='Task-11' coro=<Application.process_update() running at /opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/ext/_application.py:1248>>
+2025-10-04 17:15:09,331 - asyncio - ERROR - Task was destroyed but it is pending!
+task: <Task pending name='Task-12' coro=<Application.process_update() running at /opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/ext/_application.py:1248>>
+2025-10-04 17:15:09,331 - asyncio - ERROR - Task was destroyed but it is pending!
+task: <Task pending name='Task-13' coro=<Application.process_update() running at /opt/render/project/src/.venv/lib/python3.13/site-packages/telegram/ext/_application.py:1248>>
+[2025-10-04 17:15:10 +0000] [38] [INFO] Shutting down: Master
+[2025-10-04 17:15:49 +0000] [38] [INFO] Handling signal: term
+[2025-10-04 17:15:49 +0000] [41] [INFO] Worker exiting (pid: 41)
+[2025-10-04 17:15:50 +0000] [38] [INFO] Shutting down: Master
+     ==> Deploying...
+==> Running 'gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 src.web.wsgi:app'
+2025-10-04 17:17:00,655 - src.web.wsgi - INFO - Initializing application for WSGI server...
+2025-10-04 17:17:00,655 - src.web.wsgi - INFO - Detected mode: webhook
+2025-10-04 17:17:00,655 - src.web.wsgi - INFO - Initializing webhook bot with URL: https://missquiz.onrender.com/webhook
+2025-10-04 17:17:03,207 - src.core.database - INFO - Added category column to questions table
+2025-10-04 17:17:03,213 - src.core.database - INFO - Added last_quiz_message_id column to users table
+2025-10-04 17:17:03,300 - src.core.database - INFO - Database schema initialized successfully with optimized indexes
+2025-10-04 17:17:03,300 - src.core.database - INFO - Database initialized at data/quiz_bot.db with connection pooling
+2025-10-04 17:17:03,300 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+2025-10-04 17:17:03,300 - src.core.quiz - INFO - Database connection initialized in QuizManager
+2025-10-04 17:17:03,302 - src.core.quiz - INFO - Successfully loaded and cleaned 235 questions
+2025-10-04 17:17:03,302 - src.core.quiz - INFO - Active chats: 0
+2025-10-04 17:17:03,302 - src.core.quiz - INFO - Active users with stats: 0
+2025-10-04 17:17:03,302 - src.core.quiz - INFO - Users with scores: 0
+2025-10-04 17:17:03,303 - src.web.app - INFO - Quiz Manager initialized for webhook mode
+2025-10-04 17:17:03,303 - src.core.database - INFO - Database schema initialized successfully with optimized indexes
+2025-10-04 17:17:03,304 - src.core.database - INFO - Database initialized at data/quiz_bot.db with connection pooling
+2025-10-04 17:17:03,304 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+2025-10-04 17:17:03,304 - src.bot.dev_commands - INFO - Developer commands module initialized
+2025-10-04 17:17:03,304 - src.bot.handlers - INFO - TelegramQuizBot initialized with performance optimizations: user cache, activity batching, leaderboard cache
+2025-10-04 17:17:04,388 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 17:17:04,388 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 17:17:04,388 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 17:17:04,388 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 17:17:04,388 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 17:17:04,388 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 17:17:04,490 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 17:17:05,274 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/getMe "HTTP/1.1 200 OK"
+2025-10-04 17:17:05,274 - apscheduler.scheduler - INFO - Added job "send_automated_quiz" to job store "default"
+2025-10-04 17:17:05,275 - apscheduler.scheduler - INFO - Added job "scheduled_cleanup" to job store "default"
+2025-10-04 17:17:05,275 - apscheduler.scheduler - INFO - Added job "cleanup_old_polls" to job store "default"
+2025-10-04 17:17:05,275 - apscheduler.scheduler - INFO - Added job "cleanup_questions_wrapper" to job store "default"
+2025-10-04 17:17:05,275 - apscheduler.scheduler - INFO - Added job "track_memory_usage" to job store "default"
+2025-10-04 17:17:05,275 - apscheduler.scheduler - INFO - Added job "cleanup_performance_metrics" to job store "default"
+2025-10-04 17:17:05,275 - apscheduler.scheduler - INFO - Added job "cleanup_old_activities" to job store "default"
+2025-10-04 17:17:05,275 - apscheduler.scheduler - INFO - Scheduler started
+2025-10-04 17:17:05,275 - src.bot.handlers - INFO - Backfilling 0 groups from active_chats to database
+2025-10-04 17:17:05,275 - src.bot.handlers - INFO - Successfully backfilled 0/0 groups to database
+2025-10-04 17:17:05,446 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/setWebhook "HTTP/1.1 200 OK"
+2025-10-04 17:17:05,446 - src.bot.handlers - INFO - Webhook set successfully: https://missquiz.onrender.com/webhook
+2025-10-04 17:17:05,447 - src.web.app - INFO - Webhook bot initialized with URL: https://missquiz.onrender.com/webhook
+2025-10-04 17:17:05,447 - src.web.wsgi - INFO - ✅ Webhook bot initialized successfully
+2025-10-04 17:17:05,451 - src.web.app - INFO - Flask app created and routes registered
+2025-10-04 17:17:05,451 - src.web.wsgi - INFO - ✅ Flask application created and ready on port 10000
+[2025-10-04 17:17:05 +0000] [56] [INFO] Starting gunicorn 23.0.0
+[2025-10-04 17:17:05 +0000] [56] [INFO] Listening at: http://0.0.0.0:10000 (56)
+[2025-10-04 17:17:05 +0000] [56] [INFO] Using worker: gthread
+[2025-10-04 17:17:05 +0000] [60] [INFO] Booting worker with pid: 60
+127.0.0.1 - - [04/Oct/2025:17:17:05 +0000] "HEAD / HTTP/1.1" 200 0 "-" "Go-http-client/1.1"
+     ==> Your service is live 🎉
+     ==> 
+     ==> ///////////////////////////////////////////////////////////
+     ==> 
+     ==> Available at your primary URL https://missquiz.onrender.com
+     ==> 
+     ==> ///////////////////////////////////////////////////////////
+127.0.0.1 - - [04/Oct/2025:17:17:13 +0000] "GET / HTTP/1.1" 200 16 "-" "Go-http-client/2.0"
+2025-10-04 17:17:20,770 - src.bot.handlers - INFO - 📥 /start command received from user 8376823449 in chat -1003103932608 (type: supergroup)
+2025-10-04 17:17:20,774 - src.bot.handlers - INFO - ✅ GROUP TRACKED: Group -1003103932608 (Bot testing)
+2025-10-04 17:17:20,775 - src.core.quiz - INFO - Initialized question pool for chat -1003103932608 with 235 questions
+2025-10-04 17:17:20,779 - src.core.quiz - INFO - Saved 235 questions to file
+2025-10-04 17:17:20,780 - src.core.quiz - INFO - All data saved successfully. Questions count: 235
+2025-10-04 17:17:20,780 - src.core.quiz - INFO - Added chat -1003103932608 to active chats with initialization
+2025-10-04 17:17:20,780 - src.bot.handlers - INFO - ✅ Chat -1003103932608 added to active chats
+2025-10-04 17:17:20,786 - src.bot.handlers - ERROR - Error sending welcome message: Unknown error in HTTP implementation: RuntimeError('Event loop is closed')
+2025-10-04 17:17:20,786 - src.bot.handlers - INFO - /start completed in 16ms for user 8376823449
+127.0.0.1 - - [04/Oct/2025:17:17:20 +0000] "POST /webhook HTTP/1.1" 200 16 "-" "-"
+2025-10-04 17:17:31,200 - src.bot.handlers - INFO - 📥 /help command received from user 8376823449 in chat -1003103932608
+2025-10-04 17:17:32,452 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/sendMessage "HTTP/1.1 200 OK"
+2025-10-04 17:17:32,453 - src.bot.handlers - INFO - Help message sent to user 8376823449 in 1252ms
+127.0.0.1 - - [04/Oct/2025:17:17:32 +0000] "POST /webhook HTTP/1.1" 200 16 "-" "-"
+2025-10-04 17:17:32,633 - src.bot.handlers - INFO - 📥 /quiz command received from user 8376823449 in chat -1003103932608
+2025-10-04 17:17:32,640 - src.bot.handlers - ERROR - Error in quiz command: Unknown error in HTTP implementation: RuntimeError('Event loop is closed')
+2025-10-04 17:17:33,658 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/sendMessage "HTTP/1.1 200 OK"
+127.0.0.1 - - [04/Oct/2025:17:17:33 +0000] "POST /webhook HTTP/1.1" 200 16 "-" "-"
