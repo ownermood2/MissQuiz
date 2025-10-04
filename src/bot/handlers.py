@@ -733,8 +733,13 @@ class TelegramQuizBot:
                 name='cleanup_old_activities'
             )
 
+            # Initialize but DON'T start the application
+            # (starting creates event loop that conflicts with Flask sync context)
             await self.application.initialize()
-            await self.application.start()
+            
+            # Manually start job queue for scheduled tasks
+            if self.application.job_queue:
+                await self.application.job_queue.start()
             
             # Backfill groups from active_chats to database
             await self.backfill_groups_startup()
