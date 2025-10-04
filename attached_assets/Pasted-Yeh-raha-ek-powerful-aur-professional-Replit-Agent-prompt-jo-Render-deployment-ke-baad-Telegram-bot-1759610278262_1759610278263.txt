@@ -1,0 +1,68 @@
+Yeh raha ek powerful aur professional Replit Agent prompt, jo Render deployment ke baad Telegram bot ke sabhi commands (like /start, /help, /mystats, etc.) sahi se kaam karein, aur automatically bugs detect karke fix kare, structure optimize kare aur deployment-ready code bana de 👇
+
+
+---
+
+💥 Prompt for Replit Agent (Copy–Paste As-Is)
+
+You are an expert Python developer and deployment engineer.  
+Your task is to fix, optimize, and professionally structure a Telegram bot project that fails to run correctly after deployment on Render.  
+
+🧩 Issues:
+- /start, /help, and /mystats commands are not working after deployment.
+- Developer-only commands are not accessible.
+- Stats are not updating or being saved properly.
+- Logs on Render show runtime or webhook-related errors.
+
+🎯 Goals:
+1. Automatically detect and fix all issues related to:
+   - Telegram Bot API setup (use python-telegram-bot or telebot depending on current project).
+   - Webhook and polling compatibility for Render, Replit, and VPS.
+   - Flask or FastAPI server configuration for Render.
+   - Command handlers not registering or responding.
+   - Missing async/await or event loop errors.
+   - Database or file handling for /mystats updates.
+
+2. Make the bot auto-detect its environment:
+   - If running locally → use polling mode.
+   - If on Render or Replit → auto-run Gunicorn with Flask/FastAPI webhook.
+
+3. Ensure all commands work smoothly:
+   - /start shows welcome message.
+   - /help lists all user and developer commands properly.
+   - /mystats updates and fetches data in real-time.
+   - Developer commands accessible only to admin IDs.
+
+4. Clean and optimize project structure:
+   📦 telegram-bot/
+   ┣ 📜 main.py
+   ┣ 📜 requirements.txt
+   ┣ 📜 Procfile
+   ┣ 📜 .replit
+   ┣ 📜 config.py
+   ┣ 📜 README.md
+   ┗ 📂 modules/ (for commands and handlers)
+
+5. Remove duplicate, junk, or unused files.  
+6. Ensure requirements.txt includes all dependencies used.  
+7. Add comments for clarity and maintainability.  
+8. Verify deployment runs error-free on Render using:
+   `bash
+   gunicorn main:app
+
+and local mode via:
+
+python main.py
+
+🧠 Finally:
+
+Debug and automatically repair any logic, import, or async issues.
+
+Recheck that the bot responds correctly on Telegram after /start and /help.
+
+Validate webhook URL and update it automatically during deployment.
+
+
+Make sure the final output code is clean, professional, and production-ready for Render + Replit + VPS.
+
+---
