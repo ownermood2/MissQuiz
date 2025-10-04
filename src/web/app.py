@@ -1,6 +1,8 @@
 import os
 import logging
 import asyncio
+import threading
+from concurrent.futures import Future
 from flask import Flask, render_template, jsonify, request
 from telegram import Update
 
@@ -11,6 +13,20 @@ root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 quiz_manager = None
 telegram_bot = None
+event_loop = None
+loop_thread = None
+
+def start_background_loop(loop: asyncio.AbstractEventLoop) -> None:
+    """Run event loop in background thread"""
+    asyncio.set_event_loop(loop)
+    loop.run_forever()
+
+def run_coroutine_threadsafe(coro, loop):
+    """Submit coroutine to background event loop and return immediately"""
+    if loop and loop.is_running():
+        asyncio.run_coroutine_threadsafe(coro, loop)
+    else:
+        logger.error("Event loop not running, cannot process update")
 
 def create_app():
     """Flask app factory - creates and initializes app"""
@@ -94,8 +110,8 @@ async def init_bot():
         raise
 
 def init_bot_webhook(webhook_url: str):
-    """Initialize bot in webhook mode - called by main.py"""
-    global telegram_bot, quiz_manager
+    """Initialize bot in webhook mode with persistent event loop"""
+    global telegram_bot, quiz_manager, event_loop, loop_thread
     try:
         from src.bot.handlers import TelegramQuizBot
         from src.core.quiz import QuizManager
@@ -108,8 +124,19 @@ def init_bot_webhook(webhook_url: str):
             quiz_manager = QuizManager()
             logger.info("Quiz Manager initialized for webhook mode")
         
+        # Create persistent event loop in background thread
+        event_loop = asyncio.new_event_loop()
+        loop_thread = threading.Thread(target=start_background_loop, args=(event_loop,), daemon=True)
+        loop_thread.start()
+        logger.info("Started persistent event loop in background thread")
+        
+        # Initialize bot using the persistent loop
         telegram_bot = TelegramQuizBot(quiz_manager)
-        asyncio.run(telegram_bot.initialize_webhook(token, webhook_url))
+        future = asyncio.run_coroutine_threadsafe(
+            telegram_bot.initialize_webhook(token, webhook_url),
+            event_loop
+        )
+        future.result(timeout=30)  # Wait for initialization to complete
         
         logger.info(f"Webhook bot initialized with URL: {webhook_url}")
         return telegram_bot
@@ -129,7 +156,7 @@ def admin_panel():
 @app.route('/webhook', methods=['POST'])
 def webhook():
     """Webhook endpoint to receive and process Telegram updates"""
-    global telegram_bot
+    global telegram_bot, event_loop
     
     try:
         if not telegram_bot or not telegram_bot.application:
@@ -142,9 +169,11 @@ def webhook():
         
         update = Update.de_json(update_data, telegram_bot.application.bot)
         
-        # Process update in new async context (Flask-compatible approach)
-        # This creates a fresh event loop for each request
-        asyncio.run(telegram_bot.application.process_update(update))
+        # Submit update to persistent event loop (non-blocking)
+        run_coroutine_threadsafe(
+            telegram_bot.application.process_update(update),
+            event_loop
+        )
         
         return jsonify({'status': 'ok'}), 200
         
