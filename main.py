@@ -46,12 +46,21 @@ async def send_restart_confirmation(config: Config):
 
 async def run_polling_mode(config: Config):
     """Run bot in polling mode"""
+    from telegram import Bot
     from src.core.quiz import QuizManager
     from src.core.database import DatabaseManager
     from src.bot.handlers import TelegramQuizBot
     from src.web.app import app
     
     logger.info("Starting in POLLING mode")
+    
+    # CRITICAL: Delete any existing webhook to prevent conflicts
+    try:
+        temp_bot = Bot(token=config.telegram_token)
+        await temp_bot.delete_webhook(drop_pending_updates=True)
+        logger.info("✅ Deleted webhook - polling mode ready")
+    except Exception as e:
+        logger.warning(f"Could not delete webhook: {e}")
     
     flask_thread = threading.Thread(
         target=lambda: app.run(host='0.0.0.0', port=config.port, use_reloader=False, debug=False),
