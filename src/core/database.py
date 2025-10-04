@@ -1,6 +1,10 @@
-"""
-Database Manager for Telegram Quiz Bot
-Handles all SQLite database operations for quizzes, users, developers, groups, and statistics
+"""Database Manager for Telegram Quiz Bot.
+
+This module provides comprehensive database management for the quiz bot,
+handling all SQLite database operations including quiz questions, user
+statistics, developer management, group tracking, and activity logging.
+It uses context managers for safe database connections and implements
+WAL mode for improved concurrency.
 """
 
 import sqlite3
@@ -16,10 +20,31 @@ logger = logging.getLogger(__name__)
 
 
 class DatabaseManager:
-    """Manages all database operations for the quiz bot"""
+    """Manages all database operations for the quiz bot.
+    
+    This class provides a centralized interface for all database operations
+    including questions, users, groups, developers, quiz history, broadcasts,
+    and activity logging. It handles schema initialization, migrations,
+    and ensures data integrity through proper transaction management.
+    
+    The database uses SQLite with WAL (Write-Ahead Logging) mode enabled
+    for better concurrency performance.
+    """
     
     def __init__(self, db_path: str = None):
-        """Initialize database manager"""
+        """Initialize database manager and set up schema.
+        
+        Creates database connection, initializes schema if needed, and runs
+        any pending migrations. The database file will be created if it
+        doesn't exist.
+        
+        Args:
+            db_path (str, optional): Path to SQLite database file.
+                                    Defaults to config.DATABASE_PATH.
+        
+        Raises:
+            DatabaseError: If database initialization or migration fails
+        """
         self.db_path = db_path or config.DATABASE_PATH
         try:
             self.init_database()
@@ -42,7 +67,17 @@ class DatabaseManager:
     
     @contextmanager
     def get_connection(self):
-        """Context manager for database connections"""
+        """Context manager for database connections with automatic transaction handling.
+        
+        Provides a safe database connection that automatically commits on success
+        and rolls back on errors. Enables WAL mode for improved concurrency.
+        
+        Yields:
+            sqlite3.Connection: Database connection with row_factory set to sqlite3.Row
+        
+        Raises:
+            DatabaseError: If connection fails or transaction errors occur
+        """
         try:
             conn = sqlite3.connect(self.db_path)
             conn.row_factory = sqlite3.Row
@@ -68,7 +103,16 @@ class DatabaseManager:
             raise DatabaseError(f"Failed to connect to database at {self.db_path}: {e}") from e
     
     def init_database(self):
-        """Initialize database schema"""
+        """Initialize database schema with all required tables and indexes.
+        
+        Creates all necessary tables for questions, users, developers, groups,
+        quiz history, broadcasts, and activity logging. Also creates indexes
+        for optimal query performance and runs schema migrations for any
+        missing columns.
+        
+        Raises:
+            DatabaseError: If schema creation or migration fails
+        """
         with self.get_connection() as conn:
             cursor = conn.cursor()
             
@@ -308,7 +352,19 @@ class DatabaseManager:
             logger.info("Database schema initialized successfully with optimized indexes")
     
     def add_question(self, question: str, options: List[str], correct_answer: int) -> int:
-        """Add a new quiz question"""
+        """Add a new quiz question to the database.
+        
+        Args:
+            question (str): The question text
+            options (List[str]): List of 4 answer options
+            correct_answer (int): Index of the correct answer (0-3)
+        
+        Returns:
+            int: ID of the newly created question
+        
+        Raises:
+            DatabaseError: If question insertion fails
+        """
         with self.get_connection() as conn:
             cursor = conn.cursor()
             options_json = json.dumps(options)
@@ -319,7 +375,15 @@ class DatabaseManager:
             return cursor.lastrowid
     
     def get_all_questions(self) -> List[Dict]:
-        """Get all quiz questions"""
+        """Get all quiz questions from the database.
+        
+        Returns:
+            List[Dict]: List of question dictionaries with keys:
+                       'id', 'question', 'options', 'correct_answer'
+        
+        Raises:
+            DatabaseError: If query fails
+        """
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('SELECT * FROM questions ORDER BY id')
@@ -335,7 +399,17 @@ class DatabaseManager:
             ]
     
     def get_questions_by_category(self, category: str) -> List[Dict]:
-        """Get quiz questions filtered by category"""
+        """Get quiz questions filtered by category.
+        
+        Args:
+            category (str): Category name to filter by
+        
+        Returns:
+            List[Dict]: List of question dictionaries matching the category
+        
+        Raises:
+            DatabaseError: If query fails
+        """
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('SELECT * FROM questions WHERE category = ? ORDER BY id', (category,))
@@ -352,14 +426,37 @@ class DatabaseManager:
             ]
     
     def delete_question(self, question_id: int) -> bool:
-        """Delete a quiz question"""
+        """Delete a quiz question by ID.
+        
+        Args:
+            question_id (int): ID of the question to delete
+        
+        Returns:
+            bool: True if question was deleted, False if not found
+        
+        Raises:
+            DatabaseError: If deletion fails
+        """
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('DELETE FROM questions WHERE id = ?', (question_id,))
             return cursor.rowcount > 0
     
     def update_question(self, question_id: int, question: str, options: List[str], correct_answer: int) -> bool:
-        """Update a quiz question"""
+        """Update an existing quiz question.
+        
+        Args:
+            question_id (int): ID of the question to update
+            question (str): New question text
+            options (List[str]): New list of 4 answer options
+            correct_answer (int): New index of correct answer (0-3)
+        
+        Returns:
+            bool: True if question was updated, False if not found
+        
+        Raises:
+            DatabaseError: If update fails
+        """
         with self.get_connection() as conn:
             cursor = conn.cursor()
             options_json = json.dumps(options)
@@ -371,7 +468,19 @@ class DatabaseManager:
             return cursor.rowcount > 0
     
     def add_or_update_user(self, user_id: int, username: str = None, first_name: str = None, last_name: str = None):
-        """Add or update user information"""
+        """Add a new user or update existing user information.
+        
+        Uses UPSERT (INSERT OR UPDATE) to handle both new and existing users.
+        
+        Args:
+            user_id (int): Telegram user ID
+            username (str, optional): Telegram username
+            first_name (str, optional): User's first name
+            last_name (str, optional): User's last name
+        
+        Raises:
+            DatabaseError: If operation fails
+        """
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
@@ -385,7 +494,20 @@ class DatabaseManager:
             ''', (user_id, username, first_name, last_name))
     
     def update_user_score(self, user_id: int, is_correct: bool, activity_date: str = None):
-        """Update user score and statistics"""
+        """Update user score and statistics after answering a question.
+        
+        Updates user's current score, total quizzes, correct/wrong answers,
+        success rate, and daily activity tracking.
+        
+        Args:
+            user_id (int): Telegram user ID
+            is_correct (bool): Whether the answer was correct
+            activity_date (str, optional): Date in YYYY-MM-DD format.
+                                          Defaults to today.
+        
+        Raises:
+            DatabaseError: If update fails
+        """
         if not activity_date:
             activity_date = datetime.now().strftime('%Y-%m-%d')
         
@@ -433,7 +555,18 @@ class DatabaseManager:
                   1 if is_correct else 0, 0 if is_correct else 1))
     
     def get_user_stats(self, user_id: int) -> Optional[Dict]:
-        """Get user statistics"""
+        """Get comprehensive statistics for a user.
+        
+        Args:
+            user_id (int): Telegram user ID
+        
+        Returns:
+            Optional[Dict]: User statistics dictionary if found, None otherwise.
+                          Contains score, quizzes, success_rate, etc.
+        
+        Raises:
+            DatabaseError: If query fails
+        """
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,))
@@ -443,28 +576,59 @@ class DatabaseManager:
             return None
     
     def get_all_users_stats(self) -> List[Dict]:
-        """Get all users statistics"""
+        """Get statistics for all users ordered by score.
+        
+        Returns:
+            List[Dict]: List of user statistics dictionaries sorted by current_score
+        
+        Raises:
+            DatabaseError: If query fails
+        """
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('SELECT * FROM users ORDER BY current_score DESC')
             return [dict(row) for row in cursor.fetchall()]
     
     def get_active_users(self) -> List[Dict]:
-        """Get only active users who have taken at least one quiz (can receive broadcasts)"""
+        """Get only active users who have taken at least one quiz.
+        
+        Returns users who can receive broadcasts (have participated in quizzes).
+        
+        Returns:
+            List[Dict]: List of active user statistics sorted by current_score
+        
+        Raises:
+            DatabaseError: If query fails
+        """
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('SELECT * FROM users WHERE total_quizzes > 0 ORDER BY current_score DESC')
             return [dict(row) for row in cursor.fetchall()]
     
     def get_pm_accessible_users(self) -> List[Dict]:
-        """Get only users who have started a PM conversation with the bot"""
+        """Get users who have started a private message conversation with the bot.
+        
+        Returns:
+            List[Dict]: List of users with PM access sorted by current_score
+        
+        Raises:
+            DatabaseError: If query fails
+        """
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('SELECT * FROM users WHERE has_pm_access = 1 ORDER BY current_score DESC')
             return [dict(row) for row in cursor.fetchall()]
     
     def set_user_pm_access(self, user_id: int, has_access: bool = True):
-        """Mark that a user has started a PM conversation"""
+        """Mark that a user has started a private message conversation.
+        
+        Args:
+            user_id (int): Telegram user ID
+            has_access (bool): Whether user has PM access. Defaults to True.
+        
+        Raises:
+            DatabaseError: If update fails
+        """
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
@@ -475,7 +639,18 @@ class DatabaseManager:
     
     def add_developer(self, user_id: int, username: str = None, first_name: str = None, 
                      last_name: str = None, added_by: int = None):
-        """Add a developer"""
+        """Add a developer with administrative privileges.
+        
+        Args:
+            user_id (int): Telegram user ID
+            username (str, optional): Telegram username
+            first_name (str, optional): First name
+            last_name (str, optional): Last name
+            added_by (int, optional): User ID who added this developer
+        
+        Raises:
+            DatabaseError: If insertion fails
+        """
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
@@ -484,21 +659,50 @@ class DatabaseManager:
             ''', (user_id, username, first_name, last_name, added_by))
     
     def remove_developer(self, user_id: int) -> bool:
-        """Remove a developer"""
+        """Remove a developer's administrative privileges.
+        
+        Args:
+            user_id (int): Telegram user ID
+        
+        Returns:
+            bool: True if developer was removed, False if not found
+        
+        Raises:
+            DatabaseError: If deletion fails
+        """
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('DELETE FROM developers WHERE user_id = ?', (user_id,))
             return cursor.rowcount > 0
     
     def get_all_developers(self) -> List[Dict]:
-        """Get all developers"""
+        """Get all developers ordered by when they were added.
+        
+        Returns:
+            List[Dict]: List of developer information dictionaries
+        
+        Raises:
+            DatabaseError: If query fails
+        """
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('SELECT * FROM developers ORDER BY added_at')
             return [dict(row) for row in cursor.fetchall()]
     
     def is_developer(self, user_id: int) -> bool:
-        """Check if user is a developer"""
+        """Check if a user has developer privileges.
+        
+        Checks both authorized users from config and developers table.
+        
+        Args:
+            user_id (int): Telegram user ID
+        
+        Returns:
+            bool: True if user is a developer, False otherwise
+        
+        Raises:
+            DatabaseError: If query fails
+        """
         if user_id in config.AUTHORIZED_USERS:
             return True
         
@@ -508,7 +712,16 @@ class DatabaseManager:
             return cursor.fetchone() is not None
     
     def add_or_update_group(self, chat_id: int, chat_title: str = None, chat_type: str = None):
-        """Add or update group information"""
+        """Add a new group or update existing group information.
+        
+        Args:
+            chat_id (int): Telegram chat ID
+            chat_title (str, optional): Group title
+            chat_type (str, optional): Type of chat (group, supergroup, etc.)
+        
+        Raises:
+            DatabaseError: If operation fails
+        """
         activity_date = datetime.now().strftime('%Y-%m-%d')
         with self.get_connection() as conn:
             cursor = conn.cursor()
@@ -524,7 +737,18 @@ class DatabaseManager:
             ''', (chat_id, chat_title, chat_type, activity_date))
     
     def get_all_groups(self, active_only: bool = True) -> List[Dict]:
-        """Get all groups"""
+        """Get all groups from the database.
+        
+        Args:
+            active_only (bool): If True, return only active groups. 
+                              Defaults to True.
+        
+        Returns:
+            List[Dict]: List of group information dictionaries sorted by last activity
+        
+        Raises:
+            DatabaseError: If query fails
+        """
         with self.get_connection() as conn:
             cursor = conn.cursor()
             if active_only:
@@ -534,7 +758,14 @@ class DatabaseManager:
             return [dict(row) for row in cursor.fetchall()]
     
     def increment_group_quiz_count(self, chat_id: int):
-        """Increment quiz count for a group"""
+        """Increment quiz count for a group.
+        
+        Args:
+            chat_id (int): Telegram chat ID.
+        
+        Raises:
+            DatabaseError: If update fails.
+        """
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
@@ -546,7 +777,19 @@ class DatabaseManager:
     
     def record_quiz_answer(self, user_id: int, chat_id: int, question_id: int, 
                           question_text: str, user_answer: int, correct_answer: int):
-        """Record a quiz answer in history"""
+        """Record a quiz answer in history.
+        
+        Args:
+            user_id (int): Telegram user ID.
+            chat_id (int): Telegram chat ID.
+            question_id (int): ID of the question answered.
+            question_text (str): Text of the question.
+            user_answer (int): Index of user's answer (0-3).
+            correct_answer (int): Index of correct answer (0-3).
+        
+        Raises:
+            DatabaseError: If insertion fails.
+        """
         is_correct = 1 if user_answer == correct_answer else 0
         with self.get_connection() as conn:
             cursor = conn.cursor()
@@ -669,7 +912,19 @@ class DatabaseManager:
             return False
     
     def save_broadcast(self, broadcast_id: str, sender_id: int, message_data: dict) -> bool:
-        """Save broadcast data to database"""
+        """Save broadcast data to database.
+        
+        Args:
+            broadcast_id (str): Unique broadcast identifier.
+            sender_id (int): Telegram user ID of sender.
+            message_data (dict): Broadcast message data.
+        
+        Returns:
+            bool: True if saved successfully, False otherwise.
+        
+        Raises:
+            DatabaseError: If insertion fails.
+        """
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
@@ -683,7 +938,14 @@ class DatabaseManager:
             return False
     
     def get_latest_broadcast(self) -> Optional[Dict]:
-        """Get the most recent broadcast"""
+        """Get the most recent broadcast.
+        
+        Returns:
+            Optional[Dict]: Most recent broadcast data if found, None otherwise.
+        
+        Raises:
+            DatabaseError: If query fails.
+        """
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
@@ -707,7 +969,17 @@ class DatabaseManager:
             return None
     
     def delete_broadcast(self, broadcast_id: str) -> bool:
-        """Delete broadcast from database"""
+        """Delete broadcast from database.
+        
+        Args:
+            broadcast_id (str): Unique broadcast identifier.
+        
+        Returns:
+            bool: True if deleted successfully, False otherwise.
+        
+        Raises:
+            DatabaseError: If deletion fails.
+        """
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
@@ -718,7 +990,19 @@ class DatabaseManager:
             return False
     
     def remove_inactive_user(self, user_id: int) -> bool:
-        """Remove inactive user from database (blocked bot or deactivated)"""
+        """Remove inactive user from database.
+        
+        Used when user has blocked the bot or deactivated their account.
+        
+        Args:
+            user_id (int): Telegram user ID.
+        
+        Returns:
+            bool: True if removed successfully, False otherwise.
+        
+        Raises:
+            DatabaseError: If deletion fails.
+        """
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
@@ -732,7 +1016,19 @@ class DatabaseManager:
             return False
     
     def remove_inactive_group(self, chat_id: int) -> bool:
-        """Remove inactive group from database (bot was kicked or not a member)"""
+        """Remove inactive group from database.
+        
+        Used when bot was kicked or is no longer a member.
+        
+        Args:
+            chat_id (int): Telegram chat ID.
+        
+        Returns:
+            bool: True if removed successfully, False otherwise.
+        
+        Raises:
+            DatabaseError: If deletion fails.
+        """
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
@@ -746,7 +1042,17 @@ class DatabaseManager:
             return False
     
     def update_last_quiz_message(self, chat_id: int, message_id: int):
-        """Store last quiz message ID for a chat (user or group)"""
+        """Store last quiz message ID for a chat.
+        
+        Used to track the last quiz message sent to a user or group.
+        
+        Args:
+            chat_id (int): Telegram chat ID (user or group).
+            message_id (int): Telegram message ID of the quiz.
+        
+        Raises:
+            DatabaseError: If update fails.
+        """
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
@@ -769,7 +1075,19 @@ class DatabaseManager:
             logger.error(f"Error updating last quiz message for chat {chat_id}: {e}")
     
     def get_last_quiz_message(self, chat_id: int) -> Optional[int]:
-        """Get last quiz message ID for a chat (user or group)"""
+        """Get last quiz message ID for a chat.
+        
+        Retrieves the message ID of the last quiz sent to a user or group.
+        
+        Args:
+            chat_id (int): Telegram chat ID (user or group).
+        
+        Returns:
+            Optional[int]: Message ID if found, None otherwise.
+        
+        Raises:
+            DatabaseError: If query fails.
+        """
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
@@ -788,7 +1106,14 @@ class DatabaseManager:
             return None
     
     def increment_quiz_count(self, date: str = None):
-        """Increment quiz count for specific date"""
+        """Increment quiz count for specific date.
+        
+        Args:
+            date (str, optional): Date in YYYY-MM-DD format. Defaults to today.
+        
+        Raises:
+            DatabaseError: If update fails.
+        """
         if not date:
             date = datetime.now().strftime('%Y-%m-%d')
         
@@ -806,7 +1131,14 @@ class DatabaseManager:
             logger.error(f"Error incrementing quiz count for date {date}: {e}")
     
     def get_quiz_stats_today(self) -> int:
-        """Get today's quiz count"""
+        """Get today's quiz count.
+        
+        Returns:
+            int: Number of quizzes sent today.
+        
+        Raises:
+            DatabaseError: If query fails.
+        """
         today = datetime.now().strftime('%Y-%m-%d')
         try:
             with self.get_connection() as conn:
@@ -819,7 +1151,14 @@ class DatabaseManager:
             return 0
     
     def get_quiz_stats_week(self) -> int:
-        """Get this week's quiz count"""
+        """Get this week's quiz count.
+        
+        Returns:
+            int: Number of quizzes sent this week (Monday to today).
+        
+        Raises:
+            DatabaseError: If query fails.
+        """
         from datetime import timedelta
         today = datetime.now()
         week_start = (today - timedelta(days=today.weekday())).strftime('%Y-%m-%d')
@@ -839,7 +1178,14 @@ class DatabaseManager:
             return 0
     
     def get_quiz_stats_month(self) -> int:
-        """Get this month's quiz count"""
+        """Get this month's quiz count.
+        
+        Returns:
+            int: Number of quizzes sent this month.
+        
+        Raises:
+            DatabaseError: If query fails.
+        """
         month_start = datetime.now().replace(day=1).strftime('%Y-%m-%d')
         
         try:
@@ -857,7 +1203,14 @@ class DatabaseManager:
             return 0
     
     def get_quiz_stats_alltime(self) -> int:
-        """Get all-time quiz count"""
+        """Get all-time quiz count.
+        
+        Returns:
+            int: Total number of quizzes sent since inception.
+        
+        Raises:
+            DatabaseError: If query fails.
+        """
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
@@ -869,12 +1222,33 @@ class DatabaseManager:
             return 0
     
     def get_total_quizzes_sent(self) -> int:
-        """Sum all quiz counts (alias for get_quiz_stats_alltime)"""
+        """Sum all quiz counts.
+        
+        Alias for get_quiz_stats_alltime().
+        
+        Returns:
+            int: Total number of quizzes sent since inception.
+        
+        Raises:
+            DatabaseError: If query fails.
+        """
         return self.get_quiz_stats_alltime()
     
     def log_broadcast(self, admin_id: int, message_text: str, total_targets: int, 
                      sent_count: int, failed_count: int, skipped_count: int):
-        """Log broadcast to database for historical tracking"""
+        """Log broadcast to database for historical tracking.
+        
+        Args:
+            admin_id (int): Telegram user ID of admin who sent broadcast.
+            message_text (str): Text content of the broadcast.
+            total_targets (int): Total number of targets (users/groups).
+            sent_count (int): Number of successful sends.
+            failed_count (int): Number of failed sends.
+            skipped_count (int): Number of skipped targets.
+        
+        Raises:
+            DatabaseError: If insertion fails.
+        """
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
@@ -890,20 +1264,22 @@ class DatabaseManager:
     def log_activity(self, activity_type: str, user_id: int = None, chat_id: int = None, 
                     username: str = None, chat_title: str = None, command: str = None, 
                     details: dict = None, success: bool = True, response_time_ms: int = None):
-        """
-        Log activity to the activity_logs table immediately
+        """Log activity to the activity_logs table immediately.
         
         Args:
-            activity_type: Type of activity ('command', 'quiz_sent', 'quiz_answer', 'broadcast', 
-                          'user_join', 'group_join', 'error', 'api_call')
-            user_id: User ID (optional)
-            chat_id: Chat ID (optional)
-            username: Username (optional)
-            chat_title: Chat title (optional)
-            command: Command name for command activities (optional)
-            details: Dictionary with extra data, will be converted to JSON (optional)
-            success: Whether the activity was successful (default: True)
-            response_time_ms: Response time in milliseconds (optional)
+            activity_type (str): Type of activity ('command', 'quiz_sent', 'quiz_answer', 
+                               'broadcast', 'user_join', 'group_join', 'error', 'api_call').
+            user_id (int, optional): User ID.
+            chat_id (int, optional): Chat ID.
+            username (str, optional): Username.
+            chat_title (str, optional): Chat title.
+            command (str, optional): Command name for command activities.
+            details (dict, optional): Dictionary with extra data, will be converted to JSON.
+            success (bool): Whether the activity was successful. Defaults to True.
+            response_time_ms (int, optional): Response time in milliseconds.
+        
+        Raises:
+            DatabaseError: If insertion fails.
         """
         try:
             timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')

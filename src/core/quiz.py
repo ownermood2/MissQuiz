@@ -1,3 +1,11 @@
+"""Quiz Manager for Telegram Quiz Bot.
+
+This module provides the core quiz management functionality including question
+selection, user scoring, leaderboards, and statistics tracking. It manages
+both file-based and database-backed storage with intelligent caching to
+optimize performance while ensuring data consistency.
+"""
+
 import json
 import random
 import os
@@ -12,8 +20,41 @@ from src.core.exceptions import QuestionNotFoundError, ValidationError, Database
 logger = logging.getLogger(__name__)
 
 class QuizManager:
+    """Manages quiz operations, scoring, and statistics.
+    
+    This class serves as the central coordinator for all quiz-related operations.
+    It handles question management, user score tracking, leaderboard generation,
+    and comprehensive statistics. The manager uses both file-based storage for
+    quick access and database storage for persistence.
+    
+    Key features:
+    - Intelligent question selection avoiding recently asked questions
+    - Real-time score tracking and leaderboard updates
+    - Group and private chat statistics
+    - Question caching for improved performance
+    - Automatic data synchronization and cleanup
+    
+    Attributes:
+        questions_file (str): Path to questions JSON file
+        scores_file (str): Path to scores JSON file
+        active_chats_file (str): Path to active chats JSON file
+        stats_file (str): Path to user stats JSON file
+        db (DatabaseManager): Database manager instance
+        questions (List[Dict]): Loaded quiz questions
+        scores (Dict): User scores dictionary
+        active_chats (List): List of active chat IDs
+        stats (Dict): User statistics dictionary
+    """
+    
     def __init__(self):
-        """Initialize the quiz manager with proper data structures and caching"""
+        """Initialize the quiz manager with proper data structures and caching.
+        
+        Sets up file paths, initializes database connection, creates caching
+        structures for questions and leaderboards, and loads all quiz data.
+        
+        Raises:
+            DatabaseError: If database initialization or data loading fails
+        """
         # Initialize file paths
         self.questions_file = "data/questions.json"
         self.scores_file = "data/scores.json"
@@ -50,7 +91,13 @@ class QuizManager:
         self.load_data()
 
     def _initialize_files(self):
-        """Initialize data files with proper error handling"""
+        """Initialize data files with proper error handling.
+        
+        Creates the data directory and default JSON files if they don't exist.
+        
+        Raises:
+            DatabaseError: If directory or file creation fails
+        """
         try:
             os.makedirs("data", exist_ok=True)
             default_files = {
@@ -71,7 +118,15 @@ class QuizManager:
             raise DatabaseError(f"Unexpected error during file initialization: {e}") from e
 
     def load_data(self):
-        """Load all data with proper error handling"""
+        """Load all quiz data from files with proper error handling.
+        
+        Loads questions, scores, active chats, and user statistics from JSON
+        files. Validates and cleans question data, removing invalid entries
+        and normalizing formats.
+        
+        Raises:
+            DatabaseError: If data loading or validation fails
+        """
         try:
             # Load questions from file
             try:
@@ -156,7 +211,18 @@ class QuizManager:
             raise DatabaseError(f"Unexpected error during data loading: {e}") from e
 
     def save_data(self, force=False):
-        """Save data with throttling to prevent excessive writes"""
+        """Save data with throttling to prevent excessive writes.
+        
+        Saves all data to JSON files with automatic throttling to reduce I/O.
+        Uses a 5-minute interval between saves unless forced.
+        
+        Args:
+            force (bool): If True, bypass throttling and save immediately.
+                        Defaults to False.
+        
+        Raises:
+            DatabaseError: If file write operations fail
+        """
         current_time = datetime.now()
         if not force and current_time - self._last_save < self._save_interval:
             return
@@ -185,7 +251,14 @@ class QuizManager:
             raise DatabaseError(f"Unexpected error during data save: {e}") from e
 
     def _init_user_stats(self, user_id: str) -> None:
-        """Initialize stats for a new user with enhanced tracking"""
+        """Initialize stats for a new user with enhanced tracking.
+        
+        Creates a complete stats structure for new users including daily
+        activity, category scores, streaks, and group participation.
+        
+        Args:
+            user_id (str): User ID as string
+        """
         current_date = datetime.now().strftime('%Y-%m-%d')
         self.stats[user_id] = {
             'total_quizzes': 0,
@@ -211,7 +284,27 @@ class QuizManager:
         }
 
     def get_user_stats(self, user_id: int) -> Dict:
-        """Get comprehensive stats for a user - always returns a valid dict"""
+        """Get comprehensive stats for a user.
+        
+        Retrieves and calculates user statistics including total quizzes,
+        correct answers, success rate, streaks, and activity metrics.
+        Always returns a valid dictionary, even for new users.
+        
+        Args:
+            user_id (int): Telegram user ID
+        
+        Returns:
+            Dict: User statistics dictionary with keys:
+                - total_quizzes: Total quiz attempts
+                - correct_answers: Number of correct answers
+                - success_rate: Percentage of correct answers
+                - current_score: Current score
+                - today_quizzes: Attempts today
+                - week_quizzes: Attempts this week
+                - month_quizzes: Attempts this month
+                - current_streak: Current correct answer streak
+                - longest_streak: Best streak achieved
+        """
         try:
             user_id_str = str(user_id)
             current_date = datetime.now().strftime('%Y-%m-%d')
@@ -311,7 +404,23 @@ class QuizManager:
             }
 
     def get_group_leaderboard(self, chat_id: int) -> Dict:
-        """Get group-specific leaderboard with detailed analytics"""
+        """Get group-specific leaderboard with detailed analytics.
+        
+        Generates comprehensive leaderboard and statistics for a specific group
+        chat, including user rankings, activity metrics, and group performance.
+        
+        Args:
+            chat_id (int): Telegram chat ID
+        
+        Returns:
+            Dict: Leaderboard data with keys:
+                - total_quizzes: Total group quiz attempts
+                - total_correct: Total correct answers
+                - group_accuracy: Overall success rate
+                - active_users: Activity breakdown (today/week/month/total)
+                - leaderboard: Top 20 users with stats
+                - group_streak: Group's active streak
+        """
         chat_id_str = str(chat_id)
         current_date = datetime.now()
         today = current_date.strftime('%Y-%m-%d')
@@ -388,7 +497,19 @@ class QuizManager:
         }
 
     def record_group_attempt(self, user_id: int, chat_id: int, is_correct: bool) -> None:
-        """Record a quiz attempt for a user in a specific group with timestamp"""
+        """Record a quiz attempt for a user in a specific group.
+        
+        Updates group-specific statistics including attempts, correct answers,
+        score, daily activity, and streak tracking.
+        
+        Args:
+            user_id (int): Telegram user ID
+            chat_id (int): Telegram chat ID
+            is_correct (bool): Whether the answer was correct
+        
+        Raises:
+            DatabaseError: If recording fails
+        """
         try:
             user_id_str = str(user_id)
             chat_id_str = str(chat_id)
@@ -453,7 +574,13 @@ class QuizManager:
             raise DatabaseError(f"Failed to record group attempt: {e}") from e
 
     def _initialize_available_questions(self, chat_id: int):
-        """Initialize or reset available questions for a chat"""
+        """Initialize or reset available questions pool for a chat.
+        
+        Creates a shuffled list of all available question indices for the chat.
+        
+        Args:
+            chat_id (int): Telegram chat ID
+        """
         self.available_questions[chat_id] = list(range(len(self.questions)))
         random.shuffle(self.available_questions[chat_id])
         logger.info(f"Initialized question pool for chat {chat_id} with {len(self.questions)} questions")
@@ -565,7 +692,14 @@ class QuizManager:
             return None
 
     def get_leaderboard(self) -> List[Dict]:
-        """Get global leaderboard with caching"""
+        """Get global leaderboard with caching.
+        
+        Retrieves top 10 users sorted by score, accuracy, and streak.
+        Uses 5-minute cache to reduce computation.
+        
+        Returns:
+            List[Dict]: Top 10 users with their statistics.
+        """
         current_time = datetime.now()
 
         # Force refresh cache if it's stale
@@ -607,15 +741,19 @@ class QuizManager:
         return self._cached_leaderboard
 
     def record_attempt(self, user_id: int, is_correct: bool, category: str = ""):
-        """Record a quiz attempt for a user in real-time
+        """Record a quiz attempt for a user in real-time.
+        
+        Updates user statistics, daily activity, scores, and streaks based on
+        the quiz answer.  Does not save to disk to reduce I/O overhead.
         
         Args:
-            user_id: User's Telegram ID (must be positive)
-            is_correct: Whether the answer was correct
-            category: Question category (use empty string if no category)
+            user_id (int): User's Telegram ID (must be positive).
+            is_correct (bool): Whether the answer was correct.
+            category (str): Question category. Defaults to empty string.
             
         Raises:
-            ValueError: If user_id is invalid or category is invalid type
+            ValidationError: If user_id is invalid or category is invalid type.
+            DatabaseError: If recording fails.
         """
         # Input validation
         if user_id <= 0:
@@ -815,7 +953,18 @@ class QuizManager:
         return stats
 
     def edit_question(self, index: int, data: Dict):
-        """Edit an existing question with validation"""
+        """Edit an existing question with validation.
+        
+        Validates question data and updates the question at the specified index.
+        
+        Args:
+            index (int): Index of question to edit (0-based).
+            data (Dict): Question data with 'question', 'options', 'correct_answer' keys.
+        
+        Raises:
+            ValidationError: If index is out of range or question data is invalid.
+            DatabaseError: If save fails.
+        """
         if not (0 <= index < len(self.questions)):
             raise ValidationError(f"Question index {index} out of range (0-{len(self.questions)-1})")
         
@@ -855,7 +1004,15 @@ class QuizManager:
         logger.info(f"Edited question {index}: {question[:50]}...")
     
     def delete_question(self, index: int):
-        """Delete a question with validation and forced save"""
+        """Delete a question with validation.
+        
+        Args:
+            index (int): Index of question to delete (0-based).
+        
+        Raises:
+            ValidationError: If index is out of range.
+            DatabaseError: If save fails.
+        """
         if not (0 <= index < len(self.questions)):
             raise ValidationError(f"Question index {index} out of range (0-{len(self.questions)-1})")
         
@@ -864,7 +1021,17 @@ class QuizManager:
         logger.info(f"Deleted question {index}: {deleted['question'][:50]}...")
 
     def get_all_questions(self) -> List[Dict]:
-        """Get all questions with proper loading"""
+        """Get all questions from storage.
+        
+        Reloads questions from file to ensure latest data is returned.
+        Falls back to cached questions if file read fails.
+        
+        Returns:
+            List[Dict]: List of all quiz questions.
+        
+        Raises:
+            DatabaseError: If reload fails critically.
+        """
         try:
             # Reload questions from file to ensure we have latest data
             with open(self.questions_file, 'r') as f:
@@ -876,7 +1043,17 @@ class QuizManager:
             return self.questions  # Return cached questions as fallback
 
     def increment_score(self, user_id: int):
-        """Increment user's score and synchronize with statistics"""
+        """Increment user's score and synchronize with statistics.
+        
+        Updates both scores and stats dictionaries to keep them in sync.
+        Records the attempt and saves data.
+        
+        Args:
+            user_id (int): Telegram user ID.
+        
+        Raises:
+            DatabaseError: If save fails.
+        """
         user_id_str = str(user_id)
         if user_id_str not in self.stats:
             self._init_user_stats(user_id_str)
@@ -896,10 +1073,27 @@ class QuizManager:
         self.save_data()
 
     def get_score(self, user_id: int) -> int:
+        """Get user's current score.
+        
+        Args:
+            user_id (int): Telegram user ID.
+        
+        Returns:
+            int: User's current score (0 if user not found).
+        """
         return self.scores.get(str(user_id), 0)
 
     def add_active_chat(self, chat_id: int):
-        """Add a chat to active chats with proper initialization"""
+        """Add a chat to active chats.
+        
+        Initializes tracking structures for question history and saves changes.
+        
+        Args:
+            chat_id (int): Telegram chat ID.
+        
+        Raises:
+            DatabaseError: If save fails.
+        """
         try:
             if chat_id not in self.active_chats:
                 self.active_chats.append(chat_id)
@@ -1002,7 +1196,17 @@ class QuizManager:
             logger.error(f"Error in cleanup_old_questions: {e}")
 
     def validate_question(self, question: Dict) -> bool:
-        """Validate if a question's format and answer are correct"""
+        """Validate if a question's format and answer are correct.
+        
+        Checks that question has all required fields, 4 options, and a valid
+        correct_answer index.
+        
+        Args:
+            question (Dict): Question dictionary to validate
+        
+        Returns:
+            bool: True if question is valid, False otherwise
+        """
         try:
             # Basic structure validation
             if not all(key in question for key in ['question', 'options', 'correct_answer']):
@@ -1021,7 +1225,20 @@ class QuizManager:
             return False
 
     def remove_invalidquestions(self):
-        """Remove questions with invalid format or answers"""
+        """Remove questions with invalid format or answers.
+        
+        Validates all questions and removes any that don't meet requirements.
+        Automatically saves the cleaned question list.
+        
+        Returns:
+            Dict: Statistics about the cleanup with keys:
+                - initial_count: Number of questions before cleanup
+                - removed_count: Number of questions removed
+                - remaining_count: Number of valid questions remaining
+        
+        Raises:
+            DatabaseError: If validation or save fails
+        """
         try:
             initial_count = len(self.questions)
             self.questions = [q for q in self.questions if self.validate_question(q)]
@@ -1043,7 +1260,13 @@ class QuizManager:
             raise DatabaseError(f"Failed to remove invalid questions: {e}") from e
 
     def clear_all_questions(self) -> bool:
-        """Clear all questions from the database"""
+        """Clear all questions from the database.
+        
+        Removes all quiz questions and saves immediately.
+        
+        Returns:
+            bool: True if successful, False otherwise
+        """
         try:
             self.questions = []
             self.save_data(force=True)
@@ -1054,7 +1277,17 @@ class QuizManager:
             return False
 
     def reload_data(self):
-        """Reload all data while preserving state"""
+        """Reload all data while preserving state.
+        
+        Reloads data from files while merging with current state to prevent
+        data loss. Useful for refreshing data without losing in-memory changes.
+        
+        Returns:
+            bool: True if reload successful
+        
+        Raises:
+            DatabaseError: If reload fails
+        """
         try:
             logger.info("Starting full data reload...")
 
@@ -1112,7 +1345,17 @@ class QuizManager:
             raise DatabaseError(f"Failed to reload data: {e}") from e
 
     def get_group_last_activity(self, chat_id: str) -> Optional[str]:
-        """Get the last activity date for a group"""
+        """Get the last activity date for a group.
+        
+        Finds the most recent activity date across all users in the group.
+        
+        Args:
+            chat_id (str): Chat ID as string
+        
+        Returns:
+            Optional[str]: Most recent activity date in YYYY-MM-DD format,
+                          None if no activity found
+        """
         try:
             latest_activity = None
             chat_id_str = str(chat_id)
@@ -1131,7 +1374,18 @@ class QuizManager:
             return None
 
     def get_global_statistics(self) -> Dict:
-        """Get comprehensive global statistics with accurate user counting"""
+        """Get comprehensive global statistics with accurate user counting.
+        
+        Calculates and returns bot-wide statistics including user counts,
+        group activity, quiz performance, and success rates.
+        
+        Returns:
+            Dict: Global statistics with nested dictionaries:
+                - users: Total, active (today/week), private/group breakdown
+                - groups: Total, active (today/week)
+                - quizzes: Total attempts, correct answers, activity metrics
+                - performance: Success rate, available questions
+        """
         try:
             current_date = datetime.now().strftime('%Y-%m-%d')
             week_start = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
@@ -1234,7 +1488,14 @@ class QuizManager:
             }
 
     def get_group_members(self, chat_id: str) -> set:
-        """Get all members who have participated in a group"""
+        """Get all members who have participated in a group.
+        
+        Args:
+            chat_id (str): Chat ID as string
+        
+        Returns:
+            set: Set of user ID strings who have participated in the group
+        """
         members = set()
         for user_id, stats in self.stats.items():
             if 'groups' in stats and chat_id in stats['groups']:
@@ -1242,7 +1503,15 @@ class QuizManager:
         return members
 
     def track_user_activity(self, user_id: int, chat_id: int) -> None:
-        """Track user activity in real-time"""
+        """Track user activity in real-time.
+        
+        Updates last activity timestamps for users and initializes group
+        tracking if needed. Automatically saves data.
+        
+        Args:
+            user_id (int): Telegram user ID
+            chat_id (int): Telegram chat ID
+        """
         try:
             user_id_str = str(user_id)
             chat_id_str = str(chat_id)
@@ -1276,7 +1545,14 @@ class QuizManager:
             logger.error(f"Error tracking user activity: {e}")
 
     def get_active_users(self) -> List[str]:
-        """Get list of active users with improved tracking"""
+        """Get list of active users with improved tracking.
+        
+        Returns users who have been active within the last 7 days based on
+        any activity type (private chat, group participation, etc.).
+        
+        Returns:
+            List[str]: List of active user ID strings
+        """
         try:
             current_date = datetime.now().strftime('%Y-%m-%d')
             week_start = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
@@ -1309,7 +1585,12 @@ class QuizManager:
             return []
 
     def update_all_stats(self) -> None:
-        """Update all statistics in real-time with enhanced tracking"""
+        """Update all statistics in real-time with enhanced tracking.
+        
+        Ensures all user statistics have required fields, syncs with scores,
+        updates daily activity tracking, and cleans up old data.
+        Automatically saves after updates.
+        """
         try:
             current_date = datetime.now().strftime('%Y-%m-%d')
             week_start = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
@@ -1369,7 +1650,11 @@ class QuizManager:
             logger.error(f"Error updating all stats: {e}")
 
     def cleanup_old_questions(self):
-        """Cleanup old question history periodically"""
+        """Cleanup old question history periodically.
+        
+        Removes question tracking data older than 24 hours to prevent
+        memory buildup while maintaining recent question avoidance.
+        """
         try:
             current_time = datetime.now()
             cutoff_time = current_time - timedelta(hours=24)

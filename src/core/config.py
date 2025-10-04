@@ -1,6 +1,9 @@
-"""
-Configuration management for Telegram Quiz Bot
-Supports auto-detection of deployment mode (webhook vs polling)
+"""Configuration management for Telegram Quiz Bot.
+
+This module handles loading, validation, and management of bot configuration
+from environment variables. It supports auto-detection of deployment mode
+(webhook vs polling) based on available environment variables and provides
+a centralized interface for accessing configuration throughout the application.
 """
 
 import os
@@ -23,7 +26,23 @@ except ImportError:
 
 @dataclass
 class Config:
-    """Bot configuration with auto-detection of deployment mode"""
+    """Bot configuration with auto-detection of deployment mode.
+    
+    This class manages all configuration settings for the Telegram Quiz Bot.
+    It automatically loads configuration from environment variables and
+    determines the appropriate deployment mode (webhook or polling) based
+    on the presence of webhook-related environment variables.
+    
+    Attributes:
+        telegram_token (str): Telegram Bot API token for authentication
+        session_secret (str): Secret key for session management
+        owner_id (int): Telegram user ID of the bot owner
+        wifu_id (Optional[int]): Optional additional authorized user ID
+        webhook_url (Optional[str]): URL for webhook mode deployment
+        render_url (Optional[str]): Render.com deployment URL (takes precedence)
+        port (int): Port number for web server
+        database_path (str): Path to SQLite database file
+    """
     telegram_token: str
     session_secret: str
     owner_id: int
@@ -35,11 +54,20 @@ class Config:
     
     @classmethod
     def load(cls, validate: bool = False) -> 'Config':
-        """Load configuration from environment variables
+        """Load configuration from environment variables.
+        
+        Reads configuration from environment variables and creates a Config
+        instance. Optionally validates required fields immediately.
         
         Args:
-            validate: If True, validates required fields immediately.
-                     If False (default), validation happens on access.
+            validate (bool): If True, validates required fields immediately.
+                           If False (default), validation happens on access.
+        
+        Returns:
+            Config: Configured instance with settings from environment
+        
+        Raises:
+            ConfigurationError: If validate=True and required fields are missing
         """
         telegram_token = os.environ.get("TELEGRAM_TOKEN", "")
         session_secret = os.environ.get("SESSION_SECRET", "")
@@ -78,24 +106,54 @@ class Config:
         return config
     
     def validate(self):
-        """Validate required fields"""
+        """Validate required configuration fields.
+        
+        Checks that all required configuration fields are present and valid.
+        This method is called automatically if validate=True is passed to load().
+        
+        Raises:
+            ConfigurationError: If TELEGRAM_TOKEN is missing or empty
+            ConfigurationError: If SESSION_SECRET is missing or empty
+        """
         if not self.telegram_token:
             raise ConfigurationError("TELEGRAM_TOKEN environment variable is required")
         if not self.session_secret:
             raise ConfigurationError("SESSION_SECRET environment variable is required")
     
     def get_mode(self) -> str:
-        """Auto-detect deployment mode based on environment"""
+        """Auto-detect deployment mode based on environment.
+        
+        Determines whether the bot should run in webhook or polling mode
+        based on the presence of webhook-related environment variables.
+        
+        Returns:
+            str: 'webhook' if webhook_url or render_url is set, 
+                 'polling' otherwise.
+        """
         if self.webhook_url or self.render_url:
             return "webhook"
         return "polling"
     
     def get_webhook_url(self) -> Optional[str]:
-        """Get the webhook URL (RENDER_URL takes precedence)"""
+        """Get the webhook URL for deployment.
+        
+        Returns the appropriate webhook URL, with RENDER_URL taking
+        precedence over WEBHOOK_URL if both are set.
+        
+        Returns:
+            Optional[str]: The webhook URL if available, None otherwise
+        """
         return self.render_url or self.webhook_url
     
     def get_authorized_users(self) -> list[int]:
-        """Get list of authorized user IDs"""
+        """Get list of authorized user IDs.
+        
+        Returns a list of Telegram user IDs that have administrative
+        access to the bot. Includes owner_id and wifu_id if set.
+        
+        Returns:
+            list[int]: List of authorized Telegram user IDs
+        """
         users = [self.owner_id] if self.owner_id else []
         if self.wifu_id:
             users.append(self.wifu_id)
