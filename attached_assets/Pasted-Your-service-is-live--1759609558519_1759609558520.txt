@@ -1,0 +1,88 @@
+Your service is live 🎉
+     ==> 
+     ==> ///////////////////////////////////////////////////////////
+     ==> 
+     ==> Available at your primary URL https://missquiz.onrender.com
+     ==> 
+     ==> ///////////////////////////////////////////////////////////
+2025-10-04 20:25:08,863 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 20:25:08,863 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 20:25:08,864 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 20:25:08,864 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 20:25:08,864 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 20:25:08,864 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 20:25:08,866 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 20:25:09,371 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/getMe "HTTP/1.1 200 OK"
+2025-10-04 20:25:09,372 - apscheduler.scheduler - INFO - Added job "send_automated_quiz" to job store "default"
+2025-10-04 20:25:09,372 - apscheduler.scheduler - INFO - Added job "scheduled_cleanup" to job store "default"
+2025-10-04 20:25:09,372 - apscheduler.scheduler - INFO - Added job "cleanup_old_polls" to job store "default"
+2025-10-04 20:25:09,372 - apscheduler.scheduler - INFO - Added job "cleanup_questions_wrapper" to job store "default"
+2025-10-04 20:25:09,372 - apscheduler.scheduler - INFO - Added job "track_memory_usage" to job store "default"
+2025-10-04 20:25:09,372 - apscheduler.scheduler - INFO - Added job "cleanup_performance_metrics" to job store "default"
+2025-10-04 20:25:09,372 - apscheduler.scheduler - INFO - Added job "cleanup_old_activities" to job store "default"
+2025-10-04 20:25:09,372 - apscheduler.scheduler - INFO - Scheduler started
+2025-10-04 20:25:09,373 - src.bot.handlers - INFO - Backfilling 0 groups from active_chats to database
+2025-10-04 20:25:09,373 - src.bot.handlers - INFO - Successfully backfilled 0/0 groups to database
+2025-10-04 20:25:09,534 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/setWebhook "HTTP/1.1 200 OK"
+2025-10-04 20:25:09,534 - src.bot.handlers - INFO - Webhook set successfully: https://missquiz.onrender.com/webhook
+2025-10-04 20:25:09,535 - src.web.app - INFO - Webhook bot initialized with URL: https://missquiz.onrender.com/webhook
+2025-10-04 20:25:09,535 - src.web.wsgi - INFO - ✅ Webhook bot initialized successfully
+2025-10-04 20:25:09,538 - src.web.app - INFO - Flask app created and routes registered
+2025-10-04 20:25:09,538 - src.web.wsgi - INFO - ✅ Flask application created and ready on port 10000
+[2025-10-04 20:25:08 +0000] [1] [INFO] Handling signal: term
+[2025-10-04 20:25:08 +0000] [7] [INFO] Worker exiting (pid: 7)
+[2025-10-04 20:25:09 +0000] [1] [INFO] Shutting down: Master
+2025-10-04 20:25:18,873 - apscheduler.executors.default - INFO - Running job "send_automated_quiz (trigger: interval[0:30:00], next run at: 2025-10-04 20:55:18 UTC)" (scheduled at 2025-10-04 20:25:18.863160+00:00)
+2025-10-04 20:25:18,873 - src.bot.handlers - INFO - Starting automated quiz broadcast to 0 active chats
+2025-10-04 20:25:18,873 - src.bot.handlers - INFO - Completed automated quiz broadcast cycle
+2025-10-04 20:25:18,873 - apscheduler.executors.default - INFO - Job "send_automated_quiz (trigger: interval[0:30:00], next run at: 2025-10-04 20:55:18 UTC)" executed successfully
+2025-10-04 20:25:22,011 - src.web.app - INFO - Webhook received POST request
+2025-10-04 20:25:22,012 - src.web.app - INFO - Parsed update object: update_id=13160349
+2025-10-04 20:25:22,012 - src.web.app - INFO - Update submitted to event loop successfully
+2025-10-04 20:25:22,012 - src.web.app - INFO - Successfully queued update 13160349 for processing
+2025-10-04 20:25:22,012 - src.bot.handlers - INFO - 📥 /start command received from user 8376823449 in chat -1003103932608 (type: supergroup)
+2025-10-04 20:25:22,015 - src.core.database - ERROR - Database operation failed: integer out of range
+2025-10-04 20:25:22,015 - src.bot.handlers - ERROR - Error in start command: Database operation failed: integer out of range
+2025-10-04 20:25:23,073 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/sendMessage "HTTP/1.1 200 OK"
+2025-10-04 20:25:23,073 - src.web.app - INFO - Update processed successfully: None
+2025-10-04 20:25:26,232 - src.web.app - INFO - Webhook received POST request
+2025-10-04 20:25:26,233 - src.web.app - INFO - Parsed update object: update_id=13160350
+2025-10-04 20:25:26,233 - src.web.app - INFO - Update submitted to event loop successfully
+2025-10-04 20:25:26,233 - src.web.app - INFO - Successfully queued update 13160350 for processing
+2025-10-04 20:25:26,233 - src.bot.handlers - INFO - 📥 /start command received from user 8376823449 in chat -1003103932608 (type: supergroup)
+2025-10-04 20:25:26,898 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/sendMessage "HTTP/1.1 200 OK"
+2025-10-04 20:25:26,899 - src.web.app - INFO - Update processed successfully: None
+2025-10-04 20:25:31,932 - src.web.app - INFO - Webhook received POST request
+2025-10-04 20:25:31,933 - src.web.app - INFO - Parsed update object: update_id=13160351
+2025-10-04 20:25:31,933 - src.web.app - INFO - Update submitted to event loop successfully
+2025-10-04 20:25:31,933 - src.web.app - INFO - Successfully queued update 13160351 for processing
+2025-10-04 20:25:31,933 - src.bot.handlers - INFO - 📥 /help command received from user 8376823449 in chat -1003103932608
+2025-10-04 20:25:31,939 - src.core.database - ERROR - Database operation failed: integer out of range
+2025-10-04 20:25:31,939 - src.core.database - ERROR - Error logging activity: Database operation failed: integer out of range
+2025-10-04 20:25:33,226 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/sendMessage "HTTP/1.1 200 OK"
+2025-10-04 20:25:33,227 - src.bot.handlers - INFO - Help message sent to user 8376823449 in 1293ms
+2025-10-04 20:25:33,227 - src.web.app - INFO - Update processed successfully: None
+2025-10-04 20:25:36,033 - src.web.app - INFO - Webhook received POST request
+2025-10-04 20:25:36,034 - src.web.app - INFO - Parsed update object: update_id=13160352
+2025-10-04 20:25:36,034 - src.web.app - INFO - Update submitted to event loop successfully
+2025-10-04 20:25:36,034 - src.web.app - INFO - Successfully queued update 13160352 for processing
+2025-10-04 20:25:36,712 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/sendMessage "HTTP/1.1 200 OK"
+2025-10-04 20:25:36,713 - src.bot.handlers - INFO - /category completed in 678ms
+2025-10-04 20:25:36,716 - src.web.app - INFO - Update processed successfully: None
+2025-10-04 20:25:43,208 - src.web.app - INFO - Webhook received POST request
+2025-10-04 20:25:43,209 - src.web.app - INFO - Parsed update object: update_id=13160353
+2025-10-04 20:25:43,209 - src.web.app - INFO - Update submitted to event loop successfully
+2025-10-04 20:25:43,209 - src.web.app - INFO - Successfully queued update 13160353 for processing
+2025-10-04 20:25:43,210 - src.bot.handlers - INFO - 📥 /quiz command received from user 8376823449 in chat -1003103932608
+2025-10-04 20:25:44,242 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/sendMessage "HTTP/1.1 200 OK"
+2025-10-04 20:25:44,247 - src.core.quiz - INFO - Initializing question pool for chat -1003103932608
+2025-10-04 20:25:44,247 - src.core.quiz - INFO - Initialized question pool for chat -1003103932608 with 235 questions
+2025-10-04 20:25:44,247 - src.core.quiz - INFO - Selected question 98 for chat -1003103932608. Question text: Which is the largest ocean in ... Remaining questions: 234
+2025-10-04 20:25:44,247 - src.bot.handlers - INFO - Sending quiz to chat -1003103932608. Question: Which is the largest ocean in the world?...
+2025-10-04 20:25:44,951 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/sendPoll "HTTP/1.1 200 OK"
+2025-10-04 20:25:44,951 - src.bot.handlers - INFO - Stored quiz data: poll_id=6271355179392565753, chat_id=-1003103932608
+2025-10-04 20:25:45,340 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/getChat "HTTP/1.1 200 OK"
+2025-10-04 20:25:45,340 - src.bot.handlers - INFO - Logged quiz_sent activity for chat -1003103932608 (auto_sent=False, scheduled=False)
+2025-10-04 20:25:45,944 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8399888603:AAEnq-KfRiRMELOX1CRzoBR66Kx78vwi_b0/deleteMessage "HTTP/1.1 200 OK"
+2025-10-04 20:25:45,945 - src.bot.handlers - INFO - /quiz completed in 2735ms
+2025-10-04 20:25:45,948 - src.web.app - INFO - Update processed successfully: None
