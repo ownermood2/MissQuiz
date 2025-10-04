@@ -261,7 +261,7 @@ class DatabaseManager:
             
             cursor.execute(self._adapt_sql('''
                 CREATE TABLE IF NOT EXISTS groups (
-                    chat_id INTEGER PRIMARY KEY,
+                    chat_id BIGINT PRIMARY KEY,
                     chat_title TEXT,
                     chat_type TEXT,
                     is_active INTEGER DEFAULT 1,
@@ -294,7 +294,7 @@ class DatabaseManager:
                 CREATE TABLE IF NOT EXISTS quiz_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id INTEGER NOT NULL,
-                    chat_id INTEGER,
+                    chat_id BIGINT,
                     question_id INTEGER,
                     question_text TEXT,
                     user_answer INTEGER,
@@ -355,7 +355,7 @@ class DatabaseManager:
                     timestamp TEXT NOT NULL,
                     activity_type TEXT NOT NULL,
                     user_id INTEGER,
-                    chat_id INTEGER,
+                    chat_id BIGINT,
                     username TEXT,
                     chat_title TEXT,
                     command TEXT,
@@ -430,7 +430,47 @@ class DatabaseManager:
             cursor.execute(self._adapt_sql('''CREATE INDEX IF NOT EXISTS idx_quiz_history_chat 
                 ON quiz_history(chat_id, answered_at DESC)'''))
             
+            if self.db_type == 'postgresql':
+                self._migrate_chat_id_to_bigint(cursor)
+            
             logger.info(f"Database schema initialized successfully with optimized indexes ({self.db_type})")
+    
+    def _migrate_chat_id_to_bigint(self, cursor):
+        """Migrate chat_id columns from INTEGER to BIGINT for PostgreSQL.
+        
+        This migration is necessary to support Telegram supergroup IDs which are
+        very large negative numbers (e.g., -1003103932608) that exceed PostgreSQL's
+        INTEGER range (-2147483648 to 2147483647).
+        
+        Args:
+            cursor: Database cursor
+        """
+        tables_to_migrate = [
+            ('groups', 'chat_id'),
+            ('quiz_history', 'chat_id'),
+            ('activity_logs', 'chat_id')
+        ]
+        
+        for table_name, column_name in tables_to_migrate:
+            try:
+                cursor.execute("""
+                    SELECT data_type 
+                    FROM information_schema.columns 
+                    WHERE table_name = %s AND column_name = %s
+                """, (table_name, column_name))
+                
+                result = cursor.fetchone()
+                if result and result['data_type'] == 'integer':
+                    logger.info(f"Migrating {table_name}.{column_name} from INTEGER to BIGINT...")
+                    cursor.execute(f"ALTER TABLE {table_name} ALTER COLUMN {column_name} TYPE BIGINT")
+                    logger.info(f"✅ Successfully migrated {table_name}.{column_name} to BIGINT")
+                elif result and result['data_type'] == 'bigint':
+                    logger.debug(f"{table_name}.{column_name} is already BIGINT")
+                else:
+                    logger.debug(f"Column {table_name}.{column_name} not found or has unexpected type")
+            except Exception as e:
+                logger.error(f"Error migrating {table_name}.{column_name} to BIGINT: {e}")
+                raise
     
     def add_question(self, question: str, options: List[str], correct_answer: int) -> int:
         """Add a new quiz question to the database.
@@ -1276,7 +1316,7 @@ class DatabaseManager:
                     INSERT INTO quiz_stats (date, quizzes_sent_count)
                     VALUES (?, 1)
                     ON CONFLICT(date) DO UPDATE SET
-                        quizzes_sent_count = quizzes_sent_count + 1
+                        quizzes_sent_count = quiz_stats.quizzes_sent_count + 1
                 ''', (date,))
                 logger.debug(f"Incremented quiz count for date {date}")
         except Exception as e:

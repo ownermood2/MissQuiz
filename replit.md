@@ -1,184 +1,82 @@
 # Overview
 
-This project is a production-ready Telegram Quiz Bot application deployable anywhere (Render, VPS, Replit, Railway, Heroku). It provides interactive quiz functionality within Telegram chats and groups, includes a Flask web interface for administration, and supports both webhook and polling modes for maximum deployment flexibility. The bot manages quiz questions, tracks user scores and statistics, and offers comprehensive analytics. The goal is to deliver a robust, scalable, and user-friendly quiz experience with advanced administrative capabilities, detailed performance tracking, and seamless deployment on any platform.
+This project is a production-ready Telegram Quiz Bot application designed for interactive quiz functionality in Telegram chats and groups. It includes a Flask web interface for administration, supports both webhook and polling deployment modes, and manages quiz questions, tracks user scores, and provides analytics. The primary goal is to deliver a robust, scalable, and user-friendly quiz experience with advanced administrative capabilities and seamless deployment across various platforms.
 
 # User Preferences
 
 Preferred communication style: Simple, everyday language.
 
-# Recent Changes (October 2025)
-
-## Production-Ready Refactoring
-Complete transformation to enterprise-grade codebase with professional standards:
-
-### Code Quality Improvements
-- **Custom Exception Hierarchy**: Added `QuizBotError`, `ConfigurationError`, `DatabaseError`, `QuestionNotFoundError`, `ValidationError` in `src/core/exceptions.py` for robust error handling
-- **Type Safety Enhancements (October 2025)**: 
-  - Fixed all 213 LSP type safety diagnostics in `src/bot/dev_commands.py`
-  - Added comprehensive None checks for update.message, update.effective_user, update.effective_chat
-  - Implemented proper Optional type handling for username, first_name, last_name fields
-  - Added early return validation to prevent accessing potentially None objects
-  - Fixed context.args and context.user_data access patterns with proper validation
-  - Preserved original error handling logic while adding defensive programming
-  - Fixed all 23 LSP type safety errors in `src/bot/handlers.py` with None guards
-  - Architect-reviewed and confirmed no functional regressions
-- **Webhook Event Loop Fix (October 2025)**:
-  - Resolved critical "RuntimeError: Event loop is closed" errors in webhook mode
-  - Implemented persistent event loop in background thread for Flask + python-telegram-bot v20 compatibility
-  - Added `start_background_loop()` and `run_coroutine_threadsafe()` helper functions in `src/web/app.py`
-  - Replaced per-request `asyncio.run()` (which creates/closes loops) with thread-safe `asyncio.run_coroutine_threadsafe()`
-  - Event loop persists for process lifetime, all webhook updates reuse the same loop
-  - Added done_callback to capture and log both successful processing and exceptions from event loop
-  - Comprehensive error logging at all critical points: webhook entry, JSON parsing, update submission, processing completion
-  - All exceptions logged with full stack traces (exc_info=True) for production debugging
-  - Architect-reviewed and confirmed production-ready for Render deployment
-- **Professional Documentation**: Added comprehensive Google-style docstrings to all core modules (config.py, database.py, quiz.py, exceptions.py)
-- **Backward Compatibility**: All improvements maintain compatibility with existing code
-
-### Documentation & Deployment
-- **Comprehensive README.md**: 927-line production-ready documentation including:
-  - Complete setup instructions and prerequisites
-  - Deployment guides for all platforms (Replit, Railway, Render, Heroku, Docker, VPS)
-  - Environment variable configuration reference
-  - Command reference and usage examples
-  - Development guidelines and contribution process
-- **Critical Configuration Fixes**:
-  - Fixed Procfile port binding ($PORT instead of hardcoded 8080) for Heroku/Railway
-  - Fixed render.yaml entry point (src.web.wsgi:app) for Render deployments
-  - Verified all config files (.env.example, Dockerfile, docker-compose.yml, .dockerignore)
-
-### Security & Dependencies
-- **Security Updates** (Critical):
-  - Flask upgraded to 3.1.2 (fixes CVE-2025-47278 / GHSA-4grg-w6v8-c28g key rotation vulnerability)
-  - python-telegram-bot upgraded to 22.5 (Bot API 9.2 support)
-  - gunicorn upgraded to 23.0.0 (security improvements)
-  - httpx upgraded to 0.28.1 (latest compatible version)
-- **Verified Compatibility**: All upgrades tested with no breaking changes
-
-### Performance Optimizations (October 2025)
-- **47% Response Time Improvement**: Achieved maximum speed within Telegram's limits - reduced /stats from 1238ms to 653ms, /help to 348ms
-- **User Info Cache (300s expiry)**: Eliminates redundant add_or_update_user() database writes by caching user information for 5 minutes
-- **Batch Activity Logging (2s intervals)**: Queues activity log writes and flushes in 2-second batches, reducing database I/O by up to 80%
-- **Shutdown Flush Mechanism**: Ensures all queued activity logs are persisted on bot shutdown, preventing data loss
-- **Leaderboard Pre-loading (60s cache)**: Pre-caches leaderboard data on startup and refreshes every 60 seconds for instant /mystats responses
-- **Combined Stats Queries (30s cache)**: Reduced 4 separate database queries to 1 combined query with extended cache duration for /stats command
-- **Single DatabaseManager Instance**: Eliminated redundant database initializations by sharing one instance across all components (QuizManager, TelegramQuizBot, DeveloperCommands)
-- **Connection Pooling**: Implemented persistent SQLite connection with thread-safe locking to eliminate reconnection overhead
-- **Async Database Operations**: Added async wrappers using run_in_executor to prevent blocking the event loop
-- **Developer Caching**: Implemented 10-second cache for developer status checks and stats to reduce database queries
-- **Removed Redundant Operations**: Eliminated unnecessary load→save cycles in QuizManager initialization that were saving 4 JSON files on every startup
-- **Production Verified**: Architect-reviewed and confirmed production-ready with no functional regressions; remaining latency is unavoidable Telegram network cost (300-500ms)
-
-### Known Issues
-- **Data Corruption Alert**: Pre-existing issue in `data/questions.json` where all 235 questions have `correct_answer: 0`. See `DATA_CORRUPTION_NOTICE.md` for details and fix instructions. This is a DATA issue, not a code issue - the architecture is production-ready.
-
 # System Architecture
 
 ## Application Structure
-The application uses a clean, production-ready modular architecture with organized package structure:
-
-**Directory Structure:**
+The application employs a modular, production-ready architecture with a clear package structure:
 ```
 src/
-├── core/          # Core business logic
-│   ├── config.py       # Configuration and environment variables
-│   ├── database.py     # SQLite database operations
-│   └── quiz.py         # Quiz management logic
-├── bot/           # Telegram bot components
-│   ├── handlers.py     # Bot command handlers and schedulers
-│   └── dev_commands.py # Developer-specific commands
-└── web/           # Flask web application
-    └── app.py          # Web server, API endpoints, webhook support
-main.py            # Entry point for both polling and webhook modes
+├── core/          # Core business logic (config, database, quiz)
+├── bot/           # Telegram bot components (handlers, dev_commands)
+└── web/           # Flask web application (app.py)
+main.py            # Entry point
 ```
 
-**Components:**
-- **Flask Web Application** (src/web/app.py): Admin interface, health checks, webhook endpoint with _AppProxy pattern for deferred initialization
-- **WSGI Module** (src/web/wsgi.py): Production entry point for gunicorn with automatic webhook setup
-- **Telegram Bot Handler** (src/bot/): All Telegram bot interactions, schedulers
-- **Developer Commands Module** (src/bot/): Developer-specific commands with access control
-- **Database Manager** (src/core/): SQLite database operations
-- **Quiz Manager** (src/core/): Core business logic for quiz operations and scoring
-- **Configuration** (src/core/): Centralized configuration from environment variables with lazy validation
-- **Dual-Mode Support**: Polling (VPS/local) and Webhook (Render/Heroku/Railway) modes with auto-detection
+**Key Components:**
+- **Flask Web Application**: Provides an admin interface, health checks, and a webhook endpoint. Uses an `_AppProxy` pattern for deferred initialization.
+- **Telegram Bot Handler**: Manages all Telegram bot interactions, commands, and schedulers, including developer-specific commands with access control.
+- **Database Manager**: Handles database operations with dual-backend support (PostgreSQL for production, SQLite for development).
+- **Quiz Manager**: Contains the core business logic for quiz operations and scoring.
+- **Configuration**: Centralized management of environment variables with lazy validation.
+- **Dual-Mode Support**: Automatically detects and operates in either polling (for VPS/local) or webhook (for Render/Heroku/Railway) modes.
 
 ## Data Storage
-The system uses a **SQLite database** (`data/quiz_bot.db`) for data persistence, including tables for `questions`, `users`, `developers`, `groups`, `user_daily_activity`, `quiz_history`, `activity_logs`, `performance_metrics`, `quiz_stats`, and `broadcast_logs`.
+The system supports dual database backends with automatic detection:
+-   **PostgreSQL (Production - Recommended)**: Used when `DATABASE_URL` is set, offering persistent storage and scalability. Supports `BIGINT` for Telegram IDs.
+-   **SQLite (Development/Local)**: Used by default, file-based (`data/quiz_bot.db`), suitable for local development.
+
+The database schema includes tables for `questions`, `users`, `developers`, `groups`, `user_daily_activity`, `quiz_history`, `activity_logs`, `performance_metrics`, `quiz_stats`, and `broadcast_logs`.
 
 ## Frontend Architecture
-- **Health Check Endpoint**: GET / returns {"status":"ok"} for platform monitoring
-- **Admin Panel**: GET /admin serves Bootstrap-based web interface for question management
-- **Templating**: Flask's Jinja2 for server-side rendering
-- **API Endpoints**: RESTful API for quiz data management
+-   **Health Check Endpoint**: `/` returns `{"status":"ok"}`.
+-   **Admin Panel**: `/admin` provides a Bootstrap-based web interface for question management.
+-   **Templating**: Flask's Jinja2 for server-side rendering.
+-   **API Endpoints**: RESTful API for quiz data management.
 
 ## Bot Architecture
-- **Command Handlers**: Structured processing of commands with cooldowns.
-- **Access Control**: Role-based access for administration and developer commands.
-- **Developer Commands**: Enhanced commands for quiz management, statistics, and advanced broadcast functionalities.
-- **Auto-Clean Feature**: Automatically deletes command and reply messages in groups for cleaner chats.
-- **Statistics Tracking**: Comprehensive user and group activity monitoring with time-based analytics.
-- **Broadcast System**: Supports various broadcast types (text, media, buttons) with placeholder replacement, live tracking, and auto-cleanup for inactive chats.
-- **Memory Management**: Health checks and automatic restart capabilities for stability.
-- **Auto Quiz System**: Automatically sends quizzes in DMs and groups upon specific triggers.
+-   **Command Handlers**: Structured command processing with cooldowns.
+-   **Access Control**: Role-based access for admin and developer commands.
+-   **Auto-Clean Feature**: Deletes command and reply messages in groups for cleaner chats.
+-   **Statistics Tracking**: Comprehensive user and group activity monitoring.
+-   **Broadcast System**: Supports various broadcast types (text, media, buttons) with placeholders, live tracking, and auto-cleanup.
+-   **Auto Quiz System**: Sends quizzes in DMs and groups based on triggers.
 
 ## System Design Choices
-- **Clean Package Structure**: Organized src/ directory with core/, bot/, web/ modules for maintainability
-- **Production-Ready Deployment**: Supports both webhook (Render/Heroku) and polling (VPS) modes
-- **No Import-Time Side Effects**: Lazy initialization prevents gunicorn crashes during worker bootstrap
-- **_AppProxy Pattern**: Defers both Flask app creation and route registration until first request
-- **WSGI Module**: Separate entry point (src/web/wsgi.py) for production deployments with proper webhook initialization
-- **Dual-Mode Architecture**: Auto-detects polling/webhook based on WEBHOOK_URL or RENDER_URL environment variables
-- **Docker Support**: Multi-stage Dockerfile with health checks, docker-compose for local testing
-- **SQLite Integration**: For improved performance and data integrity
-- **Advanced Broadcasts**: Implementation of a versatile broadcast system supporting diverse content types and dynamic placeholders
-- **Automated Scheduling**: Quiz scheduling to active groups with persistent scheduling
-- **Robust Error Handling & Logging**: Comprehensive logging and error recovery mechanisms
-- **Real-time Tracking System**: Comprehensive activity logging and analytics
-- **Performance Optimizations**: Database query optimization with indexing, command caching, and concurrent broadcast processing
-- **Network Resilience**: HTTPXRequest configuration with balanced timeouts (10s connect, 20s read/write, 10s pool, 8 connections) for automatic reconnection on network failures
-- **Single Instance Enforcement**: PID lockfile mechanism (`data/bot.lock`) prevents multiple bot instances from running simultaneously, eliminating Telegram API conflicts
-- **Platform-Agnostic**: Works on Render, VPS, Replit, Railway, Heroku with minimal configuration
-- **Health Check Compliance**: Simple GET / endpoint for platform health monitoring
+-   **Production-Ready Deployment**: Supports both webhook and polling modes.
+-   **No Import-Time Side Effects**: Lazy initialization prevents gunicorn crashes.
+-   **Dual-Mode Architecture**: Auto-detects mode based on environment variables.
+-   **Docker Support**: Multi-stage Dockerfile and docker-compose for local testing.
+-   **Advanced Broadcasts**: Versatile broadcast system.
+-   **Automated Scheduling**: Persistent quiz scheduling to active groups.
+-   **Robust Error Handling & Logging**: Comprehensive logging and error recovery.
+-   **Real-time Tracking System**: Activity logging and analytics.
+-   **Performance Optimizations**: Database query optimization, command caching, concurrent broadcast processing, user info caching, and batch activity logging.
+-   **Network Resilience**: Configured HTTPXRequest with balanced timeouts.
+-   **Single Instance Enforcement**: PID lockfile prevents multiple bot instances.
+-   **Platform-Agnostic**: Compatible with Render, VPS, Replit, Railway, Heroku.
+-   **Health Check Compliance**: Simple GET `/` endpoint.
 
 # External Dependencies
 
-The project uses a minimal, optimized set of dependencies:
-
-- **python-telegram-bot**: Telegram Bot API wrapper with job queue support for bot functionality and scheduling.
-- **Flask**: Web framework for the administrative panel and health checks.
-- **apscheduler**: Task scheduling for automated quiz delivery (included with python-telegram-bot).
-- **psutil**: System monitoring and memory tracking for performance metrics.
-- **httpx**: Async HTTP client used by python-telegram-bot for network resilience (HTTPXRequest with configurable timeouts).
-- **gunicorn**: Production WSGI server for deployment.
-
-**Removed Dependencies** (Optimization as of Oct 2025):
-- ~~flask-sqlalchemy~~ - Not used (direct SQLite operations instead)
-- ~~psycopg2-binary~~ - Not needed (SQLite database, not PostgreSQL)
+-   **python-telegram-bot**: Telegram Bot API wrapper, including job queue support.
+-   **Flask**: Web framework for the administrative panel and health checks.
+-   **apscheduler**: Task scheduling (integrated with `python-telegram-bot`).
+-   **psutil**: System monitoring and memory tracking.
+-   **httpx**: Async HTTP client used by `python-telegram-bot`.
+-   **gunicorn**: Production WSGI server.
 
 ## External Services
-- **Telegram Bot API**: The primary external service for bot operations.
-- **Replit Environment**: Hosting platform with port 5000 configuration.
+-   **Telegram Bot API**: Primary external service for bot operations.
+-   **Replit Environment**: Hosting platform.
 
 ## Environment Variables
-
-**Required (Minimum Setup):**
-- **TELEGRAM_TOKEN**: Telegram bot authentication token (get from @BotFather)
-- **SESSION_SECRET**: Flask session security key (generate with `python -c "import secrets; print(secrets.token_hex(32))"`)
-
-**Deployment Configuration:**
-- **RENDER_URL**: For Render/production deployment (e.g., https://your-app.onrender.com/webhook)
-  - When set, bot automatically uses webhook mode
-  - When not set, bot uses polling mode (default)
-- **Alternatively, use manual configuration:**
-  - **MODE**: `polling` (default, for VPS/local) or `webhook` (for Render/Heroku/Railway)
-  - **WEBHOOK_URL**: Your public domain + /webhook (e.g., https://your-app.onrender.com/webhook)
-
-**Optional:**
-- **OWNER_ID**: Telegram user ID of the bot owner (get from @userinfobot) - Enables admin features
-- **WIFU_ID**: Telegram user ID of additional authorized user
-
-**Deployment Examples:**
-- **Local/VPS (Polling Mode)**: `python main.py`
-- **Render (Webhook Mode - Simplified)**: Set `RENDER_URL` environment variable, then `gunicorn main:app`
-- **Manual Webhook Mode**: `MODE=webhook WEBHOOK_URL=https://your-app.onrender.com/webhook gunicorn main:app`
-- **Replit**: Uses polling mode by default - just run `python main.py`
+-   **Required**: `TELEGRAM_TOKEN`, `SESSION_SECRET`.
+-   **Database**: `DATABASE_URL` (for PostgreSQL).
+-   **Deployment**: `RENDER_URL` (for Render/webhook auto-detection), or manual `MODE` (`polling`/`webhook`) and `WEBHOOK_URL`.
+-   **Optional**: `OWNER_ID`, `WIFU_ID`.
