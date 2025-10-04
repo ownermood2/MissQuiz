@@ -1078,6 +1078,13 @@ We're here to help! 🌟"""
 
     async def quiz_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle the /quiz command with loading indicator"""
+        if not update.message:
+            return
+        if not update.effective_user:
+            return
+        if not update.effective_chat:
+            return
+        
         start_time = time.time()
         try:
             user = update.effective_user
@@ -1090,7 +1097,7 @@ We're here to help! 🌟"""
                 activity_type='command',
                 user_id=update.effective_user.id,
                 chat_id=update.effective_chat.id,
-                username=update.effective_user.username,
+                username=update.effective_user.username or "",
                 chat_title=getattr(update.effective_chat, 'title', None),
                 command='/quiz',
                 success=True
@@ -1127,13 +1134,6 @@ We're here to help! 🌟"""
                 chat_id=update.effective_chat.id,
                 command='/quiz',
                 details={'error': str(e)},
-        if not update.message:
-            return
-        if not update.effective_user:
-            return
-        if not update.effective_chat:
-            return
-        
                 success=False,
                 response_time_ms=response_time
             )
@@ -1142,6 +1142,13 @@ We're here to help! 🌟"""
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle the /start command - Track PM and Group live"""
+        if not update.message:
+            return
+        if not update.effective_user:
+            return
+        if not update.effective_chat:
+            return
+        
         start_time = time.time()
         try:
             chat = update.effective_chat
@@ -1158,9 +1165,9 @@ We're here to help! 🌟"""
             # OPTIMIZATION 1: Use cached user info update
             self._add_or_update_user_cached(
                 user_id=user.id,
-                username=user.username,
-                first_name=user.first_name,
-                last_name=user.last_name
+                username=user.username or "",
+                first_name=user.first_name or "Unknown",
+                last_name=user.last_name or ""
             )
             
             # OPTIMIZATION 2: Queue activity log for batch write
@@ -1168,7 +1175,7 @@ We're here to help! 🌟"""
                 activity_type='user_join' if chat.type == 'private' else 'group_join',
                 user_id=user.id,
                 chat_id=chat.id,
-                username=user.username,
+                username=user.username or "",
                 chat_title=getattr(chat, 'title', None),
                 command='/start',
                 details={'chat_type': chat.type},
@@ -1277,6 +1284,11 @@ We're here to help! 🌟"""
             if user:
                 self.db.set_user_pm_access(user.id, True)
                 logger.debug(f"✅ PM INTERACTION: User {user.id} ({user.first_name}) tracked for broadcasts")
+        except Exception as e:
+            logger.error(f"Error tracking PM interaction: {e}")
+
+    async def help(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Handle the /help command"""
         if not update.message:
             return
         if not update.effective_user:
@@ -1284,11 +1296,6 @@ We're here to help! 🌟"""
         if not update.effective_chat:
             return
         
-        except Exception as e:
-            logger.error(f"Error tracking PM interaction: {e}")
-
-    async def help(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Handle the /help command"""
         start_time = time.time()
         try:
             user = update.effective_user
@@ -1309,7 +1316,7 @@ We're here to help! 🌟"""
                 activity_type='command',
                 user_id=update.effective_user.id,
                 chat_id=update.effective_chat.id,
-                username=update.effective_user.username,
+                username=update.effective_user.username or "",
                 chat_title=getattr(update.effective_chat, 'title', None),
                 command='/help',
                 success=True
@@ -1319,12 +1326,12 @@ We're here to help! 🌟"""
             asyncio.create_task(self.ensure_group_registered(update.effective_chat, context))
             
             # Check if user is developer
-            is_dev = await self.is_developer(update.message.from_user.id)
+            is_dev = await self.is_developer(update.effective_user.id)
             
             # Get user and bot links
             user = update.effective_user
             bot_name = context.bot.first_name or "Quiz Bot"
-            user_name_link = f"[{user.first_name}](tg://user?id={user.id})"
+            user_name_link = f"[{user.first_name or 'User'}](tg://user?id={user.id})"
             bot_link = f"[{bot_name}](https://t.me/{context.bot.username})"
             
             help_text = f"""╔══════════════════════════════════╗
@@ -1413,6 +1420,13 @@ Here's your complete command guide:
 
     async def category(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle the /category command - Text-only list (no buttons)"""
+        if not update.message:
+            return
+        if not update.effective_user:
+            return
+        if not update.effective_chat:
+            return
+        
         start_time = time.time()
         try:
             # Check cooldown (only in groups)
@@ -1428,7 +1442,7 @@ Here's your complete command guide:
                 activity_type='command',
                 user_id=update.effective_user.id,
                 chat_id=update.effective_chat.id,
-                username=update.effective_user.username,
+                username=update.effective_user.username or "",
                 chat_title=getattr(update.effective_chat, 'title', None),
                 command='/category',
                 success=True
@@ -1498,13 +1512,16 @@ Here's your complete command guide:
 
     async def mystats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show personal statistics with proper handling of no data"""
+        if not update.message:
+            return
+        if not update.effective_user:
+            return
+        if not update.effective_chat:
+            return
+        
         start_time = time.time()
         try:
             user = update.effective_user
-            if not user:
-                logger.error("No user found in update")
-                await update.message.reply_text("❌ Could not identify user.")
-                return
 
             # Check cooldown (only in groups)
             is_allowed, remaining = self.check_user_command_cooldown(
@@ -1517,9 +1534,9 @@ Here's your complete command guide:
             # OPTIMIZATION 1: Use cached user info update
             self._add_or_update_user_cached(
                 user_id=user.id,
-                username=user.username,
-                first_name=user.first_name,
-                last_name=user.last_name
+                username=user.username or "",
+                first_name=user.first_name or "Unknown",
+                last_name=user.last_name or ""
             )
 
             # OPTIMIZATION 2: Queue activity log for batch write
@@ -1527,7 +1544,7 @@ Here's your complete command guide:
                 activity_type='command',
                 user_id=user.id,
                 chat_id=update.effective_chat.id,
-                username=user.username,
+                username=user.username or "",
                 chat_title=getattr(update.effective_chat, 'title', None),
                 command='/mystats',
                 success=True
@@ -1638,14 +1655,14 @@ Ready to begin? Try /quiz now! 🚀"""
                 activity_type='command',
                 user_id=update.effective_user.id,
                 chat_id=update.effective_chat.id,
-                username=update.effective_user.username,
+                username=update.effective_user.username or "",
                 chat_title=getattr(update.effective_chat, 'title', None),
                 command='/addquiz',
                 success=True
             )
 
             # Extract message content and check for allow_duplicates flag
-            message_text = update.message.text
+            message_text = update.message.text or ""
             allow_duplicates = '--allow-duplicates' in message_text or '-d' in message_text
             
             # Remove the command and flags
@@ -1879,7 +1896,7 @@ To delete this quiz:
                 parse_mode=ParseMode.MARKDOWN
             )
             response_time = int((time.time() - start_time) * 1000)
-            logger.info(f"Sent quiz list page {page}/{total_pages} to user {update.message.from_user.id} in {response_time}ms")
+            logger.info(f"Sent quiz list page {page}/{total_pages} to user {update.effective_user.id} in {response_time}ms")
 
         except Exception as e:
             response_time = int((time.time() - start_time) * 1000)
@@ -1985,12 +2002,12 @@ Failed to display quizzes. Please try again later.
         if not update.effective_chat:
             return
         
-        if not await self.is_developer(update.message.from_user.id):
+        if not await self.is_developer(update.effective_user.id):
             await self._handle_dev_command_unauthorized(update)
             return
         
         try:
-            message_text = update.message.text.replace('/broadcast', '').strip()
+            message_text = (update.message.text or "").replace('/broadcast', '').strip()
             
             if not message_text:
                 await update.message.reply_text("Usage: /broadcast <message>")
@@ -2099,42 +2116,42 @@ Add new quizzes using /addquiz command
 ════════════════""",
                     parse_mode=ParseMode.MARKDOWN
                 )
+            return
+
+        # Handle reply to quiz case
+        if update.message.reply_to_message and update.message.reply_to_message.poll:
+            poll_id = update.message.reply_to_message.poll.id
+            poll_data = context.bot_data.get(f"poll_{poll_id}")
+
+            if not poll_data:
+                await self._handle_quiz_not_found(update, context)
                 return
 
-            # Handle reply to quiz case
-            if update.message.reply_to_message and update.message.reply_to_message.poll:
-                poll_id = update.message.reply_to_message.poll.id
-                poll_data = context.bot_data.get(f"poll_{poll_id}")
+            # Find the quiz in questions list
+            found_idx = -1
+            for idx, q in enumerate(questions):
+                if q['question'] == poll_data['question']:
+                    found_idx = idx
+                    break
 
-                if not poll_data:
-                    await self._handle_quiz_not_found(update, context)
-                    return
+            if found_idx == -1:
+                await self._handle_quiz_not_found(update, context)
+                return
 
-                # Find the quiz in questions list
-                found_idx = -1
-                for idx, q in enumerate(questions):
-                    if q['question'] == poll_data['question']:
-                        found_idx = idx
-                        break
-
-                if found_idx == -1:
-                    await self._handle_quiz_not_found(update, context)
-                    return
-
-                # Show confirmation message
-                quiz = questions[found_idx]
-                confirm_text = f"""🗑 𝗖𝗼𝗻𝗳𝗶𝗿𝗺 𝗗𝗲𝗹𝗲𝘁𝗶𝗼𝗻
+            # Show confirmation message
+            quiz = questions[found_idx]
+            confirm_text = f"""🗑 𝗖𝗼𝗻𝗳𝗶𝗿𝗺 𝗗𝗲𝗹𝗲𝘁𝗶𝗼𝗻
 ════════════════
 
 📌 𝗤𝘂𝗶𝘇 #{found_idx + 1}
 ❓ Question: {quiz['question']}
 
 📍 𝗢𝗽𝘁𝗶𝗼𝗻𝘀:"""
-                for i, opt in enumerate(quiz['options'], 1):
-                    marker = "✅" if i-1 == quiz['correct_answer'] else "⭕"
-                    confirm_text += f"\n{marker} {i}. {opt}"
+            for i, opt in enumerate(quiz['options'], 1):
+                marker = "✅" if i-1 == quiz['correct_answer'] else "⭕"
+                confirm_text += f"\n{marker} {i}. {opt}"
 
-                confirm_text += f"""
+            confirm_text += f"""
 
 ⚠️ 𝗧𝗼 𝗰𝗼𝗻𝗳𝗶𝗿𝗺 𝗱𝗲𝗹𝗲𝘁𝗶𝗼𝗻:
 /delquiz_confirm {found_idx + 1}
@@ -2143,16 +2160,16 @@ Add new quizzes using /addquiz command
 Use any other command or ignore this message
 ════════════════"""
 
-                await update.message.reply_text(
-                    confirm_text,
-                    parse_mode=ParseMode.MARKDOWN
-                )
-                return
+            await update.message.reply_text(
+                confirm_text,
+                parse_mode=ParseMode.MARKDOWN
+            )
+            return
 
-            # Handle direct command case - check if quiz number is provided
-            if not context.args:
-                await update.message.reply_text(
-                    """❌ 𝗜𝗻𝘃𝗮𝗹𝗶𝗱 𝗨𝘀𝗮𝗴𝗲
+        # Handle direct command case - check if quiz number is provided
+        if not context.args:
+            await update.message.reply_text(
+                """❌ 𝗜𝗻𝘃𝗮𝗹𝗶𝗱 𝗨𝘀𝗮𝗴𝗲
 ════════════════
 Either:
 1. Reply to a quiz message with /delquiz
@@ -2160,38 +2177,38 @@ Either:
 
 ℹ️ Use /editquiz to view available quizzes
 ════════════════""",
-                    parse_mode=ParseMode.MARKDOWN
-                )
-                return
+                parse_mode=ParseMode.MARKDOWN
+            )
+            return
 
-            try:
-                quiz_num = int(context.args[0])
-                if not (1 <= quiz_num <= len(questions)):
-                    await update.message.reply_text(
-                        f"""❌ 𝗜𝗻𝘃𝗮𝗹𝗶𝗱 𝗤𝘂𝗶𝘇 𝗡𝘂𝗺𝗯𝗲𝗿
+        try:
+            quiz_num = int(context.args[0])
+            if not (1 <= quiz_num <= len(questions)):
+                await update.message.reply_text(
+                    f"""❌ 𝗜𝗻𝘃𝗮𝗹𝗶𝗱 𝗤𝘂𝗶𝘇 𝗡𝘂𝗺𝗯𝗲𝗿
 ════════════════
 Please choose a number between 1 and {len(questions)}
 
 ℹ️ Use /editquiz to view available quizzes
 ════════════════""",
-                        parse_mode=ParseMode.MARKDOWN
-                    )
-                    return
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                return
 
-                # Show confirmation message
-                quiz = questions[quiz_num - 1]
-                confirm_text = f"""🗑 𝗖𝗼𝗻𝗳𝗶𝗿𝗺 𝗗𝗲𝗹𝗲𝘁𝗶𝗼𝗻
+            # Show confirmation message
+            quiz = questions[quiz_num - 1]
+            confirm_text = f"""🗑 𝗖𝗼𝗻𝗳𝗶𝗿𝗺 𝗗𝗲𝗹𝗲𝘁𝗶𝗼𝗻
 ════════════════
 
 📌 𝗤𝘂𝗶𝘇 #{quiz_num}
 ❓ Question: {quiz['question']}
 
 📍 𝗢𝗽𝘁𝗶𝗼𝗻𝘀:"""
-                for i, opt in enumerate(quiz['options'], 1):
-                    marker = "✅" if i-1 == quiz['correct_answer'] else "⭕"
-                    confirm_text += f"\n{marker} {i}. {opt}"
+            for i, opt in enumerate(quiz['options'], 1):
+                marker = "✅" if i-1 == quiz['correct_answer'] else "⭕"
+                confirm_text += f"\n{marker} {i}. {opt}"
 
-                confirm_text += f"""
+            confirm_text += f"""
 
 ⚠️ 𝗧𝗼 𝗰𝗼𝗻𝗳𝗶𝗿𝗺 𝗱𝗲𝗹𝗲𝘁𝗶𝗼𝗻:
 /delquiz_confirm {quiz_num}
@@ -2200,13 +2217,13 @@ Please choose a number between 1 and {len(questions)}
 Use any other command or ignore this message
 ════════════════"""
 
-                await update.message.reply_text(
-                    confirm_text,
-                    parse_mode=ParseMode.MARKDOWN
-                )
-                logger.info(f"Sent deletion confirmation for quiz #{quiz_num}")
+            await update.message.reply_text(
+                confirm_text,
+                parse_mode=ParseMode.MARKDOWN
+            )
+            logger.info(f"Sent deletion confirmation for quiz #{quiz_num}")
 
-            except ValueError:
+        except ValueError:
                 await update.message.reply_text(
                     """❌ 𝗜𝗻𝘃𝗮𝗹𝗶𝗱 𝗜𝗻𝗽𝘂𝘁
 ════════════════
@@ -2329,7 +2346,7 @@ Use/help to see all commands."""
 
             await update.message.reply_text(response, parse_mode=ParseMode.MARKDOWN)
             response_time = int((time.time() - start_time) * 1000)
-            logger.info(f"Sent quiz count to user {update.message.from_user.id} in {response_time}ms")
+            logger.info(f"Sent quiz count to user {update.effective_user.id} in {response_time}ms")
 
         except Exception as e:
             response_time = int((time.time() - start_time) * 1000)
@@ -2403,7 +2420,7 @@ Please use /editquiz to view all available quizzes.
 ════════════════""",
             parse_mode=ParseMode.MARKDOWN
         )
-        logger.warning(f"Quiz not found in reply-to message from user {update.message.from_user.id}")
+        logger.warning(f"Quiz not found in reply-to message from user {update.effective_user.id}")
 
     async def _handle_invalid_quiz_reply(self, update: Update, context: ContextTypes.DEFAULT_TYPE, command: str) -> None:
         if not update.message:
@@ -2421,10 +2438,17 @@ Please reply to a quiz message or use:
 ════════════════""",
             parse_mode=ParseMode.MARKDOWN
         )
-        logger.warning(f"Invalid quiz reply for {command} from user {update.message.from_user.id}")
+        logger.warning(f"Invalid quiz reply for {command} from user {update.effective_user.id}")
 
     async def stats_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Show comprehensive real-time bot statistics and monitoring dashboard - OPTIMIZED with caching"""
+        if not update.message:
+            return
+        if not update.effective_user:
+            return
+        if not update.effective_chat:
+            return
+        
         start_time = time.time()
         
         try:
@@ -2546,13 +2570,25 @@ Please reply to a quiz message or use:
             await update.message.reply_text("❌ Error loading dashboard. Please try again.")
             
     async def handle_start_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if not update.message:
-            return
-        if not update.effective_user:
-            return
-        if not update.effective_chat:
+        query = update.callback_query
+        if not query:
             return
         
+        await query.answer()
+        
+        try:
+            if query.data == "start_quiz":
+                # Send quiz to user
+                if not update.effective_chat:
+                    return
+                await self.send_quiz(update.effective_chat.id, context)
+                
+            elif query.data == "my_stats":
+                if not update.effective_user:
+                    return
+                stats = self.quiz_manager.get_user_stats(update.effective_user.id)
+                if stats and stats.get('total_attempts', 0) > 0:
+                    stats_message = f"""📊 𝗬𝗼𝘂𝗿 𝗣𝗲𝗿𝗳𝗼𝗿𝗺𝗮𝗻𝗰𝗲 𝗦𝘁𝗮𝘁𝘀
 ━━━━━━━━━━━━━━━━━━━━━
 
 💯 Total Score: {stats['score']} points
@@ -2576,6 +2612,8 @@ Start playing quizzes to track your progress.
                 
                 keyboard = [[InlineKeyboardButton("🎯 Start Quiz Now", callback_data="start_quiz")]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
+                if not query.message:
+                    return
                 await query.message.reply_text(stats_message, reply_markup=reply_markup)
                 
             elif query.data == "leaderboard":
@@ -2609,6 +2647,8 @@ Start playing quizzes to track your progress.
                 
                 keyboard = [[InlineKeyboardButton("🎯 Start Quiz", callback_data="start_quiz")]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
+                if not query.message:
+                    return
                 await query.message.reply_text(leaderboard_text, reply_markup=reply_markup)
                 
             elif query.data == "help":
@@ -2639,15 +2679,21 @@ Start playing quizzes to track your progress.
                 
                 keyboard = [[InlineKeyboardButton("🎯 Start Quiz", callback_data="start_quiz")]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
+                if not query.message:
+                    return
                 await query.message.reply_text(help_message, reply_markup=reply_markup)
                 
         except Exception as e:
             logger.error(f"Error in start callback handler: {e}")
-            await query.answer("❌ Error processing request", show_alert=True)
+            if query:
+                await query.answer("❌ Error processing request", show_alert=True)
     
     async def handle_stats_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle callbacks from the stats dashboard"""
         query = update.callback_query
+        if not query:
+            return
+        
         await query.answer()
         
         try:
