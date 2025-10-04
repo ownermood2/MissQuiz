@@ -1,0 +1,50 @@
+2025-10-04T19:20:05.709926518Z 2025-10-04 19:20:05,709 - src.core.quiz - INFO - Users with scores: 0
+2025-10-04T19:20:05.710041741Z 2025-10-04 19:20:05,709 - src.web.app - INFO - Quiz Manager initialized for webhook mode
+2025-10-04T19:20:05.710667925Z 2025-10-04 19:20:05,710 - src.web.app - INFO - Started persistent event loop in background thread
+2025-10-04T19:20:05.711848292Z 2025-10-04 19:20:05,711 - src.core.database - INFO - Database schema initialized successfully with optimized indexes
+2025-10-04T19:20:05.711872432Z 2025-10-04 19:20:05,711 - src.core.database - INFO - Database initialized at data/quiz_bot.db with connection pooling
+2025-10-04T19:20:05.712037156Z 2025-10-04 19:20:05,711 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+2025-10-04T19:20:05.712132069Z 2025-10-04 19:20:05,712 - src.bot.dev_commands - INFO - Developer commands module initialized
+2025-10-04T19:20:05.71218265Z 2025-10-04 19:20:05,712 - src.bot.handlers - INFO - TelegramQuizBot initialized with performance optimizations: user cache, activity batching, leaderboard cache
+2025-10-04T19:20:06.151684898Z 2025-10-04 19:20:06,151 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04T19:20:06.151817601Z 2025-10-04 19:20:06,151 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04T19:20:06.151977725Z 2025-10-04 19:20:06,151 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04T19:20:06.152123898Z 2025-10-04 19:20:06,152 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04T19:20:06.152253191Z 2025-10-04 19:20:06,152 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04T19:20:06.152364204Z 2025-10-04 19:20:06,152 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04T19:20:06.154919412Z 2025-10-04 19:20:06,154 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04T19:20:06.752325172Z 2025-10-04 19:20:06,752 - apscheduler.scheduler - INFO - Added job "send_automated_quiz" to job store "default"
+2025-10-04T19:20:06.752416814Z 2025-10-04 19:20:06,752 - apscheduler.scheduler - INFO - Added job "scheduled_cleanup" to job store "default"
+2025-10-04T19:20:06.752500196Z 2025-10-04 19:20:06,752 - apscheduler.scheduler - INFO - Added job "cleanup_old_polls" to job store "default"
+2025-10-04T19:20:06.752580748Z 2025-10-04 19:20:06,752 - apscheduler.scheduler - INFO - Added job "cleanup_questions_wrapper" to job store "default"
+2025-10-04T19:20:06.75266171Z 2025-10-04 19:20:06,752 - apscheduler.scheduler - INFO - Added job "track_memory_usage" to job store "default"
+2025-10-04T19:20:06.752748022Z 2025-10-04 19:20:06,752 - apscheduler.scheduler - INFO - Added job "cleanup_performance_metrics" to job store "default"
+2025-10-04T19:20:06.752930806Z 2025-10-04 19:20:06,752 - apscheduler.scheduler - INFO - Added job "cleanup_old_activities" to job store "default"
+2025-10-04T19:20:06.752976957Z 2025-10-04 19:20:06,752 - apscheduler.scheduler - INFO - Scheduler started
+2025-10-04T19:20:06.75309173Z 2025-10-04 19:20:06,753 - src.bot.handlers - INFO - Backfilling 0 groups from active_chats to database
+2025-10-04T19:20:06.753178842Z 2025-10-04 19:20:06,753 - src.bot.handlers - INFO - Successfully backfilled 0/0 groups to database
+2025-10-04T19:20:06.927039977Z 2025-10-04 19:20:06,926 - src.bot.handlers - INFO - Webhook set successfully: https://quiz.onrender.com/webhook
+2025-10-04T19:20:06.927260892Z 2025-10-04 19:20:06,927 - src.web.app - INFO - Webhook bot initialized with URL: https://quiz.onrender.com/webhook
+2025-10-04T19:20:06.930282601Z 2025-10-04 19:20:06,930 - src.web.app - INFO - Flask app created and routes registered
+2025-10-04T19:20:06.930639469Z  * Serving Flask app 'src.web.app'
+2025-10-04T19:20:06.930647109Z  * Debug mode: off
+2025-10-04T19:20:06.931449257Z 2025-10-04 19:20:06,931 - werkzeug - INFO - WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+2025-10-04T19:20:06.931458608Z  * Running on all addresses (0.0.0.0)
+2025-10-04T19:20:06.931462208Z  * Running on http://127.0.0.1:10000
+2025-10-04T19:20:06.931465217Z  * Running on http://10.229.107.236:10000
+2025-10-04T19:20:06.931509058Z 2025-10-04 19:20:06,931 - werkzeug - INFO - Press CTRL+C to quit
+2025-10-04T19:20:07.533726489Z 2025-10-04 19:20:07,533 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 19:20:07] "HEAD / HTTP/1.1" 200 -
+2025-10-04T19:20:16.160798748Z 2025-10-04 19:20:16,160 - apscheduler.executors.default - INFO - Running job "send_automated_quiz (trigger: interval[0:30:00], next run at: 2025-10-04 19:50:16 UTC)" (scheduled at 2025-10-04 19:20:16.150914+00:00)
+2025-10-04T19:20:16.160999892Z 2025-10-04 19:20:16,160 - src.bot.handlers - INFO - Starting automated quiz broadcast to 0 active chats
+2025-10-04T19:20:16.161013182Z 2025-10-04 19:20:16,160 - src.bot.handlers - INFO - Completed automated quiz broadcast cycle
+2025-10-04T19:20:16.161292309Z 2025-10-04 19:20:16,161 - apscheduler.executors.default - INFO - Job "send_automated_quiz (trigger: interval[0:30:00], next run at: 2025-10-04 19:50:16 UTC)" executed successfully
+2025-10-04T19:20:17.06053684Z ==> Your service is live 🎉
+2025-10-04T19:20:17.093946439Z ==> 
+2025-10-04T19:20:17.120853508Z ==> ///////////////////////////////////////////////////////////
+2025-10-04T19:20:17.149584767Z ==> 
+2025-10-04T19:20:17.178242066Z ==> Available at your primary URL https://missquiz.onrender.com
+2025-10-04T19:20:17.205305265Z ==> 
+2025-10-04T19:20:17.232378864Z ==> ///////////////////////////////////////////////////////////
+2025-10-04T19:20:19.073765275Z 2025-10-04 19:20:19,073 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 19:20:19] "GET / HTTP/1.1" 200 -
+2025-10-04T19:21:06.202698888Z 2025-10-04 19:21:06,202 - apscheduler.executors.default - INFO - Running job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-04 19:26:06 UTC)" (scheduled at 2025-10-04 19:21:06.152097+00:00)
+2025-10-04T19:21:06.205682886Z 2025-10-04 19:21:06,205 - apscheduler.executors.default - INFO - Job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-04 19:26:06 UTC)" executed successfully
