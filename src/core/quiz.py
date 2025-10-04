@@ -201,7 +201,7 @@ class QuizManager:
         }
 
     def get_user_stats(self, user_id: int) -> Dict:
-        """Get comprehensive stats for a user"""
+        """Get comprehensive stats for a user - always returns a valid dict"""
         try:
             user_id_str = str(user_id)
             current_date = datetime.now().strftime('%Y-%m-%d')
@@ -287,7 +287,18 @@ class QuizManager:
         except Exception as e:
             logger.error(f"Error getting stats for user {user_id}: {str(e)}\n{traceback.format_exc()}")
             logger.error(f"Raw stats data: {self.stats.get(str(user_id), 'Not Found')}")
-            return None
+            # Always return a valid dict, never None
+            return {
+                'total_quizzes': 0,
+                'correct_answers': 0,
+                'success_rate': 0.0,
+                'today_quizzes': 0,
+                'week_quizzes': 0,
+                'month_quizzes': 0,
+                'current_score': 0,
+                'current_streak': 0,
+                'longest_streak': 0
+            }
 
     def get_group_leaderboard(self, chat_id: int) -> Dict:
         """Get group-specific leaderboard with detailed analytics"""
@@ -435,14 +446,33 @@ class QuizManager:
         random.shuffle(self.available_questions[chat_id])
         logger.info(f"Initialized question pool for chat {chat_id} with {len(self.questions)} questions")
 
-    def get_random_question(self, chat_id: int = None, category: str = None) -> Optional[Dict[str, Any]]:
-        """Get a random question avoiding recent ones with improved tracking and optional category filtering"""
+    def get_random_question(self, chat_id: int = 0, category: str = "") -> Optional[Dict[str, Any]]:
+        """Get a random question avoiding recent ones with improved tracking and optional category filtering
+        
+        Args:
+            chat_id: Chat ID (use 0 for no specific chat context, negative values are valid for Telegram groups)
+            category: Question category filter (use empty string for no filter)
+            
+        Returns:
+            Question dict or None if no questions available
+            
+        Raises:
+            ValueError: If category is invalid type
+        """
+        # Input validation
+        if category is not None and not isinstance(category, str):
+            raise ValueError(f"category must be a string, got {type(category).__name__}")
+        
         try:
             if not self.questions:
                 return None
 
             # Filter questions by category if specified
             if category:
+                # Validate category is non-empty
+                if not category.strip():
+                    raise ValueError("category must be a non-empty string when provided")
+                    
                 # Get questions from database with category filter
                 db_questions = self.db.get_questions_by_category(category)
                 if not db_questions:
@@ -462,8 +492,8 @@ class QuizManager:
                 
                 logger.info(f"Filtered {len(filtered_questions)} questions for category '{category}'")
                 
-                # If no chat_id, return random from filtered
-                if not chat_id:
+                # If no chat_id (0 means no specific chat), return random from filtered
+                if chat_id == 0:
                     selected = random.choice(filtered_questions)
                     logger.info(f"Selected random question from category '{category}': {selected['question'][:50]}...")
                     return selected
@@ -487,8 +517,8 @@ class QuizManager:
                            f"Available in category: {len(available_filtered)}")
                 return selected
 
-            # If no chat_id provided, return completely random
-            if not chat_id:
+            # If no chat_id provided (0 means no specific chat), return completely random
+            if chat_id == 0:
                 return random.choice(self.questions)
 
             # Initialize available questions if needed
@@ -561,8 +591,23 @@ class QuizManager:
 
         return self._cached_leaderboard
 
-    def record_attempt(self, user_id: int, is_correct: bool, category: str = None):
-        """Record a quiz attempt for a user in real-time"""
+    def record_attempt(self, user_id: int, is_correct: bool, category: str = ""):
+        """Record a quiz attempt for a user in real-time
+        
+        Args:
+            user_id: User's Telegram ID (must be positive)
+            is_correct: Whether the answer was correct
+            category: Question category (use empty string if no category)
+            
+        Raises:
+            ValueError: If user_id is invalid or category is invalid type
+        """
+        # Input validation
+        if user_id <= 0:
+            raise ValueError(f"user_id must be a positive integer, got {user_id}")
+        if category is not None and not isinstance(category, str):
+            raise ValueError(f"category must be a string, got {type(category).__name__}")
+            
         try:
             user_id_str = str(user_id)
             current_date = datetime.now().strftime('%Y-%m-%d')
@@ -813,18 +858,18 @@ class QuizManager:
 
     def increment_score(self, user_id: int):
         """Increment user's score and synchronize with statistics"""
-        user_id = str(user_id)
-        if user_id not in self.stats:
-            self._init_user_stats(user_id)
+        user_id_str = str(user_id)
+        if user_id_str not in self.stats:
+            self._init_user_stats(user_id_str)
 
         # Initialize score if needed
-        if user_id not in self.scores:
-            self.scores[user_id] = 0
+        if user_id_str not in self.scores:
+            self.scores[user_id_str] = 0
 
         # Increment score and synchronize with stats
-        self.scores[user_id] += 1
-        stats = self.stats[user_id]
-        stats['correct_answers'] = self.scores[user_id]
+        self.scores[user_id_str] += 1
+        stats = self.stats[user_id_str]
+        stats['correct_answers'] = self.scores[user_id_str]
         stats['total_quizzes'] = max(stats['total_quizzes'] + 1, stats['correct_answers'])
 
         # Record the attempt after synchronizing
@@ -1089,7 +1134,7 @@ class QuizManager:
                     'week_attempts': 0
                 },
                 'performance': {
-                    'success_rate': 0,
+                    'success_rate': 0.0,
                     'questions_available': len(self.questions)
                 }
             }
@@ -1149,7 +1194,8 @@ class QuizManager:
             # Calculate success rate
             if stats['quizzes']['total_attempts'] > 0:
                 stats['performance']['success_rate'] = round(
-                    (stats['quizzes']['correct_answers'] / stats['quizzes']['total_attempts']) * 100, 1
+                    float(stats['quizzes']['correct_answers']) / float(stats['quizzes']['total_attempts']) * 100.0, 
+                    1
                 )
 
             logger.info(f"Global stats generated: {stats}")
