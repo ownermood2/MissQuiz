@@ -1,0 +1,60 @@
+ Deploying...
+2025-10-04 09:36:46,722 - __main__ - WARNING - ⚠️ WEBHOOK MODE DETECTED
+2025-10-04 09:36:46,723 - __main__ - WARNING - ⚠️ For production, use: gunicorn src.web.wsgi:app --bind 0.0.0.0:$PORT
+2025-10-04 09:36:46,723 - __main__ - WARNING - ⚠️ For development, set MODE=polling or remove WEBHOOK_URL
+2025-10-04 09:36:46,723 - __main__ - INFO - Starting Flask dev server for testing...
+2025-10-04 09:36:50,322 - src.core.database - INFO - Added category column to questions table
+2025-10-04 09:36:50,325 - src.core.database - INFO - Added last_quiz_message_id column to users table
+2025-10-04 09:36:50,410 - src.core.database - INFO - Database schema initialized successfully with optimized indexes
+2025-10-04 09:36:50,413 - src.core.database - INFO - Database initialized at data/quiz_bot.db
+2025-10-04 09:36:50,414 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+2025-10-04 09:36:50,414 - src.core.quiz - INFO - Database connection initialized in QuizManager
+2025-10-04 09:36:50,418 - src.core.quiz - INFO - Saved 235 questions to file
+2025-10-04 09:36:50,418 - src.core.quiz - INFO - All data saved successfully. Questions count: 235
+2025-10-04 09:36:50,418 - src.core.quiz - INFO - Successfully loaded and cleaned 235 questions
+2025-10-04 09:36:50,419 - src.core.quiz - INFO - Active chats: 0
+2025-10-04 09:36:50,419 - src.core.quiz - INFO - Active users with stats: 0
+2025-10-04 09:36:50,419 - src.core.quiz - INFO - Users with scores: 0
+2025-10-04 09:36:50,419 - src.web.app - INFO - Quiz Manager initialized for webhook mode
+2025-10-04 09:36:50,420 - src.core.database - INFO - Database schema initialized successfully with optimized indexes
+2025-10-04 09:36:50,420 - src.core.database - INFO - Database initialized at data/quiz_bot.db
+2025-10-04 09:36:50,421 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+2025-10-04 09:36:50,422 - src.bot.dev_commands - INFO - Developer commands module initialized
+2025-10-04 09:36:50,422 - src.bot.handlers - INFO - TelegramQuizBot initialized with database and developer commands
+2025-10-04 09:36:50,908 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 09:36:50,908 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 09:36:50,908 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 09:36:50,908 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 09:36:50,909 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 09:36:50,909 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 09:36:50,911 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04 09:36:51,513 - apscheduler.scheduler - INFO - Added job "send_automated_quiz" to job store "default"
+2025-10-04 09:36:51,514 - apscheduler.scheduler - INFO - Added job "scheduled_cleanup" to job store "default"
+2025-10-04 09:36:51,514 - apscheduler.scheduler - INFO - Added job "cleanup_old_polls" to job store "default"
+2025-10-04 09:36:51,514 - apscheduler.scheduler - INFO - Added job "cleanup_questions_wrapper" to job store "default"
+2025-10-04 09:36:51,514 - apscheduler.scheduler - INFO - Added job "track_memory_usage" to job store "default"
+2025-10-04 09:36:51,514 - apscheduler.scheduler - INFO - Added job "cleanup_performance_metrics" to job store "default"
+2025-10-04 09:36:51,514 - apscheduler.scheduler - INFO - Added job "cleanup_old_activities" to job store "default"
+2025-10-04 09:36:51,514 - apscheduler.scheduler - INFO - Scheduler started
+2025-10-04 09:36:51,514 - telegram.ext.Application - INFO - Application started
+2025-10-04 09:36:51,514 - src.bot.handlers - INFO - Backfilling 0 groups from active_chats to database
+2025-10-04 09:36:51,514 - src.bot.handlers - INFO - Successfully backfilled 0/0 groups to database
+2025-10-04 09:36:51,684 - src.bot.handlers - INFO - Webhook set successfully: https://quiz-f8xz.onrender.com/webhook
+2025-10-04 09:36:51,685 - src.web.app - INFO - Webhook bot initialized with URL: https://quiz-f8xz.onrender.com/webhook
+2025-10-04 09:36:51,688 - src.web.app - INFO - Flask app created and routes registered
+ * Serving Flask app 'src.web.app'
+ * Debug mode: off
+2025-10-04 09:36:51,691 - werkzeug - INFO - WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:10000
+ * Running on http://10.229.148.182:10000
+2025-10-04 09:36:51,691 - werkzeug - INFO - Press CTRL+C to quit
+2025-10-04 09:36:51,893 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 09:36:51] "HEAD / HTTP/1.1" 200 -
+==> Your service is live 🎉
+==> 
+==> ///////////////////////////////////////////////////////////
+==> 
+==> Available at your primary URL https://quiz-x3uo.onrender.com
+==> 
+==> ///////////////////////////////////////////////////////////
+2025-10-04 09:36:57,496 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 09:36:57] "GET / HTTP/1.1" 200 -
