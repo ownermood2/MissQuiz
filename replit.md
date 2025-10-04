@@ -20,7 +20,15 @@ Complete transformation to enterprise-grade codebase with professional standards
   - Added early return validation to prevent accessing potentially None objects
   - Fixed context.args and context.user_data access patterns with proper validation
   - Preserved original error handling logic while adding defensive programming
+  - Fixed all 23 LSP type safety errors in `src/bot/handlers.py` with None guards
   - Architect-reviewed and confirmed no functional regressions
+- **Webhook Event Loop Fix (October 2025)**:
+  - Resolved critical "RuntimeError: Event loop is closed" errors in webhook mode
+  - Implemented persistent event loop in background thread for Flask + python-telegram-bot v20 compatibility
+  - Added `start_background_loop()` and `run_coroutine_threadsafe()` helper functions in `src/web/app.py`
+  - Replaced per-request `asyncio.run()` (which creates/closes loops) with thread-safe `asyncio.run_coroutine_threadsafe()`
+  - Event loop persists for process lifetime, all webhook updates reuse the same loop
+  - Architect-reviewed and confirmed production-ready for Render deployment
 - **Professional Documentation**: Added comprehensive Google-style docstrings to all core modules (config.py, database.py, quiz.py, exceptions.py)
 - **Backward Compatibility**: All improvements maintain compatibility with existing code
 
