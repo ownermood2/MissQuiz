@@ -701,16 +701,16 @@ class DeveloperCommands:
                 try:
                     # Fetch OWNER info
                     owner_user = await context.bot.get_chat(config.OWNER_ID)
-                    owner_name = f"[{owner_user.first_name}](tg://user?id={config.OWNER_ID})"
+                    owner_name = f'<a href="tg://user?id={config.OWNER_ID}">{owner_user.first_name}</a>'
                     owner_info.append(f"{owner_name} (ID: {config.OWNER_ID})")
                 except:
-                    owner_info.append(f"@CV_OWNER (ID: {config.OWNER_ID})")
+                    owner_info.append(f"OWNER (ID: {config.OWNER_ID})")
                 
                 # Fetch WIFU info if exists
                 if config.WIFU_ID:
                     try:
                         wifu_user = await context.bot.get_chat(config.WIFU_ID)
-                        wifu_name = f"[{wifu_user.first_name}](tg://user?id={config.WIFU_ID})"
+                        wifu_name = f'<a href="tg://user?id={config.WIFU_ID}">{wifu_user.first_name}</a>'
                         wifu_info.append(f"{wifu_name} (ID: {config.WIFU_ID})")
                     except:
                         wifu_info.append(f"WIFU (ID: {config.WIFU_ID})")
@@ -731,14 +731,16 @@ class DeveloperCommands:
                     for dev in developers:
                         try:
                             dev_user = await context.bot.get_chat(dev['user_id'])
-                            dev_name = f"[{dev_user.first_name}](tg://user?id={dev['user_id']})"
+                            dev_name = f'<a href="tg://user?id={dev["user_id"]}">{dev_user.first_name}</a>'
                             dev_text += f"▫️ {dev_name} (ID: {dev['user_id']})\n"
                         except:
-                            # Fallback if can't fetch user info
-                            username = f"@{dev.get('username')}" if dev.get('username') else dev.get('first_name') or f"User{dev['user_id']}"
+                            # Fallback if can't fetch user info - escape special chars
+                            username = dev.get('username') or dev.get('first_name') or f"User{dev['user_id']}"
+                            # Escape HTML special characters
+                            username = username.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
                             dev_text += f"▫️ {username} (ID: {dev['user_id']})\n"
                 
-                reply = await update.message.reply_text(dev_text, parse_mode=ParseMode.MARKDOWN)
+                reply = await update.message.reply_text(dev_text, parse_mode=ParseMode.HTML)
                 await self.auto_clean_message(update.message, reply)
             
             else:
@@ -846,14 +848,16 @@ class DeveloperCommands:
                         time_ago = self.format_relative_time(activity.get('timestamp', ''))
                         activity_type = activity.get('activity_type', 'unknown')
                         username = activity.get('username', 'Unknown')
+                        # Escape underscores in username to prevent Markdown issues
+                        safe_username = username.replace('_', '\\_') if username else 'Unknown'
                         command = activity.get('command', '')
                         
                         if activity_type == 'command' and command:
-                            activity_feed += f"• {time_ago}: @{username} used {command}\n"
+                            activity_feed += f"• {time_ago}: @{safe_username} used {command}\n"
                         elif activity_type == 'quiz_sent':
                             activity_feed += f"• {time_ago}: Quiz sent\n"
                         elif activity_type == 'quiz_answered':
-                            activity_feed += f"• {time_ago}: @{username} answered quiz\n"
+                            activity_feed += f"• {time_ago}: @{safe_username} answered quiz\n"
                         elif activity_type == 'broadcast':
                             activity_feed += f"• {time_ago}: Broadcast sent\n"
                         elif activity_type == 'error':
