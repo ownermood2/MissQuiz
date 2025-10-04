@@ -49,6 +49,8 @@ class DeveloperCommands:
     
     async def send_unauthorized_message(self, update: Update):
         """Send friendly unauthorized message"""
+        if not update.effective_message:
+            return
         message = await update.effective_message.reply_text(config.UNAUTHORIZED_MESSAGE)
         
         # Clean unauthorized messages (not developer responses)
@@ -229,8 +231,8 @@ class DeveloperCommands:
             return text, None
     
     async def replace_placeholders(self, text: str, chat_id: int, context: ContextTypes.DEFAULT_TYPE, 
-                                   user_data: dict = None, group_data: dict = None, 
-                                   bot_name_cache: str = None) -> str:
+                                   user_data: dict | None = None, group_data: dict | None = None, 
+                                   bot_name_cache: str | None = None) -> str:
         """
         Replace placeholders in text (OPTIMIZED - uses database data to avoid API calls):
         {first_name} -> recipient's first name
@@ -301,16 +303,19 @@ class DeveloperCommands:
                 await self.send_unauthorized_message(update)
                 return
             
+            if not update.effective_user or not update.effective_chat or not update.message:
+                return
+            
             # Log command execution immediately
             quiz_id_arg = context.args[0] if context.args else None
             self.db.log_activity(
                 activity_type='command',
                 user_id=update.effective_user.id,
                 chat_id=update.effective_chat.id,
-                username=update.effective_user.username,
-                chat_title=getattr(update.effective_chat, 'title', None),
+                username=update.effective_user.username or "",
+                chat_title=getattr(update.effective_chat, 'title', None) or "",
                 command='/delquiz',
-                details={'quiz_id': quiz_id_arg, 'reply_mode': bool(update.message.reply_to_message)},
+                details={'quiz_id': quiz_id_arg, 'reply_mode': bool(update.message.reply_to_message if update.message else None)},
                 success=True
             )
             
@@ -349,7 +354,9 @@ class DeveloperCommands:
                 quiz = questions[found_idx]
                 
                 # Store quiz ID in user context
-                context.user_data['pending_delete_quiz'] = quiz['id']
+                if context.user_data is not None:
+                    if context.user_data is not None:
+                        context.user_data['pending_delete_quiz'] = quiz['id']
                 
                 confirm_text = f"🗑 Confirm Quiz Deletion\n\n"
                 confirm_text += f"📌 Quiz #{quiz['id']}\n"
@@ -390,7 +397,9 @@ class DeveloperCommands:
                     return
                 
                 # Show confirmation and store quiz ID
-                context.user_data['pending_delete_quiz'] = quiz['id']
+                if context.user_data is not None:
+                    if context.user_data is not None:
+                        context.user_data['pending_delete_quiz'] = quiz['id']
                 
                 confirm_text = f"🗑 Confirm Quiz Deletion\n\n"
                 confirm_text += f"📌 Quiz #{quiz['id']}\n"
@@ -419,18 +428,20 @@ class DeveloperCommands:
         
         except Exception as e:
             response_time = int((time.time() - start_time) * 1000)
-            self.db.log_activity(
-                activity_type='error',
-                user_id=update.effective_user.id,
-                chat_id=update.effective_chat.id,
-                command='/delquiz',
-                details={'error': str(e)},
-                success=False,
-                response_time_ms=response_time
-            )
+            if update.effective_user and update.effective_chat:
+                self.db.log_activity(
+                    activity_type='error',
+                    user_id=update.effective_user.id,
+                    chat_id=update.effective_chat.id,
+                    command='/delquiz',
+                    details={'error': str(e)},
+                    success=False,
+                    response_time_ms=response_time
+                )
             logger.error(f"Error in delquiz: {e}", exc_info=True)
-            reply = await update.message.reply_text("❌ Error processing delete request")
-            await self.auto_clean_message(update.message, reply)
+            if update.message:
+                reply = await update.message.reply_text("❌ Error processing delete request")
+                await self.auto_clean_message(update.message, reply)
     
     async def delquiz_confirm(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Confirm and execute quiz deletion"""
@@ -440,16 +451,19 @@ class DeveloperCommands:
                 await self.send_unauthorized_message(update)
                 return
             
+            if not update.effective_user or not update.effective_chat or not update.message:
+                return
+            
             # Get quiz ID from context
-            quiz_id = context.user_data.get('pending_delete_quiz')
+            quiz_id = context.user_data.get('pending_delete_quiz') if context.user_data else None
             
             # Log command execution immediately
             self.db.log_activity(
                 activity_type='command',
                 user_id=update.effective_user.id,
                 chat_id=update.effective_chat.id,
-                username=update.effective_user.username,
-                chat_title=getattr(update.effective_chat, 'title', None),
+                username=update.effective_user.username or "",
+                chat_title=getattr(update.effective_chat, 'title', None) or "",
                 command='/delquiz_confirm',
                 details={'quiz_id': quiz_id, 'action': 'confirm_deletion'},
                 success=True
@@ -490,15 +504,16 @@ class DeveloperCommands:
                         logger.error(f"Error deleting from quiz_manager: {e}")
                 
                 # Clear the pending delete
-                context.user_data.pop('pending_delete_quiz', None)
+                if context.user_data is not None:
+                    context.user_data.pop('pending_delete_quiz', None)
                 
                 # Log comprehensive quiz deletion activity
                 self.db.log_activity(
                     activity_type='quiz_deleted',
                     user_id=update.effective_user.id,
                     chat_id=update.effective_chat.id,
-                    username=update.effective_user.username,
-                    chat_title=getattr(update.effective_chat, 'title', None),
+                    username=update.effective_user.username or "",
+                    chat_title=getattr(update.effective_chat, 'title', None) or "",
                     details={
                         'deleted_quiz_id': quiz_id,
                         'question_text': quiz_to_delete['question'][:100] if quiz_to_delete else None,
@@ -523,18 +538,20 @@ class DeveloperCommands:
         
         except Exception as e:
             response_time = int((time.time() - start_time) * 1000)
-            self.db.log_activity(
-                activity_type='error',
-                user_id=update.effective_user.id,
-                chat_id=update.effective_chat.id,
-                command='/delquiz_confirm',
-                details={'error': str(e)},
-                success=False,
-                response_time_ms=response_time
-            )
+            if update.effective_user and update.effective_chat:
+                self.db.log_activity(
+                    activity_type='error',
+                    user_id=update.effective_user.id,
+                    chat_id=update.effective_chat.id,
+                    command='/delquiz_confirm',
+                    details={'error': str(e)},
+                    success=False,
+                    response_time_ms=response_time
+                )
             logger.error(f"Error in delquiz_confirm: {e}", exc_info=True)
-            reply = await update.message.reply_text("❌ Error deleting quiz")
-            await self.auto_clean_message(update.message, reply)
+            if update.message:
+                reply = await update.message.reply_text("❌ Error deleting quiz")
+                await self.auto_clean_message(update.message, reply)
     
     async def dev(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Enhanced developer management command"""
@@ -544,17 +561,20 @@ class DeveloperCommands:
                 await self.send_unauthorized_message(update)
                 return
             
+            if not update.effective_user or not update.effective_chat or not update.message:
+                return
+            
             # Determine action for logging
-            action = 'help' if not context.args else (context.args[0] if not context.args[0].isdigit() else 'quick_add')
-            target_user = context.args[1] if len(context.args) > 1 else (context.args[0] if context.args and context.args[0].isdigit() else None)
+            action = 'help' if not context.args or len(context.args) == 0 else (context.args[0] if not context.args[0].isdigit() else 'quick_add')
+            target_user = context.args[1] if context.args and len(context.args) > 1 else (context.args[0] if context.args and len(context.args) > 0 and context.args[0].isdigit() else None)
             
             # Log command execution immediately
             self.db.log_activity(
                 activity_type='command',
                 user_id=update.effective_user.id,
                 chat_id=update.effective_chat.id,
-                username=update.effective_user.username,
-                chat_title=getattr(update.effective_chat, 'title', None),
+                username=update.effective_user.username or "",
+                chat_title=getattr(update.effective_chat, 'title', None) or "",
                 command='/dev',
                 details={'action': action, 'target_user': target_user},
                 success=True
@@ -579,9 +599,9 @@ class DeveloperCommands:
                 # Try to fetch user info from Telegram
                 try:
                     user_info = await context.bot.get_chat(user_id)
-                    username = user_info.username if hasattr(user_info, 'username') else None
-                    first_name = user_info.first_name if hasattr(user_info, 'first_name') else None
-                    last_name = user_info.last_name if hasattr(user_info, 'last_name') else None
+                    username = user_info.username if hasattr(user_info, 'username') and user_info.username else ""
+                    first_name = user_info.first_name if hasattr(user_info, 'first_name') and user_info.first_name else ""
+                    last_name = user_info.last_name if hasattr(user_info, 'last_name') and user_info.last_name else ""
                     
                     self.db.add_developer(
                         user_id=user_id,
@@ -628,9 +648,9 @@ class DeveloperCommands:
                     # Try to fetch user info from Telegram
                     try:
                         user_info = await context.bot.get_chat(new_dev_id)
-                        username = user_info.username if hasattr(user_info, 'username') else None
-                        first_name = user_info.first_name if hasattr(user_info, 'first_name') else None
-                        last_name = user_info.last_name if hasattr(user_info, 'last_name') else None
+                        username = user_info.username if hasattr(user_info, 'username') and user_info.username else ""
+                        first_name = user_info.first_name if hasattr(user_info, 'first_name') and user_info.first_name else ""
+                        last_name = user_info.last_name if hasattr(user_info, 'last_name') and user_info.last_name else ""
                         
                         self.db.add_developer(
                             user_id=new_dev_id,
@@ -753,18 +773,20 @@ class DeveloperCommands:
         
         except Exception as e:
             response_time = int((time.time() - start_time) * 1000)
-            self.db.log_activity(
-                activity_type='error',
-                user_id=update.effective_user.id,
-                chat_id=update.effective_chat.id,
-                command='/dev',
-                details={'error': str(e)},
-                success=False,
-                response_time_ms=response_time
-            )
+            if update.effective_user and update.effective_chat:
+                self.db.log_activity(
+                    activity_type='error',
+                    user_id=update.effective_user.id,
+                    chat_id=update.effective_chat.id,
+                    command='/dev',
+                    details={'error': str(e)},
+                    success=False,
+                    response_time_ms=response_time
+                )
             logger.error(f"Error in dev command: {e}", exc_info=True)
-            reply = await update.message.reply_text("❌ Error executing command")
-            await self.auto_clean_message(update.message, reply)
+            if update.message:
+                reply = await update.message.reply_text("❌ Error executing command")
+                await self.auto_clean_message(update.message, reply)
     
     async def stats(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Enhanced real-time statistics dashboard with live activity feed"""
@@ -774,13 +796,16 @@ class DeveloperCommands:
                 await self.send_unauthorized_message(update)
                 return
             
+            if not update.effective_user or not update.effective_chat or not update.message:
+                return
+            
             # Log command execution immediately
             self.db.log_activity(
                 activity_type='command',
                 user_id=update.effective_user.id,
                 chat_id=update.effective_chat.id,
-                username=update.effective_user.username,
-                chat_title=getattr(update.effective_chat, 'title', None),
+                username=update.effective_user.username or "",
+                chat_title=getattr(update.effective_chat, 'title', None) or "",
                 command='/stats',
                 details={'stats_type': 'real_time_dashboard'},
                 success=True
@@ -899,18 +924,20 @@ class DeveloperCommands:
         
         except Exception as e:
             response_time = int((time.time() - start_time) * 1000)
-            self.db.log_activity(
-                activity_type='error',
-                user_id=update.effective_user.id,
-                chat_id=update.effective_chat.id,
-                command='/stats',
-                details={'error': str(e)},
-                success=False,
-                response_time_ms=response_time
-            )
+            if update.effective_user and update.effective_chat:
+                self.db.log_activity(
+                    activity_type='error',
+                    user_id=update.effective_user.id,
+                    chat_id=update.effective_chat.id,
+                    command='/stats',
+                    details={'error': str(e)},
+                    success=False,
+                    response_time_ms=response_time
+                )
             logger.error(f"Error in stats command: {e}", exc_info=True)
-            reply = await update.message.reply_text("❌ Error retrieving statistics")
-            await self.auto_clean_message(update.message, reply)
+            if update.message:
+                reply = await update.message.reply_text("❌ Error retrieving statistics")
+                await self.auto_clean_message(update.message, reply)
     
     async def broadcast(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Enhanced broadcast supporting media, buttons, placeholders, and auto-cleanup"""
@@ -918,6 +945,9 @@ class DeveloperCommands:
         try:
             if not await self.check_access(update):
                 await self.send_unauthorized_message(update)
+            
+            if not update.effective_user or not update.effective_chat or not update.message:
+                return
                 return
             
             # Determine media type and recipient counts for logging (PM-accessible users only)
@@ -948,8 +978,8 @@ class DeveloperCommands:
                 activity_type='command',
                 user_id=update.effective_user.id,
                 chat_id=update.effective_chat.id,
-                username=update.effective_user.username,
-                chat_title=getattr(update.effective_chat, 'title', None),
+                username=update.effective_user.username or "",
+                chat_title=getattr(update.effective_chat, 'title', None) or "",
                 command='/broadcast',
                 details={'recipient_count': total_targets, 'media_type': media_type, 'users': len(users), 'groups': len(groups)},
                 success=True
@@ -1012,13 +1042,19 @@ class DeveloperCommands:
                 
                 # Store broadcast data
                 if media_type:
-                    context.user_data['broadcast_type'] = media_type
-                    context.user_data['broadcast_media_id'] = media_file_id
-                    context.user_data['broadcast_caption'] = media_caption
+                    if context.user_data is not None:
+                        context.user_data['broadcast_type'] = media_type
+                    if context.user_data is not None:
+                        context.user_data['broadcast_media_id'] = media_file_id
+                    if context.user_data is not None:
+                        context.user_data['broadcast_caption'] = media_caption
                 else:
-                    context.user_data['broadcast_message_id'] = replied_message.message_id
-                    context.user_data['broadcast_chat_id'] = replied_message.chat_id
-                    context.user_data['broadcast_type'] = 'forward'
+                    if context.user_data is not None:
+                        context.user_data['broadcast_message_id'] = replied_message.message_id
+                    if context.user_data is not None:
+                        context.user_data['broadcast_chat_id'] = replied_message.chat_id
+                    if context.user_data is not None:
+                        context.user_data['broadcast_type'] = 'forward'
                 
                 reply = await update.message.reply_text(confirm_text)
                 logger.info(f"Broadcast ({media_type or 'forward'}) prepared by {update.effective_user.id}")
@@ -1046,9 +1082,12 @@ class DeveloperCommands:
                 confirm_text += f"• Total: {total_targets} recipients\n\n"
                 confirm_text += f"Confirm: /broadcast_confirm"
                 
-                context.user_data['broadcast_message'] = cleaned_text
-                context.user_data['broadcast_buttons'] = reply_markup
-                context.user_data['broadcast_type'] = 'text'
+                if context.user_data is not None:
+                    context.user_data['broadcast_message'] = cleaned_text
+                if context.user_data is not None:
+                    context.user_data['broadcast_buttons'] = reply_markup
+                if context.user_data is not None:
+                    context.user_data['broadcast_type'] = 'text'
                 
                 reply = await update.message.reply_text(confirm_text)
                 logger.info(f"Broadcast (text) prepared by {update.effective_user.id}")
@@ -1071,18 +1110,20 @@ class DeveloperCommands:
         
         except Exception as e:
             response_time = int((time.time() - start_time) * 1000)
-            self.db.log_activity(
-                activity_type='error',
-                user_id=update.effective_user.id,
-                chat_id=update.effective_chat.id,
-                command='/broadcast',
-                details={'error': str(e)},
-                success=False,
-                response_time_ms=response_time
-            )
+            if update.effective_user and update.effective_chat:
+                self.db.log_activity(
+                    activity_type='error',
+                    user_id=update.effective_user.id,
+                    chat_id=update.effective_chat.id,
+                    command='/broadcast',
+                    details={'error': str(e)},
+                    success=False,
+                    response_time_ms=response_time
+                )
             logger.error(f"Error in broadcast: {e}", exc_info=True)
-            reply = await update.message.reply_text("❌ Error preparing broadcast")
-            await self.auto_clean_message(update.message, reply)
+            if update.message:
+                reply = await update.message.reply_text("❌ Error preparing broadcast")
+                await self.auto_clean_message(update.message, reply)
     
     async def broadcast_confirm(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Confirm and send broadcast with media, buttons, placeholders, and auto-cleanup"""
@@ -1092,20 +1133,23 @@ class DeveloperCommands:
                 await self.send_unauthorized_message(update)
                 return
             
+            if not update.effective_user or not update.effective_chat or not update.message:
+                return
+            
             # Log command execution immediately
-            broadcast_type = context.user_data.get('broadcast_type', 'unknown')
+            broadcast_type = context.user_data.get('broadcast_type', 'unknown') if context.user_data else 'unknown'
             self.db.log_activity(
                 activity_type='command',
                 user_id=update.effective_user.id,
                 chat_id=update.effective_chat.id,
-                username=update.effective_user.username,
-                chat_title=getattr(update.effective_chat, 'title', None),
+                username=update.effective_user.username or "",
+                chat_title=getattr(update.effective_chat, 'title', None) or "",
                 command='/broadcast_confirm',
                 details={'broadcast_type': broadcast_type, 'action': 'confirm_broadcast'},
                 success=True
             )
             
-            broadcast_type = context.user_data.get('broadcast_type')
+            broadcast_type = context.user_data.get('broadcast_type') if context.user_data else None
             
             # Track sent messages for deletion feature
             sent_messages = {}
@@ -1134,8 +1178,13 @@ class DeveloperCommands:
             
             # Get broadcast data based on type
             if broadcast_type == 'forward':
-                message_id = context.user_data.get('broadcast_message_id')
-                chat_id = context.user_data.get('broadcast_chat_id')
+                message_id = context.user_data.get('broadcast_message_id') if context.user_data else None
+                chat_id = context.user_data.get('broadcast_chat_id') if context.user_data else None
+                
+                if not message_id or not chat_id:
+                    reply = await update.message.reply_text("❌ Missing broadcast data. Please use /broadcast again.")
+                    await self.auto_clean_message(update.message, reply)
+                    return
                 
                 # Send to users (PM)
                 for user in users:
@@ -1208,9 +1257,18 @@ class DeveloperCommands:
             
             elif broadcast_type in ['photo', 'video', 'document', 'animation']:
                 # Media broadcast with placeholder support
-                media_file_id = context.user_data.get('broadcast_media_id')
-                base_caption = context.user_data.get('broadcast_caption') or ""
-                reply_markup = context.user_data.get('broadcast_buttons')
+                media_file_id = context.user_data.get('broadcast_media_id') if context.user_data else None
+                base_caption = context.user_data.get('broadcast_caption') if context.user_data else None
+                reply_markup = context.user_data.get('broadcast_buttons') if context.user_data else None
+                
+                if not media_file_id:
+                    reply = await update.message.reply_text("❌ Missing media file ID. Please use /broadcast again.")
+                    await self.auto_clean_message(update.message, reply)
+                    return
+                
+                # Ensure base_caption is a string
+                if base_caption is None:
+                    base_caption = ""
                 
                 # Truncate caption to Telegram's 1024 character limit
                 if len(base_caption) > 1024:
@@ -1221,8 +1279,7 @@ class DeveloperCommands:
                 for user in users:
                     try:
                         # OPTIMIZED: Apply placeholders using database data (no API call!)
-                        caption = await self.replace_placeholders(
-                            base_caption, user['user_id'], context, 
+                        caption = await self.replace_placeholders(base_caption or "", user['user_id'], context, 
                             user_data=user, bot_name_cache=bot_name_cache
                         )
                         
@@ -1255,6 +1312,9 @@ class DeveloperCommands:
                                 caption=caption if caption else None,
                                 reply_markup=reply_markup
                             )
+                        else:
+                            # Invalid broadcast type, skip this user
+                            continue
                         
                         sent_messages[user['user_id']] = sent_msg.message_id
                         success_count += 1
@@ -1284,8 +1344,7 @@ class DeveloperCommands:
                 for group in groups:
                     try:
                         # OPTIMIZED: Apply placeholders using database data (no API call!)
-                        caption = await self.replace_placeholders(
-                            base_caption, group['chat_id'], context, 
+                        caption = await self.replace_placeholders(base_caption or "", group['chat_id'], context, 
                             group_data=group, bot_name_cache=bot_name_cache
                         )
                         
@@ -1318,6 +1377,9 @@ class DeveloperCommands:
                                 caption=caption if caption else None,
                                 reply_markup=reply_markup
                             )
+                        else:
+                            # Invalid broadcast type, skip this group
+                            continue
                         
                         sent_messages[group['chat_id']] = sent_msg.message_id
                         success_count += 1
@@ -1349,15 +1411,14 @@ class DeveloperCommands:
                             fail_count += 1
             
             else:  # text broadcast with buttons and placeholders
-                base_message_text = context.user_data.get('broadcast_message')
-                reply_markup = context.user_data.get('broadcast_buttons')
+                base_message_text = context.user_data.get('broadcast_message') if context.user_data else None
+                reply_markup = context.user_data.get('broadcast_buttons') if context.user_data else None
                 
                 # Send to users (PM)
                 for user in users:
                     try:
                         # OPTIMIZED: Apply placeholders using database data (no API call!)
-                        message_text = await self.replace_placeholders(
-                            base_message_text, user['user_id'], context,
+                        message_text = await self.replace_placeholders(base_message_text or "", user['user_id'], context,
                             user_data=user, bot_name_cache=bot_name_cache
                         )
                         
@@ -1410,8 +1471,7 @@ class DeveloperCommands:
                 for group in groups:
                     try:
                         # OPTIMIZED: Apply placeholders using database data (no API call!)
-                        message_text = await self.replace_placeholders(
-                            base_message_text, group['chat_id'], context,
+                        message_text = await self.replace_placeholders(base_message_text or "", group['chat_id'], context,
                             group_data=group, bot_name_cache=bot_name_cache
                         )
                         
@@ -1472,7 +1532,7 @@ class DeveloperCommands:
             
             # Log broadcast to database for historical tracking
             total_targets = len(users) + len(groups)
-            message_text = context.user_data.get('broadcast_message', '')[:500] if broadcast_type == 'text' else f"[{broadcast_type.upper()} BROADCAST]"
+            message_text = (context.user_data.get('broadcast_message', '') if context.user_data else '')[:500] if broadcast_type == 'text' else f"[{broadcast_type.upper()} BROADCAST]"
             self.db.log_broadcast(
                 admin_id=update.effective_user.id,
                 message_text=message_text,
@@ -1532,13 +1592,20 @@ class DeveloperCommands:
             logger.info(f"Broadcast completed by {update.effective_user.id}: {pm_sent} PMs, {group_sent} groups ({success_count} total, {fail_count} failed, {skipped_count} auto-removed)")
             
             # Clear broadcast data
-            context.user_data.pop('broadcast_message', None)
-            context.user_data.pop('broadcast_message_id', None)
-            context.user_data.pop('broadcast_chat_id', None)
-            context.user_data.pop('broadcast_type', None)
-            context.user_data.pop('broadcast_media_id', None)
-            context.user_data.pop('broadcast_caption', None)
-            context.user_data.pop('broadcast_buttons', None)
+            if context.user_data is not None:
+                context.user_data.pop('broadcast_message', None)
+            if context.user_data is not None:
+                context.user_data.pop('broadcast_message_id', None)
+            if context.user_data is not None:
+                context.user_data.pop('broadcast_chat_id', None)
+            if context.user_data is not None:
+                context.user_data.pop('broadcast_type', None)
+            if context.user_data is not None:
+                context.user_data.pop('broadcast_media_id', None)
+            if context.user_data is not None:
+                context.user_data.pop('broadcast_caption', None)
+            if context.user_data is not None:
+                context.user_data.pop('broadcast_buttons', None)
             
             # Calculate response time at end
             response_time = int((time.time() - start_time) * 1000)
@@ -1546,18 +1613,20 @@ class DeveloperCommands:
         
         except Exception as e:
             response_time = int((time.time() - start_time) * 1000)
-            self.db.log_activity(
-                activity_type='error',
-                user_id=update.effective_user.id,
-                chat_id=update.effective_chat.id,
-                command='/broadcast_confirm',
-                details={'error': str(e)},
-                success=False,
-                response_time_ms=response_time
-            )
+            if update.effective_user and update.effective_chat:
+                self.db.log_activity(
+                    activity_type='error',
+                    user_id=update.effective_user.id,
+                    chat_id=update.effective_chat.id,
+                    command='/broadcast_confirm',
+                    details={'error': str(e)},
+                    success=False,
+                    response_time_ms=response_time
+                )
             logger.error(f"Error in broadcast_confirm: {e}", exc_info=True)
-            reply = await update.message.reply_text("❌ Error sending broadcast")
-            await self.auto_clean_message(update.message, reply)
+            if update.message:
+                reply = await update.message.reply_text("❌ Error sending broadcast")
+                await self.auto_clean_message(update.message, reply)
     
     async def delbroadcast(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Delete latest broadcast from all groups/users - Works from anywhere!"""
@@ -1565,6 +1634,9 @@ class DeveloperCommands:
         try:
             if not await self.check_access(update):
                 await self.send_unauthorized_message(update)
+                return
+            
+            if not update.effective_user or not update.effective_chat or not update.message:
                 return
             
             # Get latest broadcast from database
@@ -1576,8 +1648,8 @@ class DeveloperCommands:
                 activity_type='command',
                 user_id=update.effective_user.id,
                 chat_id=update.effective_chat.id,
-                username=update.effective_user.username,
-                chat_title=getattr(update.effective_chat, 'title', None),
+                username=update.effective_user.username or "",
+                chat_title=getattr(update.effective_chat, 'title', None) or "",
                 command='/delbroadcast',
                 details={'target_count': target_count},
                 success=True
@@ -1617,18 +1689,20 @@ class DeveloperCommands:
         
         except Exception as e:
             response_time = int((time.time() - start_time) * 1000)
-            self.db.log_activity(
-                activity_type='error',
-                user_id=update.effective_user.id,
-                chat_id=update.effective_chat.id,
-                command='/delbroadcast',
-                details={'error': str(e)},
-                success=False,
-                response_time_ms=response_time
-            )
+            if update.effective_user and update.effective_chat:
+                self.db.log_activity(
+                    activity_type='error',
+                    user_id=update.effective_user.id,
+                    chat_id=update.effective_chat.id,
+                    command='/delbroadcast',
+                    details={'error': str(e)},
+                    success=False,
+                    response_time_ms=response_time
+                )
             logger.error(f"Error in delbroadcast: {e}", exc_info=True)
-            reply = await update.message.reply_text("❌ Error preparing broadcast deletion")
-            await self.auto_clean_message(update.message, reply)
+            if update.message:
+                reply = await update.message.reply_text("❌ Error preparing broadcast deletion")
+                await self.auto_clean_message(update.message, reply)
     
     async def delbroadcast_confirm(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Confirm and execute broadcast deletion - Optimized for instant deletion"""
@@ -1638,13 +1712,16 @@ class DeveloperCommands:
                 await self.send_unauthorized_message(update)
                 return
             
+            if not update.effective_user or not update.effective_chat or not update.message:
+                return
+            
             # Log command execution immediately
             self.db.log_activity(
                 activity_type='command',
                 user_id=update.effective_user.id,
                 chat_id=update.effective_chat.id,
-                username=update.effective_user.username,
-                chat_title=getattr(update.effective_chat, 'title', None),
+                username=update.effective_user.username or "",
+                chat_title=getattr(update.effective_chat, 'title', None) or "",
                 command='/delbroadcast_confirm',
                 details={'action': 'confirm_deletion'},
                 success=True
@@ -1699,18 +1776,20 @@ class DeveloperCommands:
         
         except Exception as e:
             response_time = int((time.time() - start_time) * 1000)
-            self.db.log_activity(
-                activity_type='error',
-                user_id=update.effective_user.id,
-                chat_id=update.effective_chat.id,
-                command='/delbroadcast_confirm',
-                details={'error': str(e)},
-                success=False,
-                response_time_ms=response_time
-            )
+            if update.effective_user and update.effective_chat:
+                self.db.log_activity(
+                    activity_type='error',
+                    user_id=update.effective_user.id,
+                    chat_id=update.effective_chat.id,
+                    command='/delbroadcast_confirm',
+                    details={'error': str(e)},
+                    success=False,
+                    response_time_ms=response_time
+                )
             logger.error(f"Error in delbroadcast_confirm: {e}", exc_info=True)
-            reply = await update.message.reply_text("❌ Error deleting broadcast")
-            await self.auto_clean_message(update.message, reply)
+            if update.message:
+                reply = await update.message.reply_text("❌ Error deleting broadcast")
+                await self.auto_clean_message(update.message, reply)
     
     async def performance_stats(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show live performance metrics dashboard"""
@@ -1720,12 +1799,15 @@ class DeveloperCommands:
                 await self.send_unauthorized_message(update)
                 return
             
+            if not update.effective_user or not update.effective_chat or not update.message:
+                return
+            
             self.db.log_activity(
                 activity_type='command',
                 user_id=update.effective_user.id,
                 chat_id=update.effective_chat.id,
-                username=update.effective_user.username,
-                chat_title=getattr(update.effective_chat, 'title', None),
+                username=update.effective_user.username or "",
+                chat_title=getattr(update.effective_chat, 'title', None) or "",
                 command='/performance',
                 success=True
             )
@@ -1810,18 +1892,20 @@ class DeveloperCommands:
             
         except Exception as e:
             response_time = int((time.time() - start_time) * 1000)
-            self.db.log_activity(
-                activity_type='error',
-                user_id=update.effective_user.id,
-                chat_id=update.effective_chat.id,
-                command='/performance',
-                details={'error': str(e)},
-                success=False,
-                response_time_ms=response_time
-            )
+            if update.effective_user and update.effective_chat:
+                self.db.log_activity(
+                    activity_type='error',
+                    user_id=update.effective_user.id,
+                    chat_id=update.effective_chat.id,
+                    command='/performance',
+                    details={'error': str(e)},
+                    success=False,
+                    response_time_ms=response_time
+                )
             logger.error(f"Error in performance_stats: {e}", exc_info=True)
-            reply = await update.message.reply_text("❌ Error loading performance metrics")
-            await self.auto_clean_message(update.message, reply)
+            if update.message:
+                reply = await update.message.reply_text("❌ Error loading performance metrics")
+                await self.auto_clean_message(update.message, reply)
     
     async def devstats(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Comprehensive developer statistics dashboard"""
@@ -1829,6 +1913,9 @@ class DeveloperCommands:
         try:
             if not await self.check_access(update):
                 await self.send_unauthorized_message(update)
+                return
+            
+            if not update.effective_user or not update.effective_chat or not update.message:
                 return
             
             loading_msg = await update.message.reply_text("📊 Loading comprehensive dev stats...")
@@ -1854,7 +1941,7 @@ class DeveloperCommands:
             perf_24h = self.db.get_performance_summary(24)
             activity_stats = self.db.get_activity_stats(1)
             
-            total_users = len(self.db.get_all_users())
+            total_users = len(self.db.get_pm_accessible_users())
             total_groups = len(self.db.get_all_groups())
             active_today = self.db.get_active_users_count('today')
             active_week = self.db.get_active_users_count('week')
@@ -1963,7 +2050,7 @@ class DeveloperCommands:
                 activity_type='command',
                 user_id=update.effective_user.id,
                 chat_id=update.effective_chat.id,
-                username=update.effective_user.username,
+                username=update.effective_user.username or "",
                 details={'command': 'devstats'},
                 success=True,
                 response_time_ms=response_time
@@ -1971,8 +2058,9 @@ class DeveloperCommands:
             
         except Exception as e:
             logger.error(f"Error in devstats: {e}", exc_info=True)
-            reply = await update.message.reply_text("❌ Error loading dev statistics")
-            await self.auto_clean_message(update.message, reply)
+            if update.message:
+                reply = await update.message.reply_text("❌ Error loading dev statistics")
+                await self.auto_clean_message(update.message, reply)
     
     async def activity(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Live activity stream with filtering and pagination"""
@@ -1982,8 +2070,11 @@ class DeveloperCommands:
                 await self.send_unauthorized_message(update)
                 return
             
+            if not update.effective_user or not update.effective_chat or not update.message:
+                return
+            
             activity_type = context.args[0] if context.args else 'all'
-            page = int(context.args[1]) if len(context.args) > 1 else 1
+            page = int(context.args[1]) if context.args and len(context.args) > 1 else 1
             
             valid_types = ['all', 'command', 'quiz_sent', 'quiz_answered', 'broadcast', 'error']
             if activity_type not in valid_types:
@@ -2075,7 +2166,7 @@ Type: {activity_type.upper()}
                 activity_type='command',
                 user_id=update.effective_user.id,
                 chat_id=update.effective_chat.id,
-                username=update.effective_user.username,
+                username=update.effective_user.username or "",
                 details={'command': 'activity', 'filter': activity_type},
                 success=True,
                 response_time_ms=response_time
@@ -2083,5 +2174,6 @@ Type: {activity_type.upper()}
             
         except Exception as e:
             logger.error(f"Error in activity: {e}", exc_info=True)
-            reply = await update.message.reply_text("❌ Error loading activity stream")
-            await self.auto_clean_message(update.message, reply)
+            if update.message:
+                reply = await update.message.reply_text("❌ Error loading activity stream")
+                await self.auto_clean_message(update.message, reply)
