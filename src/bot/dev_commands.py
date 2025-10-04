@@ -355,8 +355,7 @@ class DeveloperCommands:
                 
                 # Store quiz ID in user context
                 if context.user_data is not None:
-                    if context.user_data is not None:
-                        context.user_data['pending_delete_quiz'] = quiz['id']
+                    context.user_data['pending_delete_quiz'] = quiz['id']
                 
                 confirm_text = f"🗑 Confirm Quiz Deletion\n\n"
                 confirm_text += f"📌 Quiz #{quiz['id']}\n"
@@ -398,8 +397,7 @@ class DeveloperCommands:
                 
                 # Show confirmation and store quiz ID
                 if context.user_data is not None:
-                    if context.user_data is not None:
-                        context.user_data['pending_delete_quiz'] = quiz['id']
+                    context.user_data['pending_delete_quiz'] = quiz['id']
                 
                 confirm_text = f"🗑 Confirm Quiz Deletion\n\n"
                 confirm_text += f"📌 Quiz #{quiz['id']}\n"
