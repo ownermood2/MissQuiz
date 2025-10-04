@@ -187,6 +187,10 @@ class TelegramQuizBot:
     async def backfill_groups_startup(self):
         """Migrate active_chats to database groups table on startup"""
         try:
+            if not self.application:
+                logger.error("Application not initialized in backfill_groups_startup")
+                return
+            
             active_chats = self.quiz_manager.get_active_chats()
             logger.info(f"Backfilling {len(active_chats)} groups from active_chats to database")
             
@@ -603,6 +607,10 @@ class TelegramQuizBot:
             # Use bot directly instead of context for startup backfill
             await self.backfill_groups_startup()
             
+            if not self.application or not self.application.updater:
+                logger.error("Application or updater not initialized")
+                raise RuntimeError("Application or updater not initialized")
+            
             await self.application.updater.start_polling()
 
             return self
@@ -855,6 +863,10 @@ class TelegramQuizBot:
     async def _delete_messages_after_delay(self, chat_id: int, message_ids: List[int], delay: int = 5) -> None:
         """Delete messages after specified delay in seconds - requires admin permissions in groups"""
         try:
+            if not self.application:
+                logger.error("Application not initialized in _delete_messages_after_delay")
+                return
+            
             await asyncio.sleep(delay)
             
             # Check if bot has admin permissions to delete messages
@@ -1612,8 +1624,13 @@ Ready to begin? Try /quiz now! 🚀"""
                     return
 
                 # OPTIMIZATION 3: Use cached leaderboard
-                leaderboard, _ = self._get_leaderboard_cached(limit=1000, offset=0)
-                user_rank = next((i+1 for i, u in enumerate(leaderboard) if u['user_id'] == user.id), 'N/A')
+                leaderboard_data = self._get_leaderboard_cached(limit=1000, offset=0)
+                if not leaderboard_data:
+                    leaderboard = []
+                    user_rank = 'N/A'
+                else:
+                    leaderboard, _ = leaderboard_data
+                    user_rank = next((i+1 for i, u in enumerate(leaderboard) if u['user_id'] == user.id), 'N/A')
                 
                 # Get username display as clickable Telegram profile link
                 username = f"[{user.first_name}](tg://user?id={user.id})"
@@ -1682,6 +1699,8 @@ Ready to begin? Try /quiz now! 🚀"""
         if not update.effective_user:
             return
         if not update.effective_chat:
+            return
+        if not update.message.from_user:
             return
         
         start_time = time.time()
@@ -2532,7 +2551,11 @@ Please reply to a quiz message or use:
                 self._stats_cache_time = current_time
                 logger.debug("Stats data fetched with combined query and cached (30s)")
             
-            # Extract data from cache
+            # Extract data from cache with None guard
+            if not stats_data:
+                logger.error("Stats data is None")
+                return
+            
             total_users = stats_data['total_users']
             pm_users = stats_data['pm_users']
             group_only_users = stats_data['group_only_users']
@@ -2652,9 +2675,9 @@ Start playing quizzes to track your progress.
                 
                 keyboard = [[InlineKeyboardButton("🎯 Start Quiz Now", callback_data="start_quiz")]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
-                if not query.message:
+                if not update.effective_message:
                     return
-                await query.message.reply_text(stats_message, reply_markup=reply_markup)
+                await update.effective_message.reply_text(stats_message, reply_markup=reply_markup)
                 
             elif query.data == "leaderboard":
                 # Show leaderboard
@@ -2687,9 +2710,9 @@ Start playing quizzes to track your progress.
                 
                 keyboard = [[InlineKeyboardButton("🎯 Start Quiz", callback_data="start_quiz")]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
-                if not query.message:
+                if not update.effective_message:
                     return
-                await query.message.reply_text(leaderboard_text, reply_markup=reply_markup)
+                await update.effective_message.reply_text(leaderboard_text, reply_markup=reply_markup)
                 
             elif query.data == "help":
                 # Show help
@@ -2719,9 +2742,9 @@ Start playing quizzes to track your progress.
                 
                 keyboard = [[InlineKeyboardButton("🎯 Start Quiz", callback_data="start_quiz")]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
-                if not query.message:
+                if not update.effective_message:
                     return
-                await query.message.reply_text(help_message, reply_markup=reply_markup)
+                await update.effective_message.reply_text(help_message, reply_markup=reply_markup)
                 
         except Exception as e:
             logger.error(f"Error in start callback handler: {e}")
