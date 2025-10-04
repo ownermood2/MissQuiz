@@ -10,9 +10,11 @@ WAL mode for improved concurrency.
 import sqlite3
 import json
 import logging
+import asyncio
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 from contextlib import contextmanager
+from threading import Lock
 from src.core import config
 from src.core.exceptions import DatabaseError
 
@@ -28,7 +30,8 @@ class DatabaseManager:
     and ensures data integrity through proper transaction management.
     
     The database uses SQLite with WAL (Write-Ahead Logging) mode enabled
-    for better concurrency performance.
+    for better concurrency performance. Implements connection pooling for
+    improved performance.
     """
     
     def __init__(self, db_path: str = None):
@@ -46,9 +49,14 @@ class DatabaseManager:
             DatabaseError: If database initialization or migration fails
         """
         self.db_path = db_path or config.DATABASE_PATH
+        self._conn = None
+        self._lock = Lock()
+        self._executor = None
+        
         try:
+            self._create_persistent_connection()
             self.init_database()
-            logger.info(f"Database initialized at {self.db_path}")
+            logger.info(f"Database initialized at {self.db_path} with connection pooling")
         except DatabaseError:
             raise
         except Exception as e:
@@ -65,12 +73,23 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Timestamp migration failed (non-critical): {e}")
     
+    def _create_persistent_connection(self):
+        """Create a persistent connection for reuse."""
+        try:
+            self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
+            self._conn.row_factory = sqlite3.Row
+            self._conn.execute('PRAGMA journal_mode=WAL')
+            logger.debug("Created persistent database connection")
+        except sqlite3.Error as e:
+            logger.error(f"Failed to create persistent connection: {e}")
+            raise DatabaseError(f"Failed to create persistent connection: {e}") from e
+    
     @contextmanager
     def get_connection(self):
         """Context manager for database connections with automatic transaction handling.
         
         Provides a safe database connection that automatically commits on success
-        and rolls back on errors. Enables WAL mode for improved concurrency.
+        and rolls back on errors. Uses persistent connection for better performance.
         
         Yields:
             sqlite3.Connection: Database connection with row_factory set to sqlite3.Row
@@ -78,29 +97,29 @@ class DatabaseManager:
         Raises:
             DatabaseError: If connection fails or transaction errors occur
         """
-        try:
-            conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row
-            
-            # Enable WAL mode for better concurrency performance
-            conn.execute('PRAGMA journal_mode=WAL')
+        with self._lock:
+            if self._conn is None:
+                self._create_persistent_connection()
             
             try:
-                yield conn
-                conn.commit()
+                yield self._conn
+                self._conn.commit()
             except sqlite3.Error as e:
-                conn.rollback()
+                self._conn.rollback()
                 logger.error(f"Database operation failed: {e}")
                 raise DatabaseError(f"Database operation failed: {e}") from e
             except Exception as e:
-                conn.rollback()
+                self._conn.rollback()
                 logger.error(f"Unexpected error during database operation: {e}")
                 raise DatabaseError(f"Unexpected error during database operation: {e}") from e
-            finally:
-                conn.close()
-        except sqlite3.Error as e:
-            logger.error(f"Failed to connect to database at {self.db_path}: {e}")
-            raise DatabaseError(f"Failed to connect to database at {self.db_path}: {e}") from e
+    
+    async def get_connection_async(self):
+        """Async wrapper for database operations using executor."""
+        loop = asyncio.get_event_loop()
+        if self._executor is None:
+            from concurrent.futures import ThreadPoolExecutor
+            self._executor = ThreadPoolExecutor(max_workers=4)
+        return self._executor
     
     def init_database(self):
         """Initialize database schema with all required tables and indexes.
@@ -711,6 +730,16 @@ class DatabaseManager:
             cursor.execute('SELECT 1 FROM developers WHERE user_id = ?', (user_id,))
             return cursor.fetchone() is not None
     
+    async def is_developer_async(self, user_id: int) -> bool:
+        """Async wrapper for is_developer to prevent event loop blocking."""
+        loop = asyncio.get_event_loop()
+        executor = await self.get_connection_async()
+        return await loop.run_in_executor(
+            executor,
+            self.is_developer,
+            user_id
+        )
+    
     def add_or_update_group(self, chat_id: int, chat_title: str = None, chat_type: str = None):
         """Add a new group or update existing group information.
         
@@ -1299,6 +1328,18 @@ class DatabaseManager:
                 logger.debug(f"Logged activity: {activity_type} - User: {user_id}, Chat: {chat_id}, Success: {success}")
         except Exception as e:
             logger.error(f"Error logging activity: {e}")
+    
+    async def log_activity_async(self, activity_type: str, user_id: int = None, chat_id: int = None, 
+                                 username: str = None, chat_title: str = None, command: str = None, 
+                                 details: dict = None, success: bool = True, response_time_ms: int = None):
+        """Async wrapper for log_activity to prevent event loop blocking."""
+        loop = asyncio.get_event_loop()
+        executor = await self.get_connection_async()
+        await loop.run_in_executor(
+            executor, 
+            self.log_activity,
+            activity_type, user_id, chat_id, username, chat_title, command, details, success, response_time_ms
+        )
     
     def get_recent_activities(self, limit: int = 100, activity_type: str = None) -> List[Dict]:
         """
@@ -2182,6 +2223,17 @@ class DatabaseManager:
             
         except Exception as e:
             logger.debug(f"Error logging performance metric (non-critical): {e}")
+    
+    async def log_performance_metric_async(self, metric_type: str, value: float, metric_name: str = None, 
+                                          unit: str = None, details: dict = None):
+        """Async wrapper for log_performance_metric to prevent event loop blocking."""
+        loop = asyncio.get_event_loop()
+        executor = await self.get_connection_async()
+        await loop.run_in_executor(
+            executor,
+            self.log_performance_metric,
+            metric_type, value, metric_name, unit, details
+        )
     
     def get_performance_summary(self, hours: int = 24) -> Dict:
         """

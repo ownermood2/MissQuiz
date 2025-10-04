@@ -47,6 +47,7 @@ async def send_restart_confirmation(config: Config):
 async def run_polling_mode(config: Config):
     """Run bot in polling mode"""
     from src.core.quiz import QuizManager
+    from src.core.database import DatabaseManager
     from src.bot.handlers import TelegramQuizBot
     from src.web.app import app
     
@@ -59,8 +60,13 @@ async def run_polling_mode(config: Config):
     flask_thread.start()
     logger.info(f"Flask server started on port {config.port}")
     
-    quiz_manager = QuizManager()
-    bot = TelegramQuizBot(quiz_manager)
+    # Create single DatabaseManager instance for all components
+    db_manager = DatabaseManager()
+    logger.info("Created shared DatabaseManager instance")
+    
+    # Inject DatabaseManager into QuizManager and TelegramQuizBot
+    quiz_manager = QuizManager(db_manager=db_manager)
+    bot = TelegramQuizBot(quiz_manager, db_manager=db_manager)
     await bot.initialize(config.telegram_token)
     
     await send_restart_confirmation(config)

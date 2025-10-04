@@ -46,11 +46,15 @@ class QuizManager:
         stats (Dict): User statistics dictionary
     """
     
-    def __init__(self):
+    def __init__(self, db_manager: DatabaseManager = None):
         """Initialize the quiz manager with proper data structures and caching.
         
         Sets up file paths, initializes database connection, creates caching
         structures for questions and leaderboards, and loads all quiz data.
+        
+        Args:
+            db_manager (DatabaseManager, optional): Shared database manager instance.
+                                                   Creates new one if not provided.
         
         Raises:
             DatabaseError: If database initialization or data loading fails
@@ -67,8 +71,8 @@ class QuizManager:
         self.active_chats = []
         self.stats = {}
 
-        # Initialize database connection for persistent storage
-        self.db = DatabaseManager()
+        # Use provided database manager or create new one
+        self.db = db_manager if db_manager else DatabaseManager()
         logger.info("Database connection initialized in QuizManager")
 
         # Initialize caching structures
@@ -194,9 +198,6 @@ class QuizManager:
             self._cached_questions = None
             self._cached_leaderboard = None
             self._leaderboard_cache_time = None
-
-            # Force save to ensure clean data
-            self.save_data(force=True)
 
             logger.info(f"Successfully loaded and cleaned {len(self.questions)} questions")
             logger.info(f"Active chats: {len(self.active_chats)}")

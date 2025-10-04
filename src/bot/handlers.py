@@ -26,7 +26,7 @@ from src.bot.dev_commands import DeveloperCommands
 logger = logging.getLogger(__name__)
 
 class TelegramQuizBot:
-    def __init__(self, quiz_manager):
+    def __init__(self, quiz_manager, db_manager: DatabaseManager = None):
         """Initialize the quiz bot with enhanced features - OPTIMIZED with caching"""
         self.quiz_manager = quiz_manager
         self.application = None
@@ -40,9 +40,13 @@ class TelegramQuizBot:
         self._stats_cache_time = None
         self._stats_cache_duration = timedelta(seconds=10)
         
-        self.db = DatabaseManager()
+        self._developer_cache = {}
+        self._developer_cache_time = {}
+        self._developer_cache_duration = timedelta(seconds=10)
+        
+        self.db = db_manager if db_manager else DatabaseManager()
         self.dev_commands = DeveloperCommands(self.db, quiz_manager)
-        logger.info("TelegramQuizBot initialized with database and developer commands")
+        logger.info("TelegramQuizBot initialized with shared database manager and developer commands")
 
     def check_user_command_cooldown(self, user_id: int, command: str, chat_type: str) -> tuple[bool, int]:
         """Check if user command is on cooldown (only in groups)
@@ -1180,8 +1184,8 @@ We're here to help! 🌟"""
                 await update.message.reply_text(f"⏰ Please wait {remaining} seconds before using this command again")
                 return
             
-            # Log command immediately
-            self.db.log_activity(
+            # Log command asynchronously (non-blocking)
+            asyncio.create_task(self.db.log_activity_async(
                 activity_type='command',
                 user_id=update.effective_user.id,
                 chat_id=update.effective_chat.id,
@@ -1189,9 +1193,10 @@ We're here to help! 🌟"""
                 chat_title=getattr(update.effective_chat, 'title', None),
                 command='/help',
                 success=True
-            )
+            ))
             
-            await self.ensure_group_registered(update.effective_chat, context)
+            # Register group asynchronously (non-blocking)
+            asyncio.create_task(self.ensure_group_registered(update.effective_chat, context))
             
             # Check if user is developer
             is_dev = await self.is_developer(update.message.from_user.id)
@@ -1255,12 +1260,13 @@ Here's your complete command guide:
             response_time = int((time.time() - start_time) * 1000)
             logger.info(f"Help message sent to user {update.effective_user.id} in {response_time}ms")
             
-            self.db.log_performance_metric(
+            # Log performance metric asynchronously (non-blocking)
+            asyncio.create_task(self.db.log_performance_metric_async(
                 metric_type='response_time',
                 metric_name='/help',
                 value=response_time,
                 unit='ms'
-            )
+            ))
             
             # Auto-delete command and reply in groups after 60 seconds
             if update.message.chat.type != "private":
@@ -1272,7 +1278,8 @@ Here's your complete command guide:
 
         except Exception as e:
             response_time = int((time.time() - start_time) * 1000)
-            self.db.log_activity(
+            # Log error asynchronously (non-blocking)
+            asyncio.create_task(self.db.log_activity_async(
                 activity_type='error',
                 user_id=update.effective_user.id,
                 chat_id=update.effective_chat.id,
@@ -1280,7 +1287,7 @@ Here's your complete command guide:
                 details={'error': str(e)},
                 success=False,
                 response_time_ms=response_time
-            )
+            ))
             logger.error(f"Error in help command: {e}")
             await update.message.reply_text("Error showing help. Please try again later.")
 
@@ -1794,9 +1801,21 @@ Failed to display quizzes. Please try again later.
         logger.warning(f"Unauthorized access attempt to dev command by user {update.message.from_user.id}")
 
     async def is_developer(self, user_id: int) -> bool:
-        """Check if user is a developer (uses database)"""
+        """Check if user is a developer with 10-second caching"""
         try:
-            return self.db.is_developer(user_id)
+            current_time = datetime.now()
+            
+            if user_id in self._developer_cache:
+                cache_time = self._developer_cache_time.get(user_id)
+                if cache_time and (current_time - cache_time) < self._developer_cache_duration:
+                    return self._developer_cache[user_id]
+            
+            result = await self.db.is_developer_async(user_id)
+            
+            self._developer_cache[user_id] = result
+            self._developer_cache_time[user_id] = current_time
+            
+            return result
         except Exception as e:
             logger.error(f"Error checking developer status: {e}")
             return False
