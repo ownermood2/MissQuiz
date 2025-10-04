@@ -1,0 +1,307 @@
+2025-10-04T19:20:06.151817601Z 2025-10-04 19:20:06,151 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04T19:20:06.151977725Z 2025-10-04 19:20:06,151 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04T19:20:06.152123898Z 2025-10-04 19:20:06,152 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04T19:20:06.152253191Z 2025-10-04 19:20:06,152 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04T19:20:06.152364204Z 2025-10-04 19:20:06,152 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04T19:20:06.154919412Z 2025-10-04 19:20:06,154 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04T19:20:06.752325172Z 2025-10-04 19:20:06,752 - apscheduler.scheduler - INFO - Added job "send_automated_quiz" to job store "default"
+2025-10-04T19:20:06.752416814Z 2025-10-04 19:20:06,752 - apscheduler.scheduler - INFO - Added job "scheduled_cleanup" to job store "default"
+2025-10-04T19:20:06.752500196Z 2025-10-04 19:20:06,752 - apscheduler.scheduler - INFO - Added job "cleanup_old_polls" to job store "default"
+2025-10-04T19:20:06.752580748Z 2025-10-04 19:20:06,752 - apscheduler.scheduler - INFO - Added job "cleanup_questions_wrapper" to job store "default"
+2025-10-04T19:20:06.75266171Z 2025-10-04 19:20:06,752 - apscheduler.scheduler - INFO - Added job "track_memory_usage" to job store "default"
+2025-10-04T19:20:06.752748022Z 2025-10-04 19:20:06,752 - apscheduler.scheduler - INFO - Added job "cleanup_performance_metrics" to job store "default"
+2025-10-04T19:20:06.752930806Z 2025-10-04 19:20:06,752 - apscheduler.scheduler - INFO - Added job "cleanup_old_activities" to job store "default"
+2025-10-04T19:20:06.752976957Z 2025-10-04 19:20:06,752 - apscheduler.scheduler - INFO - Scheduler started
+2025-10-04T19:20:06.75309173Z 2025-10-04 19:20:06,753 - src.bot.handlers - INFO - Backfilling 0 groups from active_chats to database
+2025-10-04T19:20:06.753178842Z 2025-10-04 19:20:06,753 - src.bot.handlers - INFO - Successfully backfilled 0/0 groups to database
+2025-10-04T19:20:06.927039977Z 2025-10-04 19:20:06,926 - src.bot.handlers - INFO - Webhook set successfully: https://quiz.onrender.com/webhook
+2025-10-04T19:20:06.927260892Z 2025-10-04 19:20:06,927 - src.web.app - INFO - Webhook bot initialized with URL: https://quiz.onrender.com/webhook
+2025-10-04T19:20:06.930282601Z 2025-10-04 19:20:06,930 - src.web.app - INFO - Flask app created and routes registered
+2025-10-04T19:20:06.930639469Z  * Serving Flask app 'src.web.app'
+2025-10-04T19:20:06.930647109Z  * Debug mode: off
+2025-10-04T19:20:06.931449257Z 2025-10-04 19:20:06,931 - werkzeug - INFO - WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+2025-10-04T19:20:06.931458608Z  * Running on all addresses (0.0.0.0)
+2025-10-04T19:20:06.931462208Z  * Running on http://127.0.0.1:10000
+2025-10-04T19:20:06.931465217Z  * Running on http://10.229.107.236:10000
+2025-10-04T19:20:06.931509058Z 2025-10-04 19:20:06,931 - werkzeug - INFO - Press CTRL+C to quit
+2025-10-04T19:20:07.533726489Z 2025-10-04 19:20:07,533 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 19:20:07] "HEAD / HTTP/1.1" 200 -
+2025-10-04T19:20:16.160798748Z 2025-10-04 19:20:16,160 - apscheduler.executors.default - INFO - Running job "send_automated_quiz (trigger: interval[0:30:00], next run at: 2025-10-04 19:50:16 UTC)" (scheduled at 2025-10-04 19:20:16.150914+00:00)
+2025-10-04T19:20:16.160999892Z 2025-10-04 19:20:16,160 - src.bot.handlers - INFO - Starting automated quiz broadcast to 0 active chats
+2025-10-04T19:20:16.161013182Z 2025-10-04 19:20:16,160 - src.bot.handlers - INFO - Completed automated quiz broadcast cycle
+2025-10-04T19:20:16.161292309Z 2025-10-04 19:20:16,161 - apscheduler.executors.default - INFO - Job "send_automated_quiz (trigger: interval[0:30:00], next run at: 2025-10-04 19:50:16 UTC)" executed successfully
+2025-10-04T19:20:17.06053684Z ==> Your service is live 🎉
+2025-10-04T19:20:17.093946439Z ==> 
+2025-10-04T19:20:17.120853508Z ==> ///////////////////////////////////////////////////////////
+2025-10-04T19:20:17.149584767Z ==> 
+2025-10-04T19:20:17.178242066Z ==> Available at your primary URL https://missquiz.onrender.com
+2025-10-04T19:20:17.205305265Z ==> 
+2025-10-04T19:20:17.232378864Z ==> ///////////////////////////////////////////////////////////
+2025-10-04T19:20:19.073765275Z 2025-10-04 19:20:19,073 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 19:20:19] "GET / HTTP/1.1" 200 -
+2025-10-04T19:21:06.202698888Z 2025-10-04 19:21:06,202 - apscheduler.executors.default - INFO - Running job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-04 19:26:06 UTC)" (scheduled at 2025-10-04 19:21:06.152097+00:00)
+2025-10-04T19:21:06.205682886Z 2025-10-04 19:21:06,205 - apscheduler.executors.default - INFO - Job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-04 19:26:06 UTC)" executed successfully
+2025-10-04T19:25:06.252584887Z 2025-10-04 19:25:06,252 - apscheduler.executors.default - INFO - Running job "scheduled_cleanup (trigger: interval[1:00:00], next run at: 2025-10-04 20:25:06 UTC)" (scheduled at 2025-10-04 19:25:06.151652+00:00)
+2025-10-04T19:25:06.252805812Z 2025-10-04 19:25:06,252 - apscheduler.executors.default - INFO - Running job "cleanup_old_polls (trigger: interval[1:00:00], next run at: 2025-10-04 20:25:06 UTC)" (scheduled at 2025-10-04 19:25:06.151811+00:00)
+2025-10-04T19:25:06.252960156Z 2025-10-04 19:25:06,252 - src.bot.handlers - INFO - Cleaned up 0 old poll entries
+2025-10-04T19:25:06.253121469Z 2025-10-04 19:25:06,252 - apscheduler.executors.default - INFO - Job "scheduled_cleanup (trigger: interval[1:00:00], next run at: 2025-10-04 20:25:06 UTC)" executed successfully
+2025-10-04T19:25:06.253290013Z 2025-10-04 19:25:06,253 - apscheduler.executors.default - INFO - Job "cleanup_old_polls (trigger: interval[1:00:00], next run at: 2025-10-04 20:25:06 UTC)" executed successfully
+2025-10-04T19:25:13.557154314Z ==> Detected service running on port 10000
+2025-10-04T19:25:13.691245962Z ==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+2025-10-04T19:26:06.212775714Z 2025-10-04 19:26:06,212 - apscheduler.executors.default - INFO - Running job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-04 19:31:06 UTC)" (scheduled at 2025-10-04 19:26:06.152097+00:00)
+2025-10-04T19:26:06.24736726Z 2025-10-04 19:26:06,246 - apscheduler.executors.default - INFO - Job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-04 19:31:06 UTC)" executed successfully
+2025-10-04T19:27:47.100541532Z 2025-10-04 19:27:47,100 - __main__ - WARNING - ⚠️ WEBHOOK MODE DETECTED
+2025-10-04T19:27:47.100605113Z 2025-10-04 19:27:47,100 - __main__ - WARNING - ⚠️ For production, use: gunicorn src.web.wsgi:app --bind 0.0.0.0:$PORT
+2025-10-04T19:27:47.100668185Z 2025-10-04 19:27:47,100 - __main__ - WARNING - ⚠️ For development, set MODE=polling or remove WEBHOOK_URL
+2025-10-04T19:27:47.100710216Z 2025-10-04 19:27:47,100 - __main__ - INFO - Starting Flask dev server for testing...
+2025-10-04T19:27:50.327166606Z 2025-10-04 19:27:50,326 - src.core.database - INFO - Added category column to questions table
+2025-10-04T19:27:50.333840905Z 2025-10-04 19:27:50,333 - src.core.database - INFO - Added last_quiz_message_id column to users table
+2025-10-04T19:27:50.422056938Z 2025-10-04 19:27:50,421 - src.core.database - INFO - Database schema initialized successfully with optimized indexes
+2025-10-04T19:27:50.42211791Z 2025-10-04 19:27:50,422 - src.core.database - INFO - Database initialized at data/quiz_bot.db with connection pooling
+2025-10-04T19:27:50.422300854Z 2025-10-04 19:27:50,422 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+2025-10-04T19:27:50.422364236Z 2025-10-04 19:27:50,422 - src.core.quiz - INFO - Database connection initialized in QuizManager
+2025-10-04T19:27:50.42381985Z 2025-10-04 19:27:50,423 - src.core.quiz - INFO - Successfully loaded and cleaned 235 questions
+2025-10-04T19:27:50.423884082Z 2025-10-04 19:27:50,423 - src.core.quiz - INFO - Active chats: 0
+2025-10-04T19:27:50.423952044Z 2025-10-04 19:27:50,423 - src.core.quiz - INFO - Active users with stats: 0
+2025-10-04T19:27:50.423999745Z 2025-10-04 19:27:50,423 - src.core.quiz - INFO - Users with scores: 0
+2025-10-04T19:27:50.424074467Z 2025-10-04 19:27:50,424 - src.web.app - INFO - Quiz Manager initialized for webhook mode
+2025-10-04T19:27:50.42463299Z 2025-10-04 19:27:50,424 - src.web.app - INFO - Started persistent event loop in background thread
+2025-10-04T19:27:50.425709235Z 2025-10-04 19:27:50,425 - src.core.database - INFO - Database schema initialized successfully with optimized indexes
+2025-10-04T19:27:50.425767227Z 2025-10-04 19:27:50,425 - src.core.database - INFO - Database initialized at data/quiz_bot.db with connection pooling
+2025-10-04T19:27:50.425954321Z 2025-10-04 19:27:50,425 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+2025-10-04T19:27:50.426021493Z 2025-10-04 19:27:50,425 - src.bot.dev_commands - INFO - Developer commands module initialized
+2025-10-04T19:27:50.426073724Z 2025-10-04 19:27:50,426 - src.bot.handlers - INFO - TelegramQuizBot initialized with performance optimizations: user cache, activity batching, leaderboard cache
+2025-10-04T19:27:50.798173146Z 2025-10-04 19:27:50,797 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04T19:27:50.79832465Z 2025-10-04 19:27:50,798 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04T19:27:50.798459593Z 2025-10-04 19:27:50,798 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04T19:27:50.798596956Z 2025-10-04 19:27:50,798 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04T19:27:50.7987496Z 2025-10-04 19:27:50,798 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04T19:27:50.798878473Z 2025-10-04 19:27:50,798 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04T19:27:50.800866331Z 2025-10-04 19:27:50,800 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04T19:27:51.389013094Z 2025-10-04 19:27:51,388 - apscheduler.scheduler - INFO - Added job "send_automated_quiz" to job store "default"
+2025-10-04T19:27:51.389101696Z 2025-10-04 19:27:51,389 - apscheduler.scheduler - INFO - Added job "scheduled_cleanup" to job store "default"
+2025-10-04T19:27:51.389184488Z 2025-10-04 19:27:51,389 - apscheduler.scheduler - INFO - Added job "cleanup_old_polls" to job store "default"
+2025-10-04T19:27:51.38927272Z 2025-10-04 19:27:51,389 - apscheduler.scheduler - INFO - Added job "cleanup_questions_wrapper" to job store "default"
+2025-10-04T19:27:51.389367622Z 2025-10-04 19:27:51,389 - apscheduler.scheduler - INFO - Added job "track_memory_usage" to job store "default"
+2025-10-04T19:27:51.389447554Z 2025-10-04 19:27:51,389 - apscheduler.scheduler - INFO - Added job "cleanup_performance_metrics" to job store "default"
+2025-10-04T19:27:51.389664589Z 2025-10-04 19:27:51,389 - apscheduler.scheduler - INFO - Added job "cleanup_old_activities" to job store "default"
+2025-10-04T19:27:51.389719551Z 2025-10-04 19:27:51,389 - apscheduler.scheduler - INFO - Scheduler started
+2025-10-04T19:27:51.389819683Z 2025-10-04 19:27:51,389 - src.bot.handlers - INFO - Backfilling 0 groups from active_chats to database
+2025-10-04T19:27:51.389884355Z 2025-10-04 19:27:51,389 - src.bot.handlers - INFO - Successfully backfilled 0/0 groups to database
+2025-10-04T19:27:51.551499298Z 2025-10-04 19:27:51,551 - src.bot.handlers - INFO - Webhook set successfully: https://quiz.onrender.com/webhook
+2025-10-04T19:27:51.551683313Z 2025-10-04 19:27:51,551 - src.web.app - INFO - Webhook bot initialized with URL: https://quiz.onrender.com/webhook
+2025-10-04T19:27:51.554785586Z 2025-10-04 19:27:51,554 - src.web.app - INFO - Flask app created and routes registered
+2025-10-04T19:27:51.55703688Z  * Serving Flask app 'src.web.app'
+2025-10-04T19:27:51.55705107Z  * Debug mode: off
+2025-10-04T19:27:51.557822969Z 2025-10-04 19:27:51,557 - werkzeug - INFO - WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+2025-10-04T19:27:51.557831919Z  * Running on all addresses (0.0.0.0)
+2025-10-04T19:27:51.557833939Z  * Running on http://127.0.0.1:10000
+2025-10-04T19:27:51.557835649Z  * Running on http://10.229.84.9:10000
+2025-10-04T19:27:51.55786412Z 2025-10-04 19:27:51,557 - werkzeug - INFO - Press CTRL+C to quit
+2025-10-04T19:28:00.807340388Z 2025-10-04 19:28:00,807 - apscheduler.executors.default - INFO - Running job "send_automated_quiz (trigger: interval[0:30:00], next run at: 2025-10-04 19:58:00 UTC)" (scheduled at 2025-10-04 19:28:00.797497+00:00)
+2025-10-04T19:28:00.80744397Z 2025-10-04 19:28:00,807 - src.bot.handlers - INFO - Starting automated quiz broadcast to 0 active chats
+2025-10-04T19:28:00.807485722Z 2025-10-04 19:28:00,807 - src.bot.handlers - INFO - Completed automated quiz broadcast cycle
+2025-10-04T19:28:00.807682516Z 2025-10-04 19:28:00,807 - apscheduler.executors.default - INFO - Job "send_automated_quiz (trigger: interval[0:30:00], next run at: 2025-10-04 19:58:00 UTC)" executed successfully
+2025-10-04T19:28:50.846987203Z 2025-10-04 19:28:50,846 - apscheduler.executors.default - INFO - Running job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-04 19:33:50 UTC)" (scheduled at 2025-10-04 19:28:50.798587+00:00)
+2025-10-04T19:28:50.849149314Z 2025-10-04 19:28:50,849 - apscheduler.executors.default - INFO - Job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-04 19:33:50 UTC)" executed successfully
+2025-10-04T19:28:52.679051403Z ==> Deploying...
+2025-10-04T19:28:58.581588757Z 2025-10-04 19:28:58,581 - __main__ - WARNING - ⚠️ WEBHOOK MODE DETECTED
+2025-10-04T19:28:58.581676328Z 2025-10-04 19:28:58,581 - __main__ - WARNING - ⚠️ For production, use: gunicorn src.web.wsgi:app --bind 0.0.0.0:$PORT
+2025-10-04T19:28:58.581823781Z 2025-10-04 19:28:58,581 - __main__ - WARNING - ⚠️ For development, set MODE=polling or remove WEBHOOK_URL
+2025-10-04T19:28:58.581926583Z 2025-10-04 19:28:58,581 - __main__ - INFO - Starting Flask dev server for testing...
+2025-10-04T19:29:02.511031761Z 2025-10-04 19:29:02,510 - src.core.database - INFO - Added category column to questions table
+2025-10-04T19:29:02.514766182Z 2025-10-04 19:29:02,514 - src.core.database - INFO - Added last_quiz_message_id column to users table
+2025-10-04T19:29:02.612744593Z 2025-10-04 19:29:02,612 - src.core.database - INFO - Database schema initialized successfully with optimized indexes
+2025-10-04T19:29:02.612757763Z 2025-10-04 19:29:02,612 - src.core.database - INFO - Database initialized at data/quiz_bot.db with connection pooling
+2025-10-04T19:29:02.612878615Z 2025-10-04 19:29:02,612 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+2025-10-04T19:29:02.612923516Z 2025-10-04 19:29:02,612 - src.core.quiz - INFO - Database connection initialized in QuizManager
+2025-10-04T19:29:02.614327753Z 2025-10-04 19:29:02,614 - src.core.quiz - INFO - Successfully loaded and cleaned 235 questions
+2025-10-04T19:29:02.614337503Z 2025-10-04 19:29:02,614 - src.core.quiz - INFO - Active chats: 0
+2025-10-04T19:29:02.614399454Z 2025-10-04 19:29:02,614 - src.core.quiz - INFO - Active users with stats: 0
+2025-10-04T19:29:02.614410424Z 2025-10-04 19:29:02,614 - src.core.quiz - INFO - Users with scores: 0
+2025-10-04T19:29:02.614489166Z 2025-10-04 19:29:02,614 - src.web.app - INFO - Quiz Manager initialized for webhook mode
+2025-10-04T19:29:02.615124988Z 2025-10-04 19:29:02,615 - src.web.app - INFO - Started persistent event loop in background thread
+2025-10-04T19:29:02.616043355Z 2025-10-04 19:29:02,615 - src.core.database - INFO - Database schema initialized successfully with optimized indexes
+2025-10-04T19:29:02.616059335Z 2025-10-04 19:29:02,616 - src.core.database - INFO - Database initialized at data/quiz_bot.db with connection pooling
+2025-10-04T19:29:02.616212898Z 2025-10-04 19:29:02,616 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+2025-10-04T19:29:02.61627422Z 2025-10-04 19:29:02,616 - src.bot.dev_commands - INFO - Developer commands module initialized
+2025-10-04T19:29:02.61628268Z 2025-10-04 19:29:02,616 - src.bot.handlers - INFO - TelegramQuizBot initialized with performance optimizations: user cache, activity batching, leaderboard cache
+2025-10-04T19:29:03.091289832Z 2025-10-04 19:29:03,091 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04T19:29:03.091438445Z 2025-10-04 19:29:03,091 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04T19:29:03.091643699Z 2025-10-04 19:29:03,091 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04T19:29:03.091758571Z 2025-10-04 19:29:03,091 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04T19:29:03.091908144Z 2025-10-04 19:29:03,091 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04T19:29:03.092024266Z 2025-10-04 19:29:03,091 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04T19:29:03.094260918Z 2025-10-04 19:29:03,094 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-10-04T19:29:03.690449682Z 2025-10-04 19:29:03,690 - apscheduler.scheduler - INFO - Added job "send_automated_quiz" to job store "default"
+2025-10-04T19:29:03.690562914Z 2025-10-04 19:29:03,690 - apscheduler.scheduler - INFO - Added job "scheduled_cleanup" to job store "default"
+2025-10-04T19:29:03.690694537Z 2025-10-04 19:29:03,690 - apscheduler.scheduler - INFO - Added job "cleanup_old_polls" to job store "default"
+2025-10-04T19:29:03.690802299Z 2025-10-04 19:29:03,690 - apscheduler.scheduler - INFO - Added job "cleanup_questions_wrapper" to job store "default"
+2025-10-04T19:29:03.690938811Z 2025-10-04 19:29:03,690 - apscheduler.scheduler - INFO - Added job "track_memory_usage" to job store "default"
+2025-10-04T19:29:03.691014213Z 2025-10-04 19:29:03,690 - apscheduler.scheduler - INFO - Added job "cleanup_performance_metrics" to job store "default"
+2025-10-04T19:29:03.691223457Z 2025-10-04 19:29:03,691 - apscheduler.scheduler - INFO - Added job "cleanup_old_activities" to job store "default"
+2025-10-04T19:29:03.691267798Z 2025-10-04 19:29:03,691 - apscheduler.scheduler - INFO - Scheduler started
+2025-10-04T19:29:03.69136409Z 2025-10-04 19:29:03,691 - src.bot.handlers - INFO - Backfilling 0 groups from active_chats to database
+2025-10-04T19:29:03.691427291Z 2025-10-04 19:29:03,691 - src.bot.handlers - INFO - Successfully backfilled 0/0 groups to database
+2025-10-04T19:29:03.863713923Z 2025-10-04 19:29:03,863 - src.bot.handlers - INFO - Webhook set successfully: https://missquiz.onrender.com/webhook
+2025-10-04T19:29:03.863872926Z 2025-10-04 19:29:03,863 - src.web.app - INFO - Webhook bot initialized with URL: https://missquiz.onrender.com/webhook
+2025-10-04T19:29:03.866908694Z 2025-10-04 19:29:03,866 - src.web.app - INFO - Flask app created and routes registered
+2025-10-04T19:29:03.867290041Z  * Serving Flask app 'src.web.app'
+2025-10-04T19:29:03.867362382Z  * Debug mode: off
+2025-10-04T19:29:03.868450703Z 2025-10-04 19:29:03,868 - werkzeug - INFO - WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+2025-10-04T19:29:03.868458483Z  * Running on all addresses (0.0.0.0)
+2025-10-04T19:29:03.868461213Z  * Running on http://127.0.0.1:10000
+2025-10-04T19:29:03.868463543Z  * Running on http://10.229.12.172:10000
+2025-10-04T19:29:03.868472403Z 2025-10-04 19:29:03,868 - werkzeug - INFO - Press CTRL+C to quit
+2025-10-04T19:29:04.001213555Z 2025-10-04 19:29:04,001 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 19:29:04] "HEAD / HTTP/1.1" 200 -
+2025-10-04T19:29:13.477243483Z ==> Your service is live 🎉
+2025-10-04T19:29:13.509743962Z ==> 
+2025-10-04T19:29:13.538640311Z ==> ///////////////////////////////////////////////////////////
+2025-10-04T19:29:13.56405072Z ==> 
+2025-10-04T19:29:13.58977653Z ==> Available at your primary URL https://missquiz.onrender.com
+2025-10-04T19:29:13.614721199Z ==> 
+2025-10-04T19:29:04.229405509Z 2025-10-04 19:29:04,229 - src.web.app - INFO - Webhook received POST request
+2025-10-04T19:29:04.22986911Z 2025-10-04 19:29:04,229 - src.web.app - INFO - Parsed update object: update_id=13160324
+2025-10-04T19:29:04.229985003Z 2025-10-04 19:29:04,229 - src.web.app - INFO - Update submitted to event loop successfully
+2025-10-04T19:29:04.23110816Z 2025-10-04 19:29:04,231 - src.web.app - INFO - Successfully queued update 13160324 for processing
+2025-10-04T19:29:04.231466809Z 2025-10-04 19:29:04,231 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 19:29:04] "POST /webhook HTTP/1.1" 200 -
+2025-10-04T19:29:04.4286799Z 2025-10-04 19:29:04,428 - src.web.app - INFO - Webhook received POST request
+2025-10-04T19:29:04.42906583Z 2025-10-04 19:29:04,428 - src.web.app - INFO - Parsed update object: update_id=13160322
+2025-10-04T19:29:04.429185773Z 2025-10-04 19:29:04,429 - src.web.app - INFO - Update submitted to event loop successfully
+2025-10-04T19:29:04.429222924Z 2025-10-04 19:29:04,429 - src.web.app - INFO - Successfully queued update 13160322 for processing
+2025-10-04T19:29:04.4294853Z 2025-10-04 19:29:04,429 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 19:29:04] "POST /webhook HTTP/1.1" 200 -
+2025-10-04T19:29:04.430553345Z 2025-10-04 19:29:04,430 - src.core.quiz - INFO - Loaded 235 questions from file
+2025-10-04T19:29:04.461902533Z 2025-10-04 19:29:04,461 - src.web.app - INFO - Webhook received POST request
+2025-10-04T19:29:04.462118868Z 2025-10-04 19:29:04,462 - src.web.app - INFO - Parsed update object: update_id=13160320
+2025-10-04T19:29:04.46220165Z 2025-10-04 19:29:04,462 - src.web.app - INFO - Update submitted to event loop successfully
+2025-10-04T19:29:04.462278692Z 2025-10-04 19:29:04,462 - src.web.app - INFO - Successfully queued update 13160320 for processing
+2025-10-04T19:29:04.462501487Z 2025-10-04 19:29:04,462 - src.bot.handlers - INFO - Received answer from user 8376823449 for poll 6271355179392565745
+2025-10-04T19:29:04.462766413Z 2025-10-04 19:29:04,462 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 19:29:04] "POST /webhook HTTP/1.1" 200 -
+2025-10-04T19:29:04.462845435Z 2025-10-04 19:29:04,462 - src.bot.handlers - WARNING - No poll data found for poll_id 6271355179392565745
+2025-10-04T19:29:04.463091441Z 2025-10-04 19:29:04,462 - src.web.app - INFO - Update processed successfully: None
+2025-10-04T19:29:04.607057974Z 2025-10-04 19:29:04,606 - src.web.app - INFO - Webhook received POST request
+2025-10-04T19:29:04.608066688Z 2025-10-04 19:29:04,607 - src.web.app - INFO - Parsed update object: update_id=13160323
+2025-10-04T19:29:04.608083238Z 2025-10-04 19:29:04,607 - src.web.app - INFO - Update submitted to event loop successfully
+2025-10-04T19:29:04.608087098Z 2025-10-04 19:29:04,607 - src.web.app - INFO - Successfully queued update 13160323 for processing
+2025-10-04T19:29:04.608104619Z 2025-10-04 19:29:04,607 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 19:29:04] "POST /webhook HTTP/1.1" 200 -
+2025-10-04T19:29:04.608437337Z 2025-10-04 19:29:04,608 - src.bot.handlers - INFO - 📥 /start command received from user 8376823449 in chat 8376823449 (type: private)
+2025-10-04T19:29:04.612073493Z 2025-10-04 19:29:04,611 - src.bot.handlers - INFO - ✅ PM TRACKED: User 8376823449 (Fii Amanillah) granted PM access
+2025-10-04T19:29:04.612207056Z 2025-10-04 19:29:04,612 - src.core.quiz - INFO - Initialized question pool for chat 8376823449 with 235 questions
+2025-10-04T19:29:04.615047644Z 2025-10-04 19:29:04,614 - src.core.quiz - INFO - Saved 235 questions to file
+2025-10-04T19:29:04.616091269Z 2025-10-04 19:29:04,615 - src.core.quiz - INFO - All data saved successfully. Questions count: 235
+2025-10-04T19:29:04.616100139Z 2025-10-04 19:29:04,615 - src.core.quiz - INFO - Added chat 8376823449 to active chats with initialization
+2025-10-04T19:29:04.616104059Z 2025-10-04 19:29:04,615 - src.bot.handlers - INFO - ✅ Chat 8376823449 added to active chats
+2025-10-04T19:29:04.704972998Z 2025-10-04 19:29:04,704 - src.web.app - INFO - Webhook received POST request
+2025-10-04T19:29:04.705263005Z 2025-10-04 19:29:04,705 - src.web.app - INFO - Parsed update object: update_id=13160321
+2025-10-04T19:29:04.705390118Z 2025-10-04 19:29:04,705 - src.web.app - INFO - Update submitted to event loop successfully
+2025-10-04T19:29:04.70545605Z 2025-10-04 19:29:04,705 - src.web.app - INFO - Successfully queued update 13160321 for processing
+2025-10-04T19:29:04.705787128Z 2025-10-04 19:29:04,705 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 19:29:04] "POST /webhook HTTP/1.1" 200 -
+2025-10-04T19:29:04.70628647Z 2025-10-04 19:29:04,706 - src.web.app - INFO - Update processed successfully: None
+2025-10-04T19:29:04.792328391Z 2025-10-04 19:29:04,792 - src.web.app - INFO - Webhook received POST request
+2025-10-04T19:29:04.792857104Z 2025-10-04 19:29:04,792 - src.web.app - INFO - Parsed update object: update_id=13160325
+2025-10-04T19:29:04.792981647Z 2025-10-04 19:29:04,792 - src.web.app - INFO - Update submitted to event loop successfully
+2025-10-04T19:29:04.793305494Z 2025-10-04 19:29:04,793 - src.bot.handlers - INFO - 📥 /start command received from user 8376823449 in chat 8376823449 (type: private)
+2025-10-04T19:29:04.793428057Z 2025-10-04 19:29:04,793 - src.web.app - INFO - Successfully queued update 13160325 for processing
+2025-10-04T19:29:04.793739575Z 2025-10-04 19:29:04,793 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 19:29:04] "POST /webhook HTTP/1.1" 200 -
+2025-10-04T19:29:04.79396215Z 2025-10-04 19:29:04,793 - src.bot.handlers - INFO - ✅ PM TRACKED: User 8376823449 (Fii Amanillah) granted PM access
+2025-10-04T19:29:04.794044742Z 2025-10-04 19:29:04,793 - src.bot.handlers - INFO - ✅ Chat 8376823449 added to active chats
+2025-10-04T19:29:05.061846567Z 2025-10-04 19:29:05,061 - src.web.app - INFO - Webhook received POST request
+2025-10-04T19:29:05.062310108Z 2025-10-04 19:29:05,062 - src.web.app - INFO - Parsed update object: update_id=13160326
+2025-10-04T19:29:05.062406241Z 2025-10-04 19:29:05,062 - src.web.app - INFO - Update submitted to event loop successfully
+2025-10-04T19:29:05.062691717Z 2025-10-04 19:29:05,062 - src.web.app - INFO - Successfully queued update 13160326 for processing
+2025-10-04T19:29:05.062958834Z 2025-10-04 19:29:05,062 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 19:29:05] "POST /webhook HTTP/1.1" 200 -
+2025-10-04T19:29:05.06363454Z 2025-10-04 19:29:05,063 - src.core.quiz - INFO - Loaded 235 questions from file
+2025-10-04T19:29:05.118606331Z 2025-10-04 19:29:05,118 - src.bot.handlers - INFO - Sent quiz count to user 8376823449 in 688ms
+2025-10-04T19:29:05.118693053Z 2025-10-04 19:29:05,118 - src.web.app - INFO - Update processed successfully: None
+2025-10-04T19:29:05.637450971Z 2025-10-04 19:29:05,637 - src.bot.handlers - INFO - Sent premium welcome message to chat 8376823449
+2025-10-04T19:29:05.638386894Z 2025-10-04 19:29:05,638 - src.bot.handlers - INFO - Sent premium welcome message to chat 8376823449
+2025-10-04T19:29:05.727775795Z 2025-10-04 19:29:05,727 - src.bot.handlers - INFO - Sent quiz count to user 8376823449 in 665ms
+2025-10-04T19:29:05.727890908Z 2025-10-04 19:29:05,727 - src.web.app - INFO - Update processed successfully: None
+2025-10-04T19:29:05.801157465Z 2025-10-04 19:29:05,800 - src.bot.handlers - INFO - Showed stats to user 8376823449 in 1571ms
+2025-10-04T19:29:05.801264987Z 2025-10-04 19:29:05,801 - src.web.app - INFO - Update processed successfully: None
+2025-10-04T19:29:10.643117441Z 2025-10-04 19:29:10,642 - src.core.quiz - INFO - Selected question 135 for chat 8376823449. Question text: Who was the first Speaker of L... Remaining questions: 234
+2025-10-04T19:29:10.644181406Z 2025-10-04 19:29:10,644 - src.core.quiz - INFO - Selected question 116 for chat 8376823449. Question text: Who is known as the Missile Ma... Remaining questions: 233
+2025-10-04T19:29:10.99619852Z 2025-10-04 19:29:10,995 - src.bot.handlers - INFO - Auto-sent quiz to DM 8376823449 after /start
+2025-10-04T19:29:10.9962336Z 2025-10-04 19:29:10,996 - src.bot.handlers - INFO - /start completed in 6203ms for user 8376823449
+2025-10-04T19:29:10.997708445Z 2025-10-04 19:29:10,997 - src.web.app - INFO - Update processed successfully: None
+2025-10-04T19:29:11.021068442Z 2025-10-04 19:29:11,020 - src.bot.handlers - INFO - Auto-sent quiz to DM 8376823449 after /start
+2025-10-04T19:29:11.021092163Z 2025-10-04 19:29:11,021 - src.bot.handlers - INFO - /start completed in 6412ms for user 8376823449
+2025-10-04T19:29:11.022398124Z 2025-10-04 19:29:11,022 - src.web.app - INFO - Update processed successfully: None
+2025-10-04T19:29:13.640025838Z ==> ///////////////////////////////////////////////////////////
+2025-10-04T19:29:13.100628434Z 2025-10-04 19:29:13,099 - apscheduler.executors.default - INFO - Running job "send_automated_quiz (trigger: interval[0:30:00], next run at: 2025-10-04 19:59:13 UTC)" (scheduled at 2025-10-04 19:29:13.090640+00:00)
+2025-10-04T19:29:13.100644904Z 2025-10-04 19:29:13,100 - src.bot.handlers - INFO - Starting automated quiz broadcast to 0 active chats
+2025-10-04T19:29:13.100649464Z 2025-10-04 19:29:13,100 - src.bot.handlers - INFO - Completed automated quiz broadcast cycle
+2025-10-04T19:29:13.100654514Z 2025-10-04 19:29:13,100 - apscheduler.executors.default - INFO - Job "send_automated_quiz (trigger: interval[0:30:00], next run at: 2025-10-04 19:59:13 UTC)" executed successfully
+2025-10-04T19:29:14.513196453Z 2025-10-04 19:29:14,512 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 19:29:14] "GET / HTTP/1.1" 200 -
+2025-10-04T19:29:33.847004524Z 2025-10-04 19:29:33,846 - src.web.app - INFO - Webhook received POST request
+2025-10-04T19:29:33.847028434Z 2025-10-04 19:29:33,846 - src.web.app - INFO - Parsed update object: update_id=13160327
+2025-10-04T19:29:33.847291959Z 2025-10-04 19:29:33,847 - src.web.app - INFO - Update submitted to event loop successfully
+2025-10-04T19:29:33.84731574Z 2025-10-04 19:29:33,847 - src.web.app - INFO - Successfully queued update 13160327 for processing
+2025-10-04T19:29:33.847632706Z 2025-10-04 19:29:33,847 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 19:29:33] "POST /webhook HTTP/1.1" 200 -
+2025-10-04T19:29:35.486119616Z 2025-10-04 19:29:35,485 - src.bot.handlers - INFO - Showed stats to user 8376823449 in 1638ms
+2025-10-04T19:29:35.486224058Z 2025-10-04 19:29:35,486 - src.web.app - INFO - Update processed successfully: None
+2025-10-04T19:29:38.761436854Z 2025-10-04 19:29:38,761 - src.web.app - INFO - Webhook received POST request
+2025-10-04T19:29:38.761903893Z 2025-10-04 19:29:38,761 - src.web.app - INFO - Parsed update object: update_id=13160328
+2025-10-04T19:29:38.762015215Z 2025-10-04 19:29:38,761 - src.web.app - INFO - Update submitted to event loop successfully
+2025-10-04T19:29:38.7622778Z 2025-10-04 19:29:38,761 - src.web.app - INFO - Successfully queued update 13160328 for processing
+2025-10-04T19:29:38.762402392Z 2025-10-04 19:29:38,762 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 19:29:38] "POST /webhook HTTP/1.1" 200 -
+2025-10-04T19:29:40.065141525Z 2025-10-04 19:29:40,064 - src.bot.handlers - INFO - Showed stats to user 8376823449 in 1302ms
+2025-10-04T19:29:40.065289938Z 2025-10-04 19:29:40,065 - src.web.app - INFO - Update processed successfully: None
+2025-10-04T19:29:44.657783092Z 2025-10-04 19:29:44,657 - src.web.app - INFO - Webhook received POST request
+2025-10-04T19:29:44.658487716Z 2025-10-04 19:29:44,658 - src.web.app - INFO - Parsed update object: update_id=13160329
+2025-10-04T19:29:44.65868641Z 2025-10-04 19:29:44,658 - src.web.app - INFO - Update submitted to event loop successfully
+2025-10-04T19:29:44.658748751Z 2025-10-04 19:29:44,658 - src.web.app - INFO - Successfully queued update 13160329 for processing
+2025-10-04T19:29:44.659130258Z 2025-10-04 19:29:44,658 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 19:29:44] "POST /webhook HTTP/1.1" 200 -
+2025-10-04T19:29:44.659606097Z 2025-10-04 19:29:44,659 - src.bot.handlers - INFO - 📥 /help command received from user 8376823449 in chat -1003103932608
+2025-10-04T19:29:45.589796944Z 2025-10-04 19:29:45,589 - src.bot.handlers - INFO - Help message sent to user 8376823449 in 930ms
+2025-10-04T19:29:45.590011478Z 2025-10-04 19:29:45,589 - src.web.app - INFO - Update processed successfully: None
+2025-10-04T19:29:48.747277583Z 2025-10-04 19:29:48,747 - src.web.app - INFO - Webhook received POST request
+2025-10-04T19:29:48.747803063Z 2025-10-04 19:29:48,747 - src.web.app - INFO - Parsed update object: update_id=13160330
+2025-10-04T19:29:48.747971686Z 2025-10-04 19:29:48,747 - src.web.app - INFO - Update submitted to event loop successfully
+2025-10-04T19:29:48.747979047Z 2025-10-04 19:29:48,747 - src.web.app - INFO - Successfully queued update 13160330 for processing
+2025-10-04T19:29:48.748242272Z 2025-10-04 19:29:48,748 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 19:29:48] "POST /webhook HTTP/1.1" 200 -
+2025-10-04T19:29:48.748532657Z 2025-10-04 19:29:48,748 - src.bot.handlers - INFO - 📥 /start command received from user 8376823449 in chat -1003103932608 (type: supergroup)
+2025-10-04T19:29:48.750825731Z 2025-10-04 19:29:48,750 - src.bot.handlers - INFO - ✅ GROUP TRACKED: Group -1003103932608 (Bot testing)
+2025-10-04T19:29:48.750995764Z 2025-10-04 19:29:48,750 - src.core.quiz - INFO - Initialized question pool for chat -1003103932608 with 235 questions
+2025-10-04T19:29:48.754390759Z 2025-10-04 19:29:48,754 - src.core.quiz - INFO - Saved 235 questions to file
+2025-10-04T19:29:48.755089562Z 2025-10-04 19:29:48,754 - src.core.quiz - INFO - All data saved successfully. Questions count: 235
+2025-10-04T19:29:48.755174023Z 2025-10-04 19:29:48,755 - src.core.quiz - INFO - Added chat -1003103932608 to active chats with initialization
+2025-10-04T19:29:48.755357557Z 2025-10-04 19:29:48,755 - src.bot.handlers - INFO - ✅ Chat -1003103932608 added to active chats
+2025-10-04T19:29:50.244132603Z 2025-10-04 19:29:50,243 - src.core.quiz - INFO - Selected question 141 for chat -1003103932608. Question text: Who was the first Indian to be... Remaining questions: 234
+2025-10-04T19:29:50.244159343Z 2025-10-04 19:29:50,244 - src.bot.handlers - INFO - Sending quiz to chat -1003103932608. Question: Who was the first Indian to become President of IN...
+2025-10-04T19:29:50.933029907Z 2025-10-04 19:29:50,932 - src.bot.handlers - INFO - Stored quiz data: poll_id=6271355179392565747, chat_id=-1003103932608
+2025-10-04T19:29:51.114401462Z 2025-10-04 19:29:51,114 - src.bot.handlers - INFO - Logged quiz_sent activity for chat -1003103932608 (auto_sent=True, scheduled=False)
+2025-10-04T19:29:51.114430592Z 2025-10-04 19:29:51,114 - src.bot.handlers - INFO - Sent premium welcome message to chat -1003103932608
+2025-10-04T19:29:51.114576855Z 2025-10-04 19:29:51,114 - src.bot.handlers - INFO - /start completed in 2366ms for user 8376823449
+2025-10-04T19:29:51.117213955Z 2025-10-04 19:29:51,117 - src.web.app - INFO - Update processed successfully: None
+2025-10-04T19:29:56.697061681Z 2025-10-04 19:29:56,696 - src.web.app - INFO - Webhook received POST request
+2025-10-04T19:29:56.69752522Z 2025-10-04 19:29:56,697 - src.web.app - INFO - Parsed update object: update_id=13160331
+2025-10-04T19:29:56.697674043Z 2025-10-04 19:29:56,697 - src.web.app - INFO - Update submitted to event loop successfully
+2025-10-04T19:29:56.697749214Z 2025-10-04 19:29:56,697 - src.web.app - INFO - Successfully queued update 13160331 for processing
+2025-10-04T19:29:56.697994909Z 2025-10-04 19:29:56,697 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 19:29:56] "POST /webhook HTTP/1.1" 200 -
+2025-10-04T19:29:56.698254694Z 2025-10-04 19:29:56,698 - src.bot.handlers - INFO - 📥 /help command received from user 8376823449 in chat -1003103932608
+2025-10-04T19:29:57.664547596Z 2025-10-04 19:29:57,664 - src.web.app - INFO - Update processed successfully: None
+2025-10-04T19:30:03.098231956Z 2025-10-04 19:30:03,098 - apscheduler.executors.default - INFO - Running job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-04 19:35:03 UTC)" (scheduled at 2025-10-04 19:30:03.091745+00:00)
+2025-10-04T19:30:03.102889824Z 2025-10-04 19:30:03,102 - apscheduler.executors.default - INFO - Job "track_memory_usage (trigger: interval[0:05:00], next run at: 2025-10-04 19:35:03 UTC)" executed successfully
+2025-10-04T19:30:04.351430637Z 2025-10-04 19:30:04,351 - src.web.app - INFO - Webhook received POST request
+2025-10-04T19:30:04.351706842Z 2025-10-04 19:30:04,351 - src.web.app - INFO - Parsed update object: update_id=13160332
+2025-10-04T19:30:04.351873385Z 2025-10-04 19:30:04,351 - src.web.app - INFO - Update submitted to event loop successfully
+2025-10-04T19:30:04.352082379Z 2025-10-04 19:30:04,351 - src.web.app - INFO - Successfully queued update 13160332 for processing
+2025-10-04T19:30:04.35262523Z 2025-10-04 19:30:04,352 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 19:30:04] "POST /webhook HTTP/1.1" 200 -
+2025-10-04T19:30:04.3526414Z 2025-10-04 19:30:04,352 - src.bot.handlers - INFO - Received answer from user 8376823449 for poll 6271355179392565747
+2025-10-04T19:30:04.36687512Z 2025-10-04 19:30:04,361 - src.bot.handlers - INFO - Updated stats in database for user 8376823449: correct=True
+2025-10-04T19:30:04.366900561Z 2025-10-04 19:30:04,361 - src.core.quiz - INFO - Recording attempt for user 8376823449: correct=True
+2025-10-04T19:30:04.366905541Z 2025-10-04 19:30:04,361 - src.core.quiz - INFO - Successfully recorded attempt for user 8376823449: score=2, streak=1
+2025-10-04T19:30:04.366910671Z 2025-10-04 19:30:04,362 - src.bot.handlers - INFO - Recorded quiz attempt for user 8376823449 in chat -1003103932608 (correct: True)
+2025-10-04T19:30:04.366929811Z 2025-10-04 19:30:04,362 - src.web.app - INFO - Update processed successfully: None
+2025-10-04T19:30:06.558945433Z 2025-10-04 19:30:06,558 - src.web.app - INFO - Webhook received POST request
+2025-10-04T19:30:06.559353121Z 2025-10-04 19:30:06,559 - src.web.app - INFO - Parsed update object: update_id=13160333
+2025-10-04T19:30:06.559485363Z 2025-10-04 19:30:06,559 - src.web.app - INFO - Update submitted to event loop successfully
+2025-10-04T19:30:06.559679327Z 2025-10-04 19:30:06,559 - src.web.app - INFO - Successfully queued update 13160333 for processing
+2025-10-04T19:30:06.559917941Z 2025-10-04 19:30:06,559 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 19:30:06] "POST /webhook HTTP/1.1" 200 -
+2025-10-04T19:30:08.358250846Z 2025-10-04 19:30:08,358 - src.bot.handlers - INFO - Showed stats to user 8376823449 in 1797ms
+2025-10-04T19:30:08.362539348Z 2025-10-04 19:30:08,362 - src.web.app - INFO - Update processed successfully: None
+2025-10-04T19:30:10.669444181Z 2025-10-04 19:30:10,669 - src.web.app - INFO - Webhook received POST request
+2025-10-04T19:30:10.66989708Z 2025-10-04 19:30:10,669 - src.web.app - INFO - Parsed update object: update_id=13160334
+2025-10-04T19:30:10.670043163Z 2025-10-04 19:30:10,669 - src.web.app - INFO - Update submitted to event loop successfully
+2025-10-04T19:30:10.670056243Z 2025-10-04 19:30:10,670 - src.web.app - INFO - Successfully queued update 13160334 for processing
+2025-10-04T19:30:10.670359639Z 2025-10-04 19:30:10,670 - werkzeug - INFO - 127.0.0.1 - - [04/Oct/2025 19:30:10] "POST /webhook HTTP/1.1" 200 -
+2025-10-04T19:30:10.670733426Z 2025-10-04 19:30:10,670 - src.web.app - INFO - Update processed successfully: None
