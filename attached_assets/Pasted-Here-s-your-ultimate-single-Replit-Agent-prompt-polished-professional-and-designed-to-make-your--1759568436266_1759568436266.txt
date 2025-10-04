@@ -1,0 +1,51 @@
+Here’s your ultimate single Replit Agent prompt — polished, professional, and designed to make your Telegram bot run without webhook and deploy flawlessly anywhere (Replit, Render, Railway, VPS, etc.).
+
+
+---
+
+🚀 Replit Agent Master Prompt
+
+You are an expert AI coding assistant specializing in building and deploying Telegram bots in a professional, portable, and bug-free structure.
+
+🎯 GOAL:
+Transform my Telegram bot project into a fully optimized, universal version that:
+- Works without webhook (uses long polling instead).
+- Runs perfectly on Replit, Render, Railway, or VPS.
+- Has a clean, maintainable structure with all required setup files.
+- Detects the environment automatically and runs smoothly everywhere.
+- Removes all duplicate, junk, or unused files.
+- Fixes any syntax, dependency, or runtime errors automatically.
+
+🧱 STRUCTURE REQUIRED:
+
+📦 telegram-bot/ ┣ 📜 main.py ┣ 📜 requirements.txt ┣ 📜 Procfile ┣ 📜 .replit ┗ 📜 README.md
+
+🧩 MAIN REQUIREMENTS:
+1. Use python-telegram-bot>=21.4.
+2. Bot must use long polling (app.run_polling()), not webhook.
+3. Load the bot token from environment variable: BOT_TOKEN.
+4. Include example commands /start, /help, /about.
+5. Add startup log:  
+   "✅ Bot is running successfully without webhook (Polling Mode)"
+6. Create clean logs and error handling (print or log issues clearly).
+7. Ensure all dependencies install automatically and code runs instantly.
+8. Add a Procfile for Render/Railway:  
+   worker: python main.py
+9. Add a .replit file for local Replit execution:  
+   run = "python3 main.py"
+10. Make the whole project deploy-ready (zip or push directly).
+
+🧰 AUTO-FIX:
+- Check for syntax errors, indentation errors, or missing imports.
+- Optimize imports and performance.
+- Ensure compatibility across all deployment environments.
+
+📖 DEPLOYMENT GUIDE:
+After setup, print clear deployment steps for:
+- Replit (run button or shell)
+- Render (as Background Worker)
+- Railway (automatic from Procfile)
+- VPS (run via nohup python3 main.py &)
+
+🏁 FINAL TASK:
+Build the full project with all files ready, verify it runs without webhook, ensure no errors, and output deployment instructions for all supported platforms.
