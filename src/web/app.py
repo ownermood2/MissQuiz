@@ -22,9 +22,19 @@ def start_background_loop(loop: asyncio.AbstractEventLoop) -> None:
     loop.run_forever()
 
 def run_coroutine_threadsafe(coro, loop):
-    """Submit coroutine to background event loop and return immediately"""
+    """Submit coroutine to background event loop with done callback for logging"""
     if loop and loop.is_running():
-        asyncio.run_coroutine_threadsafe(coro, loop)
+        future = asyncio.run_coroutine_threadsafe(coro, loop)
+        
+        def done_callback(fut):
+            try:
+                result = fut.result()
+                logger.info(f"Update processed successfully: {result}")
+            except Exception as e:
+                logger.error(f"Update processing failed with exception: {e}", exc_info=True)
+        
+        future.add_done_callback(done_callback)
+        logger.info("Update submitted to event loop successfully")
     else:
         logger.error("Event loop not running, cannot process update")
 
@@ -159,26 +169,41 @@ def webhook():
     global telegram_bot, event_loop
     
     try:
+        logger.info("Webhook received POST request")
+        
         if not telegram_bot or not telegram_bot.application:
             logger.error("Bot not initialized for webhook")
             return jsonify({'status': 'error', 'message': 'Bot not initialized'}), 500
         
         update_data = request.get_json(force=True)
+        logger.debug(f"Received update with {len(update_data)} fields")
+        
         if not update_data:
+            logger.warning("Empty update data received")
             return jsonify({'status': 'ok'}), 200
         
-        update = Update.de_json(update_data, telegram_bot.application.bot)
+        try:
+            update = Update.de_json(update_data, telegram_bot.application.bot)
+            logger.info(f"Parsed update object: update_id={update.update_id}")
+        except Exception as e:
+            logger.error(f"Failed to parse update from JSON: {e}", exc_info=True)
+            return jsonify({'status': 'error', 'message': 'Invalid update format'}), 400
         
         # Submit update to persistent event loop (non-blocking)
-        run_coroutine_threadsafe(
-            telegram_bot.application.process_update(update),
-            event_loop
-        )
+        try:
+            run_coroutine_threadsafe(
+                telegram_bot.application.process_update(update),
+                event_loop
+            )
+            logger.info(f"Successfully queued update {update.update_id} for processing")
+        except Exception as e:
+            logger.error(f"Failed to submit update to event loop: {e}", exc_info=True)
+            return jsonify({'status': 'error', 'message': 'Failed to queue update'}), 500
         
         return jsonify({'status': 'ok'}), 200
         
     except Exception as e:
-        logger.error(f"Error processing webhook: {e}")
+        logger.error(f"Unexpected error in webhook handler: {e}", exc_info=True)
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/api/questions', methods=['GET'])
