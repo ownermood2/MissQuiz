@@ -141,7 +141,7 @@ def webhook():
             return jsonify({'status': 'ok'}), 200
         
         update = Update.de_json(update_data, telegram_bot.application.bot)
-        asyncio.run(telegram_bot.application.process_update(update))
+        telegram_bot.application.update_queue.put_nowait(update)
         
         return jsonify({'status': 'ok'}), 200
         
