@@ -1,0 +1,12 @@
+{"message":"Starting Container","attributes":{"level":"info"},"timestamp":"2025-10-04T07:35:14.000000000Z"}
+{"message":"2025-10-04 07:35:14,970 - __main__ - CRITICAL - Fatal error: TELEGRAM_TOKEN environment variable is required","attributes":{"level":"error"},"timestamp":"2025-10-04T07:35:15.921650364Z"}
+{"message":"2025-10-04 07:35:16,467 - __main__ - CRITICAL - Fatal error: TELEGRAM_TOKEN environment variable is required","attributes":{"level":"error"},"timestamp":"2025-10-04T07:35:16.468172322Z"}
+{"message":"2025-10-04 07:35:17,905 - __main__ - CRITICAL - Fatal error: TELEGRAM_TOKEN environment variable is required","attributes":{"level":"error"},"timestamp":"2025-10-04T07:35:17.931706328Z"}
+{"message":"2025-10-04 07:35:19,429 - __main__ - CRITICAL - Fatal error: TELEGRAM_TOKEN environment variable is required","attributes":{"level":"error"},"timestamp":"2025-10-04T07:35:19.439575978Z"}
+{"message":"2025-10-04 07:35:20,766 - __main__ - CRITICAL - Fatal error: TELEGRAM_TOKEN environment variable is required","attributes":{"level":"error"},"timestamp":"2025-10-04T07:35:20.798537179Z"}
+{"message":"2025-10-04 07:35:22,022 - __main__ - CRITICAL - Fatal error: TELEGRAM_TOKEN environment variable is required","attributes":{"level":"error"},"timestamp":"2025-10-04T07:35:22.039370164Z"}
+{"message":"2025-10-04 07:35:24,023 - __main__ - CRITICAL - Fatal error: TELEGRAM_TOKEN environment variable is required","attributes":{"level":"error"},"timestamp":"2025-10-04T07:35:24.028634362Z"}
+{"message":"2025-10-04 07:35:25,648 - __main__ - CRITICAL - Fatal error: TELEGRAM_TOKEN environment variable is required","attributes":{"level":"error"},"timestamp":"2025-10-04T07:35:25.649540984Z"}
+{"message":"2025-10-04 07:35:27,376 - __main__ - CRITICAL - Fatal error: TELEGRAM_TOKEN environment variable is required","attributes":{"level":"error"},"timestamp":"2025-10-04T07:35:27.377523761Z"}
+{"message":"2025-10-04 07:35:28,942 - __main__ - CRITICAL - Fatal error: TELEGRAM_TOKEN environment variable is required","attributes":{"level":"error"},"timestamp":"2025-10-04T07:35:28.949064206Z"}
+{"message":"2025-10-04 07:35:30,372 - __main__ - CRITICAL - Fatal error: TELEGRAM_TOKEN environment variable is required","attributes":{"level":"error"},"timestamp":"2025-10-04T07:35:30.378716332Z"}
