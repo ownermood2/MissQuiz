@@ -7,6 +7,7 @@ from typing import List, Dict, Optional, Any
 from datetime import datetime, timedelta
 from collections import defaultdict, deque
 from src.core.database import DatabaseManager
+from src.core.exceptions import QuestionNotFoundError, ValidationError, DatabaseError
 
 logger = logging.getLogger(__name__)
 
@@ -62,9 +63,12 @@ class QuizManager:
                 if not os.path.exists(file_path):
                     with open(file_path, 'w') as f:
                         json.dump(default_data, f)
+        except OSError as e:
+            logger.error(f"Failed to create data directory or files: {e}")
+            raise DatabaseError(f"Failed to initialize data files in data directory: {e}") from e
         except Exception as e:
-            logger.error(f"Error initializing files: {e}")
-            raise
+            logger.error(f"Unexpected error initializing files: {e}")
+            raise DatabaseError(f"Unexpected error during file initialization: {e}") from e
 
     def load_data(self):
         """Load all data with proper error handling"""
@@ -144,9 +148,12 @@ class QuizManager:
             logger.info(f"Active users with stats: {len(self.stats)}")
             logger.info(f"Users with scores: {len(self.scores)}")
 
+        except (json.JSONDecodeError, FileNotFoundError) as e:
+            logger.error(f"Failed to load data files: {str(e)}\n{traceback.format_exc()}")
+            raise DatabaseError(f"Failed to load quiz data from files: {e}") from e
         except Exception as e:
             logger.error(f"Critical error loading data: {str(e)}\n{traceback.format_exc()}")
-            raise
+            raise DatabaseError(f"Unexpected error during data loading: {e}") from e
 
     def save_data(self, force=False):
         """Save data with throttling to prevent excessive writes"""
@@ -170,9 +177,12 @@ class QuizManager:
 
             self._last_save = current_time
             logger.info(f"All data saved successfully. Questions count: {len(self.questions)}")
+        except (OSError, IOError) as e:
+            logger.error(f"Failed to save data files: {str(e)}\n{traceback.format_exc()}")
+            raise DatabaseError(f"Failed to save quiz data to files: {e}") from e
         except Exception as e:
-            logger.error(f"Error saving data: {str(e)}\n{traceback.format_exc()}")
-            raise
+            logger.error(f"Unexpected error saving data: {str(e)}\n{traceback.format_exc()}")
+            raise DatabaseError(f"Unexpected error during data save: {e}") from e
 
     def _init_user_stats(self, user_id: str) -> None:
         """Initialize stats for a new user with enhanced tracking"""
@@ -436,9 +446,11 @@ class QuizManager:
             self.save_data()
             logger.debug(f"Recorded group attempt for user {user_id} in chat {chat_id} (correct={is_correct})")
 
-        except Exception as e:
-            logger.error(f"Error recording group attempt: {e}")
+        except DatabaseError:
             raise
+        except Exception as e:
+            logger.error(f"Failed to record group attempt for user {user_id} in chat {chat_id}: {e}")
+            raise DatabaseError(f"Failed to record group attempt: {e}") from e
 
     def _initialize_available_questions(self, chat_id: int):
         """Initialize or reset available questions for a chat"""
@@ -461,17 +473,18 @@ class QuizManager:
         """
         # Input validation
         if category is not None and not isinstance(category, str):
-            raise ValueError(f"category must be a string, got {type(category).__name__}")
+            raise ValidationError(f"category must be a string, got {type(category).__name__}")
         
         try:
             if not self.questions:
+                logger.warning("No questions available in the quiz database")
                 return None
 
             # Filter questions by category if specified
             if category:
                 # Validate category is non-empty
                 if not category.strip():
-                    raise ValueError("category must be a non-empty string when provided")
+                    raise ValidationError("category must be a non-empty string when provided")
                     
                 # Get questions from database with category filter
                 db_questions = self.db.get_questions_by_category(category)
@@ -546,8 +559,10 @@ class QuizManager:
 
         except Exception as e:
             logger.error(f"Error in get_random_question: {e}\n{traceback.format_exc()}")
-            # Fallback to completely random selection
-            return random.choice(self.questions)
+            # Fallback to completely random selection if questions available
+            if self.questions:
+                return random.choice(self.questions)
+            return None
 
     def get_leaderboard(self) -> List[Dict]:
         """Get global leaderboard with caching"""
@@ -604,9 +619,9 @@ class QuizManager:
         """
         # Input validation
         if user_id <= 0:
-            raise ValueError(f"user_id must be a positive integer, got {user_id}")
+            raise ValidationError(f"user_id must be a positive integer, got {user_id}")
         if category is not None and not isinstance(category, str):
-            raise ValueError(f"category must be a string, got {type(category).__name__}")
+            raise ValidationError(f"category must be a string, got {type(category).__name__}")
             
         try:
             user_id_str = str(user_id)
@@ -662,9 +677,13 @@ class QuizManager:
             # Removed save_data() to prevent unnecessary I/O on every quiz answer
             logger.info(f"Successfully recorded attempt for user {user_id}: score={self.scores.get(user_id_str)}, streak={stats['current_streak']}")
 
-        except Exception as e:
-            logger.error(f"Error recording attempt for user {user_id}: {str(e)}\n{traceback.format_exc()}")
+        except ValidationError:
             raise
+        except DatabaseError:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to record attempt for user {user_id}: {str(e)}\n{traceback.format_exc()}")
+            raise DatabaseError(f"Failed to record quiz attempt: {e}") from e
 
     def add_questions(self, questions_data: List[Dict], allow_duplicates: bool = False) -> Dict:
         """Add multiple questions with validation and duplicate detection
@@ -798,31 +817,31 @@ class QuizManager:
     def edit_question(self, index: int, data: Dict):
         """Edit an existing question with validation"""
         if not (0 <= index < len(self.questions)):
-            raise ValueError(f"Question index {index} out of range")
+            raise ValidationError(f"Question index {index} out of range (0-{len(self.questions)-1})")
         
         # Validate question data
         question = data.get('question', '').strip()
         if not question:
-            raise ValueError("Question text cannot be empty")
+            raise ValidationError("Question text cannot be empty")
         
         # Validate options
         options = data.get('options', [])
         if not isinstance(options, list) or len(options) != 4:
-            raise ValueError("Must provide exactly 4 options")
+            raise ValidationError("Must provide exactly 4 options")
         
         # Clean and validate options
         options = [opt.strip() for opt in options]
         if any(not opt for opt in options):
-            raise ValueError("All options must have text")
+            raise ValidationError("All options must have text")
         
         # Check for duplicate options
         if len(set(options)) != len(options):
-            raise ValueError("Options must be unique")
+            raise ValidationError("Options must be unique")
         
         # Validate correct answer
         correct_answer = data.get('correct_answer')
         if not isinstance(correct_answer, int) or not (0 <= correct_answer < 4):
-            raise ValueError("Correct answer must be 0, 1, 2, or 3")
+            raise ValidationError("Correct answer must be 0, 1, 2, or 3")
         
         # Update question
         self.questions[index] = {
@@ -838,7 +857,7 @@ class QuizManager:
     def delete_question(self, index: int):
         """Delete a question with validation and forced save"""
         if not (0 <= index < len(self.questions)):
-            raise ValueError(f"Question index {index} out of range")
+            raise ValidationError(f"Question index {index} out of range (0-{len(self.questions)-1})")
         
         deleted = self.questions.pop(index)
         self.save_data(force=True)
@@ -1017,9 +1036,11 @@ class QuizManager:
                 'removed_count': removed_count,
                 'remaining_count': len(self.questions)
             }
-        except Exception as e:
-            logger.error(f"Error removing invalid questions: {e}")
+        except DatabaseError:
             raise
+        except Exception as e:
+            logger.error(f"Failed to remove invalid questions: {e}")
+            raise DatabaseError(f"Failed to remove invalid questions: {e}") from e
 
     def clear_all_questions(self) -> bool:
         """Clear all questions from the database"""
@@ -1084,9 +1105,11 @@ class QuizManager:
             logger.info(f"- Questions loaded: {len(self.questions)}")
             return True
 
-        except Exception as e:
-            logger.error(f"Error reloading data: {str(e)}\n{traceback.format_exc()}")
+        except DatabaseError:
             raise
+        except Exception as e:
+            logger.error(f"Failed to reload quiz data: {str(e)}\n{traceback.format_exc()}")
+            raise DatabaseError(f"Failed to reload data: {e}") from e
 
     def get_group_last_activity(self, chat_id: str) -> Optional[str]:
         """Get the last activity date for a group"""

@@ -8,6 +8,7 @@ import logging
 from dataclasses import dataclass
 from typing import Optional
 from pathlib import Path
+from src.core.exceptions import ConfigurationError
 
 logger = logging.getLogger(__name__)
 
@@ -79,9 +80,9 @@ class Config:
     def validate(self):
         """Validate required fields"""
         if not self.telegram_token:
-            raise ValueError("TELEGRAM_TOKEN environment variable is required")
+            raise ConfigurationError("TELEGRAM_TOKEN environment variable is required")
         if not self.session_secret:
-            raise ValueError("SESSION_SECRET environment variable is required")
+            raise ConfigurationError("SESSION_SECRET environment variable is required")
     
     def get_mode(self) -> str:
         """Auto-detect deployment mode based on environment"""

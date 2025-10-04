@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 from contextlib import contextmanager
 from src.core import config
+from src.core.exceptions import DatabaseError
 
 logger = logging.getLogger(__name__)
 
@@ -20,35 +21,51 @@ class DatabaseManager:
     def __init__(self, db_path: str = None):
         """Initialize database manager"""
         self.db_path = db_path or config.DATABASE_PATH
-        self.init_database()
-        logger.info(f"Database initialized at {self.db_path}")
+        try:
+            self.init_database()
+            logger.info(f"Database initialized at {self.db_path}")
+        except DatabaseError:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to initialize database: {e}")
+            raise DatabaseError(f"Failed to initialize database: {e}") from e
         
         # Run timestamp migration to fix ISO format timestamps
         try:
             migration_result = self.migrate_iso_timestamps_to_space_format()
             if migration_result['activity_logs'] > 0 or migration_result['performance_metrics'] > 0:
                 logger.info(f"Migrated timestamps: activity_logs={migration_result['activity_logs']}, performance_metrics={migration_result['performance_metrics']}")
+        except DatabaseError:
+            logger.error(f"Timestamp migration failed (non-critical)")
         except Exception as e:
             logger.error(f"Timestamp migration failed (non-critical): {e}")
     
     @contextmanager
     def get_connection(self):
         """Context manager for database connections"""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        
-        # Enable WAL mode for better concurrency performance
-        conn.execute('PRAGMA journal_mode=WAL')
-        
         try:
-            yield conn
-            conn.commit()
-        except Exception as e:
-            conn.rollback()
-            logger.error(f"Database error: {e}")
-            raise
-        finally:
-            conn.close()
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            
+            # Enable WAL mode for better concurrency performance
+            conn.execute('PRAGMA journal_mode=WAL')
+            
+            try:
+                yield conn
+                conn.commit()
+            except sqlite3.Error as e:
+                conn.rollback()
+                logger.error(f"Database operation failed: {e}")
+                raise DatabaseError(f"Database operation failed: {e}") from e
+            except Exception as e:
+                conn.rollback()
+                logger.error(f"Unexpected error during database operation: {e}")
+                raise DatabaseError(f"Unexpected error during database operation: {e}") from e
+            finally:
+                conn.close()
+        except sqlite3.Error as e:
+            logger.error(f"Failed to connect to database at {self.db_path}: {e}")
+            raise DatabaseError(f"Failed to connect to database at {self.db_path}: {e}") from e
     
     def init_database(self):
         """Initialize database schema"""
