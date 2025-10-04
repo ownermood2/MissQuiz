@@ -1,0 +1,49 @@
+ Deploying...
+2025-10-04 15:09:23,927 - __main__ - WARNING - ⚠️ WEBHOOK MODE DETECTED
+2025-10-04 15:09:23,927 - __main__ - WARNING - ⚠️ For production, use: gunicorn src.web.wsgi:app --bind 0.0.0.0:$PORT
+2025-10-04 15:09:23,927 - __main__ - WARNING - ⚠️ For development, set MODE=polling or remove WEBHOOK_URL
+2025-10-04 15:09:23,927 - __main__ - INFO - Starting Flask dev server for testing...
+2025-10-04 15:09:27,669 - src.core.database - INFO - Added category column to questions table
+2025-10-04 15:09:27,676 - src.core.database - INFO - Added last_quiz_message_id column to users table
+2025-10-04 15:09:27,790 - src.core.database - INFO - Database schema initialized successfully with optimized indexes
+2025-10-04 15:09:27,790 - src.core.database - INFO - Database initialized at data/quiz_bot.db with connection pooling
+2025-10-04 15:09:27,791 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+2025-10-04 15:09:27,791 - src.core.quiz - INFO - Database connection initialized in QuizManager
+2025-10-04 15:09:27,792 - src.core.quiz - INFO - Successfully loaded and cleaned 235 questions
+2025-10-04 15:09:27,792 - src.core.quiz - INFO - Active chats: 0
+2025-10-04 15:09:27,792 - src.core.quiz - INFO - Active users with stats: 0
+2025-10-04 15:09:27,792 - src.core.quiz - INFO - Users with scores: 0
+2025-10-04 15:09:27,792 - src.web.app - INFO - Quiz Manager initialized for webhook mode
+2025-10-04 15:09:27,794 - src.core.database - INFO - Database schema initialized successfully with optimized indexes
+2025-10-04 15:09:27,794 - src.core.database - INFO - Database initialized at data/quiz_bot.db with connection pooling
+2025-10-04 15:09:27,794 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+2025-10-04 15:09:27,794 - src.bot.dev_commands - INFO - Developer commands module initialized
+2025-10-04 15:09:27,794 - src.bot.handlers - INFO - TelegramQuizBot initialized with performance optimizations: user cache, activity batching, leaderboard cache
+2025-10-04 15:09:28,326 - src.bot.handlers - ERROR - Failed to initialize bot in webhook mode: 'TelegramQuizBot' object has no attribute 'track_pm_interaction'
+2025-10-04 15:09:28,327 - src.web.app - ERROR - Failed to initialize webhook bot: 'TelegramQuizBot' object has no attribute 'track_pm_interaction'
+2025-10-04 15:09:28,327 - __main__ - CRITICAL - Fatal error: 'TelegramQuizBot' object has no attribute 'track_pm_interaction'
+     ==> Exited with status 1
+     ==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
+2025-10-04 15:09:32,624 - __main__ - WARNING - ⚠️ WEBHOOK MODE DETECTED
+2025-10-04 15:09:32,624 - __main__ - WARNING - ⚠️ For production, use: gunicorn src.web.wsgi:app --bind 0.0.0.0:$PORT
+2025-10-04 15:09:32,625 - __main__ - WARNING - ⚠️ For development, set MODE=polling or remove WEBHOOK_URL
+2025-10-04 15:09:32,709 - __main__ - INFO - Starting Flask dev server for testing...
+2025-10-04 15:09:36,429 - src.core.database - INFO - Added category column to questions table
+2025-10-04 15:09:36,433 - src.core.database - INFO - Added last_quiz_message_id column to users table
+2025-10-04 15:09:36,527 - src.core.database - INFO - Database schema initialized successfully with optimized indexes
+2025-10-04 15:09:36,527 - src.core.database - INFO - Database initialized at data/quiz_bot.db with connection pooling
+2025-10-04 15:09:36,527 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+2025-10-04 15:09:36,528 - src.core.quiz - INFO - Database connection initialized in QuizManager
+2025-10-04 15:09:36,529 - src.core.quiz - INFO - Successfully loaded and cleaned 235 questions
+2025-10-04 15:09:36,529 - src.core.quiz - INFO - Active chats: 0
+2025-10-04 15:09:36,529 - src.core.quiz - INFO - Active users with stats: 0
+2025-10-04 15:09:36,529 - src.core.quiz - INFO - Users with scores: 0
+2025-10-04 15:09:36,529 - src.web.app - INFO - Quiz Manager initialized for webhook mode
+2025-10-04 15:09:36,530 - src.core.database - INFO - Database schema initialized successfully with optimized indexes
+2025-10-04 15:09:36,531 - src.core.database - INFO - Database initialized at data/quiz_bot.db with connection pooling
+2025-10-04 15:09:36,531 - src.core.database - INFO - Timestamp migration completed: {'activity_logs': 0, 'performance_metrics': 0}
+2025-10-04 15:09:36,531 - src.bot.dev_commands - INFO - Developer commands module initialized
+2025-10-04 15:09:36,531 - src.bot.handlers - INFO - TelegramQuizBot initialized with performance optimizations: user cache, activity batching, leaderboard cache
+2025-10-04 15:09:37,019 - src.bot.handlers - ERROR - Failed to initialize bot in webhook mode: 'TelegramQuizBot' object has no attribute 'track_pm_interaction'
+2025-10-04 15:09:37,020 - src.web.app - ERROR - Failed to initialize webhook bot: 'TelegramQuizBot' object has no attribute 'track_pm_interaction'
+2025-10-04 15:09:37,020 - __main__ - CRITICAL - Fatal error: 'TelegramQuizBot' object has no attribute 'track_pm_interaction'

@@ -1056,6 +1056,40 @@ class TelegramQuizBot:
         except Exception as e:
             logger.error(f"Error handling answer: {str(e)}\n{traceback.format_exc()}")
 
+    async def track_pm_interaction(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Track user interactions in private chats for activity logging"""
+        if not update.message:
+            return
+        if not update.effective_user:
+            return
+        if not update.effective_chat:
+            return
+
+        user_id = update.effective_user.id
+        chat_id = update.effective_chat.id
+        username = update.effective_user.username or ""
+
+        try:
+            self._add_or_update_user_cached(
+                user_id,
+                username,
+                update.effective_user.first_name,
+                update.effective_user.last_name
+            )
+            
+            self._queue_activity_log(
+                activity_type='pm_interaction',
+                user_id=user_id,
+                chat_id=chat_id,
+                username=username,
+                details={'message_length': len(update.message.text or "")},
+                success=True
+            )
+            logger.debug(f"PM interaction tracked for user {user_id}")
+
+        except Exception as e:
+            logger.error(f"Error tracking PM interaction for user {user_id}: {e}")
+
     async def send_friendly_error_message(self, chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Send a user-friendly error message"""
         error_message = """😅 Oops! Something went a bit wrong.
