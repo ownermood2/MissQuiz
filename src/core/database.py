@@ -442,17 +442,21 @@ class DatabaseManager:
         very large negative numbers (e.g., -1003103932608) that exceed PostgreSQL's
         INTEGER range (-2147483648 to 2147483647).
         
-        Strategy: Check if table exists, if it has INTEGER chat_id, DROP it completely.
-        Then CREATE TABLE will recreate it fresh with BIGINT.
+        Uses ALTER TABLE to change column type without losing data.
+        Works within the existing transaction context.
         
         Args:
             cursor: Database cursor
         """
-        tables_to_check = ['groups', 'quiz_history', 'activity_logs']
+        tables_to_migrate = ['groups', 'quiz_history', 'activity_logs']
         
-        for table_name in tables_to_check:
+        logger.info("🔍 Starting chat_id INTEGER to BIGINT migration check...")
+        
+        for table_name in tables_to_migrate:
             try:
-                # Check if table exists and what type chat_id column has
+                logger.info(f"Checking {table_name}.chat_id column type...")
+                
+                # Check if table exists and get chat_id column type
                 cursor.execute("""
                     SELECT table_name, column_name, data_type 
                     FROM information_schema.columns 
@@ -460,24 +464,34 @@ class DatabaseManager:
                 """, (table_name,))
                 
                 result = cursor.fetchone()
-                if result:
-                    if result['data_type'] == 'integer':
-                        logger.warning(f"⚠️ Found {table_name}.chat_id with INTEGER type - DROPPING table for BIGINT recreation...")
-                        cursor.execute(f"DROP TABLE IF EXISTS {table_name} CASCADE")
-                        cursor.connection.commit()  # Commit the DROP immediately
-                        logger.info(f"✅ Dropped {table_name} - will recreate with BIGINT")
-                    elif result['data_type'] == 'bigint':
-                        logger.info(f"✓ {table_name}.chat_id already uses BIGINT - no migration needed")
+                
+                if not result:
+                    logger.info(f"✓ Table {table_name} does not exist yet - will be created with BIGINT")
+                    continue
+                
+                current_type = result['data_type']
+                logger.info(f"  Current type: {current_type}")
+                
+                if current_type == 'integer':
+                    logger.warning(f"⚠️ {table_name}.chat_id is INTEGER - converting to BIGINT...")
+                    
+                    # Use ALTER TABLE to change column type (preserves data)
+                    alter_sql = f"ALTER TABLE {table_name} ALTER COLUMN chat_id TYPE BIGINT"
+                    cursor.execute(alter_sql)
+                    
+                    logger.info(f"✅ Successfully converted {table_name}.chat_id to BIGINT")
+                    
+                elif current_type == 'bigint':
+                    logger.info(f"✓ {table_name}.chat_id already uses BIGINT - no migration needed")
                 else:
-                    logger.debug(f"Table {table_name} not found - will be created fresh with BIGINT")
+                    logger.warning(f"⚠️ {table_name}.chat_id has unexpected type: {current_type}")
+                    
             except Exception as e:
-                logger.warning(f"Could not check {table_name}: {e} - will attempt fresh creation")
-                try:
-                    cursor.execute(f"DROP TABLE IF EXISTS {table_name} CASCADE")
-                    cursor.connection.commit()
-                    logger.info(f"Dropped {table_name} to ensure clean recreation")
-                except:
-                    pass  # If drop fails, CREATE TABLE will handle it
+                logger.error(f"❌ Error during migration check for {table_name}: {e}")
+                # Don't raise - allow other tables to be checked
+                # The error will be visible in logs for debugging
+        
+        logger.info("✅ Completed chat_id INTEGER to BIGINT migration check")
     
     def add_question(self, question: str, options: List[str], correct_answer: int) -> int:
         """Add a new quiz question to the database.
