@@ -1762,12 +1762,7 @@ Ready to begin? Try /quiz now! 🚀"""
         if not update.effective_chat:
             return
         
-        start_time = time.time()
-        try:
-            questions = self.quiz_manager.get_all_questions()
-            
-            if not questions:
-                await update.message.reply_text(f"""════════════════
+════════════════
 Add new quizzes using /addquiz command
 ════════════════""",
                     parse_mode=ParseMode.MARKDOWN
@@ -1910,13 +1905,6 @@ Failed to display quizzes. Please try again later.
         if not update.effective_chat:
             return
         
-        await update.message.reply_text(
-            "❌ This command is only available to developers.",
-            parse_mode=ParseMode.MARKDOWN
-        )
-    
-    async def is_developer(self, user_id: int) -> bool:
-        """Check if user is a developer with caching"""
         try:
             current_time = datetime.now()
             
@@ -1985,18 +1973,6 @@ Failed to display quizzes. Please try again later.
         if not update.effective_chat:
             return
         
-        if not await self.is_developer(update.message.from_user.id):
-            await self._handle_dev_command_unauthorized(update)
-            return
-        
-        try:
-            message_text = update.message.text.replace('/broadcast', '').strip()
-            
-            if not message_text:
-                await update.message.reply_text("Usage: /broadcast <message>")
-                return
-            
-            broadcast_message = f"""📢 𝗕𝗿𝗼𝗮𝗱𝗰𝗮𝘀𝘁 𝗠𝗲𝘀𝘀𝗮𝗴𝗲
 ════════════════
 
 {message_text}"""
@@ -2091,10 +2067,7 @@ Failed to display quizzes. Please try again later.
         if not update.effective_chat:
             return
         
-        questions = self.quiz_manager.get_all_questions()
-        
-        if not questions:
-            await update.message.reply_text(f"""════════════════
+════════════════
 Add new quizzes using /addquiz command
 ════════════════""",
                     parse_mode=ParseMode.MARKDOWN
@@ -2239,9 +2212,7 @@ Failed to process delete request. Please try again later.
         if not update.effective_chat:
             return
         
-        try:
-            if not context.args:
-                await update.message.reply_text(f"""════════════════
+════════════════
 Please provide the quiz number to confirm deletion.
 
 📝 Usage:
@@ -2316,11 +2287,7 @@ Failed to delete quiz. Please try again.
         if not update.effective_chat:
             return
         
-        start_time = time.time()
-        try:
-            total_questions = len(self.quiz_manager.get_all_questions())
-            
-            response = f"""════════════════
+════════════════
 📚 Total Quizzes Available: {total_questions}
 ════════════════
 
@@ -2397,7 +2364,7 @@ Use/help to see all commands."""
         if not update.effective_chat:
             return
         
-        await update.message.reply_text(f"""════════════════
+════════════════
 This quiz message is too old or no longer exists.
 Please use /editquiz to view all available quizzes.
 ════════════════""",
@@ -2413,7 +2380,7 @@ Please use /editquiz to view all available quizzes.
         if not update.effective_chat:
             return
         
-        await update.message.reply_text(f"""════════════════
+════════════════
 Please reply to a quiz message or use:
 /{command} [quiz_number]
 

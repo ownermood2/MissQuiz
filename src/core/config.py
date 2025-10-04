@@ -16,7 +16,7 @@ from src.core.exceptions import ConfigurationError
 logger = logging.getLogger(__name__)
 
 try:
-    from dotenv import load_dotenv
+    from dotenv import load_dotenv  # type: ignore
     env_path = Path('.') / '.env'
     if env_path.exists():
         load_dotenv(env_path)

@@ -34,7 +34,7 @@ class DatabaseManager:
     improved performance.
     """
     
-    def __init__(self, db_path: str = None):
+    def __init__(self, db_path: str | None = None):
         """Initialize database manager and set up schema.
         
         Creates database connection, initializes schema if needed, and runs
@@ -103,13 +103,16 @@ class DatabaseManager:
             
             try:
                 yield self._conn
-                self._conn.commit()
+                if self._conn:
+                    self._conn.commit()
             except sqlite3.Error as e:
-                self._conn.rollback()
+                if self._conn:
+                    self._conn.rollback()
                 logger.error(f"Database operation failed: {e}")
                 raise DatabaseError(f"Database operation failed: {e}") from e
             except Exception as e:
-                self._conn.rollback()
+                if self._conn:
+                    self._conn.rollback()
                 logger.error(f"Unexpected error during database operation: {e}")
                 raise DatabaseError(f"Unexpected error during database operation: {e}") from e
     
@@ -133,7 +136,9 @@ class DatabaseManager:
             DatabaseError: If schema creation or migration fails
         """
         with self.get_connection() as conn:
+            assert conn is not None
             cursor = conn.cursor()
+            assert cursor is not None
             
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS questions (
@@ -385,12 +390,15 @@ class DatabaseManager:
             DatabaseError: If question insertion fails
         """
         with self.get_connection() as conn:
+            assert conn is not None
             cursor = conn.cursor()
+            assert cursor is not None
             options_json = json.dumps(options)
             cursor.execute('''
                 INSERT INTO questions (question, options, correct_answer)
                 VALUES (?, ?, ?)
             ''', (question, options_json, correct_answer))
+            assert cursor.lastrowid is not None
             return cursor.lastrowid
     
     def get_all_questions(self) -> List[Dict]:
@@ -404,7 +412,9 @@ class DatabaseManager:
             DatabaseError: If query fails
         """
         with self.get_connection() as conn:
+            assert conn is not None
             cursor = conn.cursor()
+            assert cursor is not None
             cursor.execute('SELECT * FROM questions ORDER BY id')
             rows = cursor.fetchall()
             return [
@@ -430,7 +440,9 @@ class DatabaseManager:
             DatabaseError: If query fails
         """
         with self.get_connection() as conn:
+            assert conn is not None
             cursor = conn.cursor()
+            assert cursor is not None
             cursor.execute('SELECT * FROM questions WHERE category = ? ORDER BY id', (category,))
             rows = cursor.fetchall()
             return [
@@ -457,7 +469,9 @@ class DatabaseManager:
             DatabaseError: If deletion fails
         """
         with self.get_connection() as conn:
+            assert conn is not None
             cursor = conn.cursor()
+            assert cursor is not None
             cursor.execute('DELETE FROM questions WHERE id = ?', (question_id,))
             return cursor.rowcount > 0
     
@@ -477,7 +491,9 @@ class DatabaseManager:
             DatabaseError: If update fails
         """
         with self.get_connection() as conn:
+            assert conn is not None
             cursor = conn.cursor()
+            assert cursor is not None
             options_json = json.dumps(options)
             cursor.execute('''
                 UPDATE questions 
@@ -486,7 +502,7 @@ class DatabaseManager:
             ''', (question, options_json, correct_answer, question_id))
             return cursor.rowcount > 0
     
-    def add_or_update_user(self, user_id: int, username: str = None, first_name: str = None, last_name: str = None):
+    def add_or_update_user(self, user_id: int, username: str | None = None, first_name: str | None = None, last_name: str | None = None):
         """Add a new user or update existing user information.
         
         Uses UPSERT (INSERT OR UPDATE) to handle both new and existing users.
@@ -501,7 +517,9 @@ class DatabaseManager:
             DatabaseError: If operation fails
         """
         with self.get_connection() as conn:
+            assert conn is not None
             cursor = conn.cursor()
+            assert cursor is not None
             cursor.execute('''
                 INSERT INTO users (user_id, username, first_name, last_name)
                 VALUES (?, ?, ?, ?)
@@ -512,7 +530,7 @@ class DatabaseManager:
                     updated_at = CURRENT_TIMESTAMP
             ''', (user_id, username, first_name, last_name))
     
-    def update_user_score(self, user_id: int, is_correct: bool, activity_date: str = None):
+    def update_user_score(self, user_id: int, is_correct: bool, activity_date: str | None = None):
         """Update user score and statistics after answering a question.
         
         Updates user's current score, total quizzes, correct/wrong answers,
@@ -531,7 +549,9 @@ class DatabaseManager:
             activity_date = datetime.now().strftime('%Y-%m-%d')
         
         with self.get_connection() as conn:
+            assert conn is not None
             cursor = conn.cursor()
+            assert cursor is not None
             
             if is_correct:
                 cursor.execute('''
@@ -587,7 +607,9 @@ class DatabaseManager:
             DatabaseError: If query fails
         """
         with self.get_connection() as conn:
+            assert conn is not None
             cursor = conn.cursor()
+            assert cursor is not None
             cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,))
             row = cursor.fetchone()
             if row:
@@ -604,7 +626,9 @@ class DatabaseManager:
             DatabaseError: If query fails
         """
         with self.get_connection() as conn:
+            assert conn is not None
             cursor = conn.cursor()
+            assert cursor is not None
             cursor.execute('SELECT * FROM users ORDER BY current_score DESC')
             return [dict(row) for row in cursor.fetchall()]
     
@@ -620,7 +644,9 @@ class DatabaseManager:
             DatabaseError: If query fails
         """
         with self.get_connection() as conn:
+            assert conn is not None
             cursor = conn.cursor()
+            assert cursor is not None
             cursor.execute('SELECT * FROM users WHERE total_quizzes > 0 ORDER BY current_score DESC')
             return [dict(row) for row in cursor.fetchall()]
     
@@ -634,7 +660,9 @@ class DatabaseManager:
             DatabaseError: If query fails
         """
         with self.get_connection() as conn:
+            assert conn is not None
             cursor = conn.cursor()
+            assert cursor is not None
             cursor.execute('SELECT * FROM users WHERE has_pm_access = 1 ORDER BY current_score DESC')
             return [dict(row) for row in cursor.fetchall()]
     
@@ -649,15 +677,17 @@ class DatabaseManager:
             DatabaseError: If update fails
         """
         with self.get_connection() as conn:
+            assert conn is not None
             cursor = conn.cursor()
+            assert cursor is not None
             cursor.execute('''
                 UPDATE users 
                 SET has_pm_access = ?
                 WHERE user_id = ?
             ''', (1 if has_access else 0, user_id))
     
-    def add_developer(self, user_id: int, username: str = None, first_name: str = None, 
-                     last_name: str = None, added_by: int = None):
+    def add_developer(self, user_id: int, username: str | None = None, first_name: str | None = None, 
+                     last_name: str | None = None, added_by: int | None = None):
         """Add a developer with administrative privileges.
         
         Args:
@@ -671,7 +701,9 @@ class DatabaseManager:
             DatabaseError: If insertion fails
         """
         with self.get_connection() as conn:
+            assert conn is not None
             cursor = conn.cursor()
+            assert cursor is not None
             cursor.execute('''
                 INSERT OR REPLACE INTO developers (user_id, username, first_name, last_name, added_by)
                 VALUES (?, ?, ?, ?, ?)
@@ -690,7 +722,9 @@ class DatabaseManager:
             DatabaseError: If deletion fails
         """
         with self.get_connection() as conn:
+            assert conn is not None
             cursor = conn.cursor()
+            assert cursor is not None
             cursor.execute('DELETE FROM developers WHERE user_id = ?', (user_id,))
             return cursor.rowcount > 0
     
@@ -704,7 +738,9 @@ class DatabaseManager:
             DatabaseError: If query fails
         """
         with self.get_connection() as conn:
+            assert conn is not None
             cursor = conn.cursor()
+            assert cursor is not None
             cursor.execute('SELECT * FROM developers ORDER BY added_at')
             return [dict(row) for row in cursor.fetchall()]
     
@@ -726,7 +762,9 @@ class DatabaseManager:
             return True
         
         with self.get_connection() as conn:
+            assert conn is not None
             cursor = conn.cursor()
+            assert cursor is not None
             cursor.execute('SELECT 1 FROM developers WHERE user_id = ?', (user_id,))
             return cursor.fetchone() is not None
     
@@ -740,7 +778,7 @@ class DatabaseManager:
             user_id
         )
     
-    def add_or_update_group(self, chat_id: int, chat_title: str = None, chat_type: str = None):
+    def add_or_update_group(self, chat_id: int, chat_title: str | None = None, chat_type: str | None = None):
         """Add a new group or update existing group information.
         
         Args:
@@ -753,7 +791,9 @@ class DatabaseManager:
         """
         activity_date = datetime.now().strftime('%Y-%m-%d')
         with self.get_connection() as conn:
+            assert conn is not None
             cursor = conn.cursor()
+            assert cursor is not None
             cursor.execute('''
                 INSERT INTO groups (chat_id, chat_title, chat_type, last_activity_date)
                 VALUES (?, ?, ?, ?)
@@ -779,7 +819,9 @@ class DatabaseManager:
             DatabaseError: If query fails
         """
         with self.get_connection() as conn:
+            assert conn is not None
             cursor = conn.cursor()
+            assert cursor is not None
             if active_only:
                 cursor.execute('SELECT * FROM groups WHERE is_active = 1 ORDER BY last_activity_date DESC')
             else:
@@ -796,7 +838,9 @@ class DatabaseManager:
             DatabaseError: If update fails.
         """
         with self.get_connection() as conn:
+            assert conn is not None
             cursor = conn.cursor()
+            assert cursor is not None
             cursor.execute('''
                 UPDATE groups 
                 SET total_quizzes_sent = total_quizzes_sent + 1,
@@ -821,7 +865,9 @@ class DatabaseManager:
         """
         is_correct = 1 if user_answer == correct_answer else 0
         with self.get_connection() as conn:
+            assert conn is not None
             cursor = conn.cursor()
+            assert cursor is not None
             cursor.execute('''
                 INSERT INTO quiz_history (user_id, chat_id, question_id, question_text, 
                                         user_answer, correct_answer, is_correct)
@@ -831,7 +877,9 @@ class DatabaseManager:
     def get_stats_summary(self) -> Dict:
         """Get comprehensive statistics summary - OPTIMIZED: reduced 11 queries to 3 queries"""
         with self.get_connection() as conn:
+            assert conn is not None
             cursor = conn.cursor()
+            assert cursor is not None
             
             today = datetime.now().strftime('%Y-%m-%d')
             week_start = (datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) - 
@@ -900,7 +948,9 @@ class DatabaseManager:
                     for user_id, stats in users.items():
                         if isinstance(stats, dict) and 'total_quizzes' in stats:
                             with self.get_connection() as conn:
+                                assert conn is not None
                                 cursor = conn.cursor()
+                                assert cursor is not None
                                 cursor.execute('''
                                     INSERT OR REPLACE INTO users 
                                     (user_id, current_score, total_quizzes, correct_answers, 
@@ -956,7 +1006,9 @@ class DatabaseManager:
         """
         try:
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('''
                     INSERT INTO broadcasts (broadcast_id, sender_id, message_data)
                     VALUES (?, ?, ?)
@@ -977,7 +1029,9 @@ class DatabaseManager:
         """
         try:
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('''
                     SELECT broadcast_id, sender_id, message_data, sent_at
                     FROM broadcasts
@@ -1011,7 +1065,9 @@ class DatabaseManager:
         """
         try:
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('DELETE FROM broadcasts WHERE broadcast_id = ?', (broadcast_id,))
                 return cursor.rowcount > 0
         except Exception as e:
@@ -1034,7 +1090,9 @@ class DatabaseManager:
         """
         try:
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('DELETE FROM users WHERE user_id = ?', (user_id,))
                 success = cursor.rowcount > 0
                 if success:
@@ -1060,7 +1118,9 @@ class DatabaseManager:
         """
         try:
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('DELETE FROM groups WHERE chat_id = ?', (chat_id,))
                 success = cursor.rowcount > 0
                 if success:
@@ -1084,7 +1144,9 @@ class DatabaseManager:
         """
         try:
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 
                 if chat_id > 0:
                     cursor.execute('''
@@ -1119,7 +1181,9 @@ class DatabaseManager:
         """
         try:
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 
                 if chat_id > 0:
                     cursor.execute('SELECT last_quiz_message_id FROM users WHERE user_id = ?', (chat_id,))
@@ -1134,7 +1198,7 @@ class DatabaseManager:
             logger.error(f"Error getting last quiz message for chat {chat_id}: {e}")
             return None
     
-    def increment_quiz_count(self, date: str = None):
+    def increment_quiz_count(self, date: str | None = None):
         """Increment quiz count for specific date.
         
         Args:
@@ -1148,7 +1212,9 @@ class DatabaseManager:
         
         try:
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('''
                     INSERT INTO quiz_stats (date, quizzes_sent_count)
                     VALUES (?, 1)
@@ -1171,7 +1237,9 @@ class DatabaseManager:
         today = datetime.now().strftime('%Y-%m-%d')
         try:
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('SELECT quizzes_sent_count FROM quiz_stats WHERE date = ?', (today,))
                 row = cursor.fetchone()
                 return row[0] if row else 0
@@ -1194,7 +1262,9 @@ class DatabaseManager:
         
         try:
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('''
                     SELECT SUM(quizzes_sent_count) 
                     FROM quiz_stats 
@@ -1219,7 +1289,9 @@ class DatabaseManager:
         
         try:
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('''
                     SELECT SUM(quizzes_sent_count) 
                     FROM quiz_stats 
@@ -1242,7 +1314,9 @@ class DatabaseManager:
         """
         try:
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('SELECT SUM(quizzes_sent_count) FROM quiz_stats')
                 row = cursor.fetchone()
                 return row[0] if row and row[0] else 0
@@ -1280,7 +1354,9 @@ class DatabaseManager:
         """
         try:
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('''
                     INSERT INTO broadcast_logs 
                     (admin_id, message_text, total_targets, sent_count, failed_count, skipped_count)
@@ -1290,9 +1366,9 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error logging broadcast: {e}")
     
-    def log_activity(self, activity_type: str, user_id: int = None, chat_id: int = None, 
-                    username: str = None, chat_title: str = None, command: str = None, 
-                    details: dict = None, success: bool = True, response_time_ms: int = None):
+    def log_activity(self, activity_type: str, user_id: int | None = None, chat_id: int | None = None, 
+                    username: str | None = None, chat_title: str | None = None, command: str | None = None, 
+                    details: dict | None = None, success: bool = True, response_time_ms: int | None = None):
         """Log activity to the activity_logs table immediately.
         
         Args:
@@ -1316,7 +1392,9 @@ class DatabaseManager:
             success_int = 1 if success else 0
             
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('''
                     INSERT INTO activity_logs 
                     (timestamp, activity_type, user_id, chat_id, username, chat_title, 
@@ -1329,9 +1407,9 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error logging activity: {e}")
     
-    async def log_activity_async(self, activity_type: str, user_id: int = None, chat_id: int = None, 
-                                 username: str = None, chat_title: str = None, command: str = None, 
-                                 details: dict = None, success: bool = True, response_time_ms: int = None):
+    async def log_activity_async(self, activity_type: str, user_id: int | None = None, chat_id: int | None = None, 
+                                 username: str | None = None, chat_title: str | None = None, command: str | None = None, 
+                                 details: dict | None = None, success: bool = True, response_time_ms: int | None = None):
         """Async wrapper for log_activity to prevent event loop blocking."""
         loop = asyncio.get_event_loop()
         executor = await self.get_connection_async()
@@ -1341,7 +1419,7 @@ class DatabaseManager:
             activity_type, user_id, chat_id, username, chat_title, command, details, success, response_time_ms
         )
     
-    def get_recent_activities(self, limit: int = 100, activity_type: str = None) -> List[Dict]:
+    def get_recent_activities(self, limit: int = 100, activity_type: str | None = None) -> List[Dict]:
         """
         Get recent activities with optional filtering by type
         
@@ -1354,7 +1432,9 @@ class DatabaseManager:
         """
         try:
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 
                 if activity_type:
                     cursor.execute('''
@@ -1400,7 +1480,9 @@ class DatabaseManager:
         """
         try:
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('''
                     SELECT * FROM activity_logs 
                     WHERE user_id = ?
@@ -1438,7 +1520,9 @@ class DatabaseManager:
         """
         try:
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('''
                     SELECT * FROM activity_logs 
                     WHERE chat_id = ?
@@ -1476,7 +1560,9 @@ class DatabaseManager:
             today_end = datetime(now.year, now.month, now.day, 23, 59, 59).strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('''
                     SELECT COUNT(*) as count 
                     FROM activity_logs 
@@ -1512,7 +1598,9 @@ class DatabaseManager:
             start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 
                 cursor.execute('''
                     SELECT COUNT(*) as total 
@@ -1599,7 +1687,9 @@ class DatabaseManager:
             cutoff_timestamp = cutoff_datetime.strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('''
                     DELETE FROM activity_logs 
                     WHERE timestamp < ?
@@ -1630,7 +1720,9 @@ class DatabaseManager:
             start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('''
                     SELECT command, COUNT(*) as count 
                     FROM activity_logs 
@@ -1671,7 +1763,9 @@ class DatabaseManager:
             start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 
                 cursor.execute('''
                     SELECT COUNT(*) as count 
@@ -1750,7 +1844,9 @@ class DatabaseManager:
             month_start = datetime(now.year, now.month, 1, 0, 0, 0).strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 
                 cursor.execute('SELECT COUNT(*) as count FROM users')
                 total_users = cursor.fetchone()['count']
@@ -1816,7 +1912,9 @@ class DatabaseManager:
             start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('''
                     SELECT 
                         strftime('%Y-%m-%d %H:00:00', timestamp) as hour,
@@ -1858,7 +1956,9 @@ class DatabaseManager:
             start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 
                 cursor.execute('''
                     SELECT 
@@ -1919,7 +2019,9 @@ class DatabaseManager:
             start_time = time.time()
             
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 
                 cursor.execute('''
                     SELECT 
@@ -1987,7 +2089,9 @@ class DatabaseManager:
             start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('''
                     SELECT 
                         command, 
@@ -2040,7 +2144,9 @@ class DatabaseManager:
             week_start = (datetime(now.year, now.month, now.day, 0, 0, 0) - timedelta(days=now.weekday())).strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 
                 cursor.execute('''
                     SELECT 
@@ -2119,7 +2225,9 @@ class DatabaseManager:
         """
         try:
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('''
                     SELECT COUNT(*) FROM users WHERE total_quizzes > 0
                 ''')
@@ -2145,7 +2253,9 @@ class DatabaseManager:
             start_time = time.time()
             
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 
                 # Conditionally get total count based on skip_count flag
                 if skip_count:
@@ -2198,8 +2308,8 @@ class DatabaseManager:
             logger.error(f"Error getting leaderboard: {e}")
             return [], 0
     
-    def log_performance_metric(self, metric_type: str, value: float, metric_name: str = None, 
-                              unit: str = None, details: dict = None):
+    def log_performance_metric(self, metric_type: str, value: float, metric_name: str | None = None, 
+                              unit: str | None = None, details: dict | None = None):
         """
         Log performance metric in real-time
         
@@ -2215,7 +2325,9 @@ class DatabaseManager:
             details_json = json.dumps(details) if details else None
             
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('''
                     INSERT INTO performance_metrics (timestamp, metric_type, metric_name, value, unit, details)
                     VALUES (?, ?, ?, ?, ?, ?)
@@ -2224,8 +2336,8 @@ class DatabaseManager:
         except Exception as e:
             logger.debug(f"Error logging performance metric (non-critical): {e}")
     
-    async def log_performance_metric_async(self, metric_type: str, value: float, metric_name: str = None, 
-                                          unit: str = None, details: dict = None):
+    async def log_performance_metric_async(self, metric_type: str, value: float, metric_name: str | None = None, 
+                                          unit: str | None = None, details: dict | None = None):
         """Async wrapper for log_performance_metric to prevent event loop blocking."""
         loop = asyncio.get_event_loop()
         executor = await self.get_connection_async()
@@ -2256,7 +2368,9 @@ class DatabaseManager:
             start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 
                 cursor.execute('''
                     SELECT AVG(value) as avg_time
@@ -2348,7 +2462,9 @@ class DatabaseManager:
             start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('''
                     SELECT 
                         strftime('%Y-%m-%d %H:00:00', timestamp) as hour,
@@ -2385,7 +2501,9 @@ class DatabaseManager:
             start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('''
                     SELECT 
                         metric_name,
@@ -2418,7 +2536,9 @@ class DatabaseManager:
             start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('''
                     SELECT 
                         timestamp,
@@ -2452,7 +2572,9 @@ class DatabaseManager:
             cutoff_timestamp = cutoff_datetime.strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('''
                     DELETE FROM performance_metrics 
                     WHERE timestamp < ?
@@ -2482,7 +2604,9 @@ class DatabaseManager:
             start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('''
                     SELECT 
                         details,
@@ -2539,7 +2663,9 @@ class DatabaseManager:
                 start_timestamp = datetime(now.year, now.month, now.day, 0, 0, 0).strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('''
                     SELECT COUNT(DISTINCT user_id) as count
                     FROM activity_logs
@@ -2571,7 +2697,9 @@ class DatabaseManager:
             start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('''
                     SELECT * FROM users
                     WHERE joined_at >= ?
@@ -2602,7 +2730,9 @@ class DatabaseManager:
             start_timestamp = start_datetime.strftime('%Y-%m-%d %H:%M:%S')
             
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 cursor.execute('''
                     SELECT 
                         u.user_id,
@@ -2653,7 +2783,9 @@ class DatabaseManager:
             from datetime import timedelta
             
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 
                 if period == 'all':
                     cursor.execute('''
@@ -2731,7 +2863,9 @@ class DatabaseManager:
             from datetime import timedelta
             
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 now = datetime.now()
                 
                 # Calculate timestamps for all periods
@@ -2824,7 +2958,9 @@ class DatabaseManager:
         
         try:
             with self.get_connection() as conn:
+                assert conn is not None
                 cursor = conn.cursor()
+                assert cursor is not None
                 
                 # Migrate activity_logs timestamps
                 cursor.execute("SELECT id, timestamp FROM activity_logs WHERE timestamp LIKE '%T%'")
